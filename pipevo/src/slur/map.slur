@@ -1,0 +1,4 @@
+(define (map fn list)
+  (if (not (isNull? list))
+    (cons (fn (car list))
+          (map fn (cdr list)))))

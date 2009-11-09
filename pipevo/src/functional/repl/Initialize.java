@@ -33,7 +33,7 @@ public class Initialize {
 	public static Environment initWithLibraries() {
 		Environment env = init();
 
-		String[] libraries = new String[]{"consCombos.scm", "list.scm", "map.scm", "reduce.scm", "reverse.scm"};
+		String[] libraries = new String[]{"consCombos.slur", "list.slur", "map.slur", "reduce.slur", "reverse.slur"};
 
 		for( String library : libraries) {
 			loadLibrary(library, env);
@@ -44,7 +44,7 @@ public class Initialize {
 
 	private static void loadLibrary(String library, Environment env) {
 		try {
-			URL path = ClassLoader.getSystemResource("scheme/" + library);
+			URL path = ClassLoader.getSystemResource("slur/" + library);
 			if( path == null ) {
 				return;
 			}

@@ -7,7 +7,7 @@ package evolve.genes;
 import java.io.Serializable;
 import java.util.Random;
 
-import utils.StringRandom;
+import util.StringRandom;
 
 import evolve.Context;
 import evolve.Gene;

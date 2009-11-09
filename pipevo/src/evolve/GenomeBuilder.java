@@ -6,7 +6,7 @@ package evolve;
 
 import java.util.Random;
 
-import utils.StringRandom;
+import util.StringRandom;
 
 import functional.type.FunctionType;
 import functional.type.Type;
