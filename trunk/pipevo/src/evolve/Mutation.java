@@ -11,7 +11,7 @@ import evolve.genes.FixNumGenerator;
 import evolve.genes.RealGenerator;
 import functional.type.FunctionType;
 import functional.type.Type;
-import utils.Probability;
+import util.Probability;
 
 public class Mutation {
 	public static class Probabilities implements Serializable {
@@ -200,7 +200,7 @@ public class Mutation {
 		TypeBuilder typeBuilder = typeBuilder();
 		GeneBuilder builder = new GeneBuilder(typeBuilder, geneBuilderProbabilities(), context);
 		int chromasomeLength = mGeneRandomizer.selectChromasomeLength(random);
-		Chromasome chromasome = new Chromasome("crA_" + utils.StringRandom.alphaString(random, 5));
+		Chromasome chromasome = new Chromasome("crA_" + util.StringRandom.alphaString(random, 5));
 		context.addChromasome(chromasome);
 		for( int i = 0; i < chromasomeLength; ++i ) {
 			typeBuilder.allowAllConstrained();
@@ -218,7 +218,7 @@ public class Mutation {
 
 	public Chromasome createChromasome(Context context, Random random, FunctionType target) {
 		GeneBuilder builder = new GeneBuilder(typeBuilder(), geneBuilderProbabilities(), context);
-		Chromasome chromasome = new Chromasome("crT_" + utils.StringRandom.alphaString(random, 5));
+		Chromasome chromasome = new Chromasome("crT_" + util.StringRandom.alphaString(random, 5));
 		chromasome.addGene(builder.buildFunction(target, chromasome.nextGeneName(), random));
 		return chromasome;
 	}

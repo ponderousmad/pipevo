@@ -7,8 +7,8 @@ package evolve;
 import java.util.Random;
 import java.util.List;
 
-import utils.WeightedSet;
-import utils.Pair;
+import util.Pair;
+import util.WeightedSet;
 
 import evolve.GeneBuilder.BuildType;
 import evolve.genes.RealGenerator;
@@ -21,8 +21,8 @@ public class GeneRandomizer {
 		public List<Pair<BuildType,Integer>> buildTypeWeights = defaultBuildTypeWeights();
 		public int[] stringLengthWeights = new int[] {0,1,3,5,10,20,10,5,3,1,1,1,1,1,1,1,1,1,1,1};
 		public int[] listLengthWeights = new int[] {0,10,20,10,5,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-		public int[] chromasomeLengthWeights = new int[] {0,1,2,3,4,5,4,3,2,1};
-		public int[] genomeSizeWeights = new int[] {0,0,0,1,2,3,5,10,20,20,10};
+		public int[] chromasomeLengthWeights = new int[] {0,1,2,3,2,1};
+		public int[] genomeSizeWeights = new int[] {0,1,2,3,2,1};
 		public List<Pair<FixNumGenerator.Range,Integer>> fixnumRangeWeights = defaultFixnumRangeWeights();
 		public List<Pair<RealGenerator.Range,Integer>> realRangeWeights = defaultRealRangeWeights();
 		public double maybeIsNullProbability = .25;
@@ -100,7 +100,7 @@ public class GeneRandomizer {
 	}
 
 	public boolean maybeIsNull(Random random) {
-		return utils.Probability.select(random, mProbabilities.maybeIsNullProbability);
+		return util.Probability.select(random, mProbabilities.maybeIsNullProbability);
 	}
 
 	public FixNumGenerator.Range selectFixnumRange(Random random) {

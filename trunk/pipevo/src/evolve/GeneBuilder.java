@@ -7,8 +7,8 @@ package evolve;
 import java.util.List;
 import java.util.Random;
 
-import utils.StringRandom;
-import utils.WeightedSet;
+import util.StringRandom;
+import util.WeightedSet;
 
 import evolve.ObjectRegistry.TypedSymbol;
 import evolve.genes.ApplicationGene;

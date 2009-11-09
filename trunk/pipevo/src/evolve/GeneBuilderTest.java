@@ -12,7 +12,7 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.util.Random;
 
-import utils.StringRandom;
+import util.StringRandom;
 
 import evolve.Chromasome.Phene;
 import functional.Obj;

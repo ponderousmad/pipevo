@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import utils.ReweightedSet;
-import utils.WeightedSet;
-import utils.Pair;
+import util.Pair;
+import util.ReweightedSet;
+import util.WeightedSet;
 
 import functional.type.BaseType;
 import functional.type.ConsType;
@@ -86,7 +86,7 @@ public class TypeBuilder {
 
 		public Probabilities() {
 			mConcreteWeights = defaultWeights();
-			mArgCountDistribution = new int[]{3, 5, 10, 5, 4, 2, 1, 1};
+			mArgCountDistribution = new int[]{10, 10, 5, 2, 1, 1, 1};
 		}
 
 		public List<Pair<Type,Integer>> concreteWeights() {
@@ -376,7 +376,7 @@ public class TypeBuilder {
 	}
 
 	private boolean createNewParameter(Random random) {
-		return utils.Probability.select(random, mProbabilities.newParameterProbability);
+		return util.Probability.select(random, mProbabilities.newParameterProbability);
 	}
 
 	protected Type createParameter(Random random) {
