@@ -1,6 +1,6 @@
 # pipevo
 
-# Note: This branch is the last working Java version. I've started porting to javascript.
+# Note: This branch is the last working Java version. I've started porting to JavaScript.
 
 The project is all about experimenting with AI and genetic programming concepts. It includes a simple game where you place pipe tiles. There is also an interpreter for a small lisp that can talk to the game. Finally there is a genetic programming system that produces programs in that simple lisp that play the game. Badly, as it turns out.
 
