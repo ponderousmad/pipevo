@@ -319,7 +319,7 @@ var PIPES = (function () {
         return next;
     };
     
-    function Game(width, height, queueSize, delay, entropy) {
+    function Gameplay(width, height, queueSize, delay, entropy) {
         this.substrate = new Substrate(new SubstrateSize(width, height));
         this.queue = new PieceQueue(queueSize, entropy);
         this.delay = delay;
@@ -330,174 +330,129 @@ var PIPES = (function () {
         this.flowOut = this.source.type.outflow;
         this.flowPosition = this.sourcePosition;
         this.flowCount = -delay;
+        
+        this.observers = [];
     }
     
-    Game.prototype.setupSource = function() {
+    Gameplay.prototype.width = function () {
+        return this.substrate.size.width;
+    };
+    
+    Gameplay.prototype.height = function () {
+        return this.substrate.size.height;
+    };
+    
+    Gameplay.prototype.position = function (i, j) {
+        return new Position(this.substrate.size, this.i, this.j);
+    };
+    
+    Gameplay.prototype.setupSource = function() {
         this.source = randomPiece(SOURCE_TYPES, this.entropy);
-        this.sourcePosition = new Position(this.substrate.size,
-            randomInt(this.entropy, 0, this.substrate.size.width),
-            randomInt(this.entropy, 0, this.substrate.size.height)
+        this.sourcePosition = this.position(
+            randomInt(this.entropy, 0, this.width()),
+            randomInt(this.entropy, 0, this.height())
         );
         this.substrate.place(this.source, this.sourcePosition);
     };
-}());
 
-/**
- * Core Gameplay logic.
- * /
-public class GamePlay {
-	/**
-	 * Create a new default sized game with the given seed.
-	 * @param seed Random number generator seed.
-	 * @return A new gameplay object.
-	 * /
-	static public GamePlay create( long seed ) {
-		return new GamePlay( 12, 12, 5, 15, seed );
-	}
-
-	public boolean placeNext( Position position ) {
-		if( isGameOver() ) {
-			return false;
+	Gameplay.prototype.isGameOver = function () {
+		if (this.flowPiece === null) {
+			return true;
 		}
-		if( position.valid() && mSubstrate.isEmpty( position ) ) {
-			Piece nextPiece = mQueue.nextPiece();
-			mSubstrate.placePiece( position, nextPiece );
-			updateFlow();
+		var nextPos = this.flowPosition.to(this.flowOut);
+		if (!nextPos.valid()) {
+			return true;
+		}
+		var next = this.substrate.at(nextPos);
+		if (next !== null && !next.isPipeAt(OPPOSITES[this.flowOut]) ) {
 			return true;
 		}
 		return false;
-	}
-
-	public boolean isGameOver() {
-		if( mFlowPiece == null ) {
-			return true;
-		}
-		Position nextPos = mFlowPosition.to(mFlowOut);
-		if( !nextPos.valid() ) {
-			return true;
-		}
-		Piece next = mSubstrate.at(nextPos);
-		if( next != null && !next.isPipeAt(mFlowOut.opposite()) ) {
-			return true;
-		}
-		return false;
-	}
-
-	public int score() {
-		return mFlowCount > 0 ? mFlowCount : 0;
-	}
-
-	public Position sourcePosition() {
-		return mSourcePosition.clone();
-	}
-
-	public Side sourceOut() {
-		return mSourceOut;
-	}
-
-	public void updateFlow() {
-		++mFlowCount;
+	};
+    
+    Gameplay.prototype.placeNext = function(position) {
+        if (this.isGameOver()) {
+            return false;
+        }
+        if (position.valid() && this.substrate.isEmpty(position)) {
+            var next = this.queue.nextPiece();
+            this.substrate.place(position, next);
+            this.updateFlow();
+            return true;
+        }
+        return false;
+    };
+    
+    Gameplay.prototype.updateFlow = function () {
+		this.flowCount += 1;
 		// When we fill the source, we don't
 		// update the flow in/out
-		if( mFlowCount == -1 ) {
-			notify( Event.TAP );
-		} else if( mFlowCount == 0 ) {
-			mFlowPiece.fill( null );
-		} else if( mFlowCount > 0 ) {
+		if (this.flowCount == -1) {
+			this.notify("TAP");
+		} else if (this.flowCount === 0) {
+			this.flowPiece.fill(null);
+		} else if (this.flowCount > 0) {
 			// We have to wait till just before we
 			// fill the next piece to find out what piece
 			// is next, because it might have just
 			// been placed.
-			mFlowPosition.moveTo( mFlowOut );
-			mFlowPiece = mSubstrate.at( mFlowPosition );
-			if( mFlowPiece != null ) {
-				Side flowIn = mFlowOut.opposite();
-				mFlowPiece.fill( flowIn );
-				mFlowOut = mFlowPiece.getFarSide( flowIn );
+			this.flowPosition.moveTo(this.flowOut);
+			this.flowPiece = this.substrate.at(this.flowPosition);
+			if (this.flowPiece != null) {
+				var flowIn = OPPOSITES[this.flowOut];
+				this.flowPiece.fill(flowIn);
+				this.flowOut = this.flowPiece.getFarSide(flowIn);
 			}
 		}
-		notify( Event.FILL );
-	}
+		this.notify("FILL");
+	};
 
-	public interface GameplayObserver {
-		public enum Event { TAP, FILL }
-		void updateGameplay( Event event );
-	}
-
-	public void addObserver( GameplayObserver observer ) {
-		if( observer != null ) {
-			mObservers.add( observer );
-		}
-	}
-
-	public void clearObservers() {
-		mObservers.clear();
-	}
-
-	private void notify( Event event ) {
-		for( GameplayObserver observer : mObservers ) {
-			observer.updateGameplay( event );
-		}
-	}
-
-	/**
-	 * Get a look at the upcoming pieces.
-	 * @return
-	 * /
-	public Piece[] peek() {
-		return mQueue.peek();
-	}
-
-	/**
-	 * Gets the width of the board in tiles.
-	 * /
-	public int width() {
-		return mSize.width();
-	}
-
-	/**
-	 * Gets the height of the board in tiles.
-	 * /
-	public int height() {
-		return mSize.height();
-	}
-
-	/**
-	 * Construct a position object for this game board.
-	 * @param i The horizontal tile index (zero based).
-	 * @param j The vertial tile index (zero based).
-	 * @return A game position, invalid if the i and j are not valid indices.
-	 * /
-	public Position position( int i, int j ) {
-		return new Position( mSize, i, j );
-	}
-
-	/**
-	 * Gets the current game board contents.
-	 * /
-	public Substrate substrate() {
-		return mSubstrate;
-	}
-
-	/**
-	 * Force the time to flow so that the tap never opens.
-	 * /
-	public void setInfiniteTimeToFlow() {
-		mFlowCount = -1*(mSize.height()*mSize.width());
-	}
-
-	private SubstrateSize mSize;
-	private Substrate mSubstrate;
-	private PieceQueue mQueue;
-	private List<GameplayObserver> mObservers = new ArrayList<GameplayObserver>();
-
-	private int mFlowCount;
-	private Piece mFlowPiece;
-	private Side mFlowOut;
-	private Position mFlowPosition;
-
-	private Side mSourceOut;
-	private Position mSourcePosition;
-	private Random mRandom;
-}
-*/
+	Gameplay.prototype.score = function () {
+		return this.flowCount > 0 ? this.flowCount : 0;
+	};
+    
+    Gameplay.prototype.addObserver = function (observer) {
+        this.observers.push(observer);
+    };
+    
+    Gameplay.prototype.clearObservers = funcion () {
+        this.observers.splice(0, this.observers.length);
+    };
+    
+    Gameplay.prototype.notify = function (eventName) {
+        for (var i = 0; i < this.observers.length; ++i) {
+            this.observers[i](eventName);
+        }
+    };
+    
+    Gameplay.prototype.peek = function () {
+        return this.queue.queue;
+    };
+    
+    Gameplay.prototype.setInfiniteTimeToFlow = function () {
+        this.flowCount = -this.height() * this.width();
+    };
+    
+    // Constructs a gameplay object with the default setup.
+    function createDefault(entropy) {
+        return new Gameplay(12, 12, 5, 15, entropy);
+    }
+    
+    return {
+        Side: Side,
+        Corner: Corner,
+        OPPOSITES: OPPOSITES,
+        CLOCKWISE: CLOCKWISE,
+        COUNTER_CLOCKWISE: COUNTER_CLOCKWISE,
+        INVALID: INVALID,
+        SOURCE_TYPES: SOURCE_TYPES,
+        NON_SOURCE_TYPES: NON_SOURCE_TYPES,
+        SubstrateSize: SubstrateSize,
+        Position: Position,
+        PieceTypes: PieceTypes,
+        Piece: Piece,
+        Substrate: Substrate,
+        GamePlay: Gameplay,
+        createDefault: createDefault
+    };
+}());
