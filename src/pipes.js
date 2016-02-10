@@ -25,9 +25,9 @@ var PIPES = (function () {
     
     function Position(sizeOrOther, i, j) {
         if (sizeOrOther.hasOwnProperty("size")) {
-            this.size = sizeOrOther.size
-            this.i = sizeOrOther.i
-            this.j = sizeOrOther.j
+            this.size = sizeOrOther.size;
+            this.i = sizeOrOther.i;
+            this.j = sizeOrOther.j;
         } else {
             this.size = size;
             this.i = i;
@@ -122,12 +122,12 @@ var PIPES = (function () {
     SourceType.prototype.isSource = function() { return true; };
 
     var PieceTypes = {
-            HORIZONTAL:    new SingleType(Side.LEFT,   Side.RIGHT)
+            HORIZONTAL:    new SingleType(Side.LEFT,   Side.RIGHT),
             VERTICAL:      new SingleType(Side.TOP,    Side.BOTTOM),
             TOP_LEFT:      new SingleType(Side.TOP,    Side.LEFT),
             TOP_RIGHT:     new SingleType(Side.TOP,    Side.RIGHT),
             BOTTOM_LEFT:   new SingleType(Side.BOTTOM, Side.LEFT),
-            BOTTOM_RIGHT:  new SingleType(Side.BOTTOM, Side.RIGHT)
+            BOTTOM_RIGHT:  new SingleType(Side.BOTTOM, Side.RIGHT),
             SOURCE_TOP:    new SourceType(Side.TOP),
             SOURCE_BOTTOM: new SourceType(Side.BOTTOM),
             SOURCE_LEFT:   new SourceType(Side.LEFT),
@@ -173,7 +173,7 @@ var PIPES = (function () {
             if (firstFar !== null) {
                 return firstFar;
             }
-            return this.type.second.getFarSide(side)
+            return this.type.second.getFarSide(side);
         }
         return null;
     };
@@ -184,7 +184,7 @@ var PIPES = (function () {
         } else if(this.type.isDual()) {
             return side !== null; // We've got sides everywhere.
         } else if(this.type.isSource()) {
-            return this.type.outflow = side;
+            return this.type.outflow === side;
         }
     };
     
@@ -228,7 +228,7 @@ var PIPES = (function () {
             return this.full[0];
         }
         return false;
-    }
+    };
     
     Piece.prototype.accept = function (visitor) {
         if (this.type.isSingle()) {
@@ -287,7 +287,7 @@ var PIPES = (function () {
     };
     
     function randomInt(entropy, min, max) {
-        return Math.floor(min + entropy() * (max - min) - 0.00001)
+        return Math.floor(min + entropy() * (max - min) - 0.00001);
     }
     
     function getRandomElement(list, entropy) {
@@ -304,13 +304,13 @@ var PIPES = (function () {
     
     function randomPiece(types, entropy) {
         return new Piece(getRandomElement(types, entropy));
-    };
+    }
     
     PieceQueue.prototype.fill = function () {
         while (this.queue.length < this.size) {
             this.queue.push(randomPiece(NON_SOURCE_TYPES, this.entropy));
         }
-    }
+    };
     
     PieceQueue.prototype.nextPiece = function () {
         var next = this.queue[0];
@@ -398,7 +398,7 @@ var PIPES = (function () {
 			// been placed.
 			this.flowPosition.moveTo(this.flowOut);
 			this.flowPiece = this.substrate.at(this.flowPosition);
-			if (this.flowPiece != null) {
+			if (this.flowPiece !== null) {
 				var flowIn = OPPOSITES[this.flowOut];
 				this.flowPiece.fill(flowIn);
 				this.flowOut = this.flowPiece.getFarSide(flowIn);
@@ -415,7 +415,7 @@ var PIPES = (function () {
         this.observers.push(observer);
     };
     
-    Gameplay.prototype.clearObservers = funcion () {
+    Gameplay.prototype.clearObservers = function () {
         this.observers.splice(0, this.observers.length);
     };
     
