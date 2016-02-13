@@ -13,9 +13,9 @@ var PIPES = (function () {
             BOTTOM_LEFT: 2,
             BOTTOM_RIGHT: 3 
         },
-        OPPOSITES = [ BOTTOM, TOP, RIGHT, LEFT ],
-        CLOCKWISE = [ RIGHT, LEFT, TOP, BOTTOM ],
-        COUNTER_CLOCKWISE = [ LEFT, RIGHT, BOTTOM, TOP ],
+        OPPOSITES = [ Side.BOTTOM, Side.TOP, Side.RIGHT, Side.LEFT ],
+        CLOCKWISE = [ Side.RIGHT, Side.LEFT, Side.TOP, Side.BOTTOM ],
+        COUNTER_CLOCKWISE = [ Side.LEFT, Side.RIGHT, Side.BOTTOM, Side.TOP ],
         INVALID = -1;
         
     function SubstrateSize(width, height) {
@@ -134,9 +134,9 @@ var PIPES = (function () {
             SOURCE_RIGHT:  new SourceType(Side.RIGHT)
         };
     
-    PieceTypes.CROSS =          new DualType(PieceType.HORIZONTAL, PieceType.VERTICAL);
-    PieceTypes.DUAL_TOP_LEFT =  new DualType(PieceType.TOP_LEFT,   PieceType.BOTTOM_RIGHT);
-    PieceTypes.DUAL_TOP_RIGHT = new DualType(PieceType.TOP_RIGHT,  PieceType.BOTTOM_LEFT);
+    PieceTypes.CROSS =          new DualType(PieceTypes.HORIZONTAL, PieceTypes.VERTICAL);
+    PieceTypes.DUAL_TOP_LEFT =  new DualType(PieceTypes.TOP_LEFT,   PieceTypes.BOTTOM_RIGHT);
+    PieceTypes.DUAL_TOP_RIGHT = new DualType(PieceTypes.TOP_RIGHT,  PieceTypes.BOTTOM_LEFT);
     
     var SOURCE_TYPES = [
             PieceTypes.SOURCE_TOP,
