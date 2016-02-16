@@ -160,7 +160,7 @@ var INPUT = (function (TIMING, AUDIO) {
         this.primary = null;
     }
     
-    Pointer.prototype.update() {
+    Pointer.prototype.update = function () {
         var spot = null;
         if (this.touch.touches.length > 0) {
             var touch = this.touch.touches[0];
@@ -188,7 +188,7 @@ var INPUT = (function (TIMING, AUDIO) {
         }
         this.primary = spot;
         this.mouse.postUpdate();
-    }
+    };
     
     return {
         Keyboard: Keyboard,
