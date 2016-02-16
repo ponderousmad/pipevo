@@ -163,15 +163,16 @@ var INPUT = (function (TIMING, AUDIO) {
     Pointer.prototype.update = function () {
         var spot = null;
         if (this.touch.touches.length > 0) {
-            var touch = this.touch.touches[0];
-            if (this.firstTouch !== null) {
-                this.touch.getTouch(this.firstTouch);
-            } else {
+            var touch = this.touch.touches[0],
+                isStart = this.firstTouch === null;
+            if (isStart) {
                 this.firstTouch = touch.identifier;
+            } else {
+                touch = this.touch.getTouch(this.firstTouch);
             }
             if (touch !== null) {
-                this.primary = {
-                    isStart: this.firstTouch === null,
+                spot = {
+                    isStart: isStart,
                     x: touch.clientX,
                     y: touch.clientY
                 };
