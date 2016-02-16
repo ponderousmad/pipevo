@@ -13,6 +13,7 @@
                     elapsed = now - lastTime;
                 pointer.update(elapsed);
                 view.update(now, elapsed, pointer);
+                lastTime = now;
             };
     
         function drawFrame() {
