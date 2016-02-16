@@ -57,9 +57,9 @@ var Flipbook = (function () {
             y -= height * 0.5;
         }
         
-        if ((alignment & ALIGN.Left) !== 0) {
+        if ((alignment & ALIGN.Right) !== 0) {
             x -= width;
-        } else if ((alignment & ALIGN.Right) === 0) { // center
+        } else if ((alignment & ALIGN.Left) === 0) { // center
             x -= width * 0.5;
         }
         

@@ -29,7 +29,7 @@ var PIPES = (function () {
             this.i = sizeOrOther.i;
             this.j = sizeOrOther.j;
         } else {
-            this.size = size;
+            this.size = sizeOrOther;
             this.i = i;
             this.j = j;
         }
@@ -100,26 +100,34 @@ var PIPES = (function () {
         this.end = end;
     }
     
-    SingleType.prototype.isSingle = function() { return true; };
-    SingleType.prototype.isDual   = function() { return false; };
-    SingleType.prototype.isSource = function() { return false; };
+    SingleType.prototype.isSingle = function () { return true; };
+    SingleType.prototype.isDual   = function () { return false; };
+    SingleType.prototype.isSource = function () { return false; };
+    SingleType.prototype.getFarSide = function (side) {
+        if (this.start == side) {
+            return this.end;
+        } else if (this.end == side) {
+            return this.start;
+        }
+        return null;
+    };
     
     function DualType(first, second) {
         this.first = first;
         this.second = second;
     }
     
-    DualType.prototype.isSingle = function() { return false; };
-    DualType.prototype.isDual   = function() { return true; };
-    DualType.prototype.isSource = function() { return false; };
+    DualType.prototype.isSingle = function () { return false; };
+    DualType.prototype.isDual   = function () { return true; };
+    DualType.prototype.isSource = function () { return false; };
     
     function SourceType(side) {
         this.outflow = side;
     }
     
-    SourceType.prototype.isSingle = function() { return false; };
-    SourceType.prototype.isDual   = function() { return false; };
-    SourceType.prototype.isSource = function() { return true; };
+    SourceType.prototype.isSingle = function () { return false; };
+    SourceType.prototype.isDual   = function () { return false; };
+    SourceType.prototype.isSource = function () { return true; };
 
     var PieceTypes = {
             HORIZONTAL:    new SingleType(Side.LEFT,   Side.RIGHT),
@@ -155,19 +163,24 @@ var PIPES = (function () {
             PieceTypes.DUAL_TOP_LEFT,
             PieceTypes.DUAL_TOP_RIGHT
         ];
+        
+    function typeIndex(type) {
+        for (var i = 0; i < NON_SOURCE_TYPES.length; ++i) {
+            if (NON_SOURCE_TYPES[i] == type) {
+                return i;
+            }
+        }
+        return null;
+    }
 
     function Piece(type) {
         this.type = type;
         this.full = [false, false];
     }
     
-    Piece.prototype.getFarSize = function (side) {
+    Piece.prototype.getFarSide = function (side) {
         if (this.type.isSingle()) {
-            if (this.type.start == side) {
-                return this.type.end;
-            } else if (this.type.end == side) {
-                return this.type.start;
-            }
+            return this.type.getFarSide(side);
         } else if(this.type.isDual) {
             var firstFar = this.type.first.getFarSide(side);
             if (firstFar !== null) {
@@ -204,7 +217,7 @@ var PIPES = (function () {
                 return true;
             }
         } else if(this.type.isSource()) {
-            if (this.side === null) {
+            if (this.side !== null) {
                 this.full[0] = true;
                 return true;
             }
@@ -237,7 +250,7 @@ var PIPES = (function () {
             visitor.pipe(this.type.first, this.full[0]);
             visitor.pipe(this.type.second, this.full[1]);
         } else if(this.type.isSource()) {
-            visitor.source(this.type, this.full[0]);
+            visitor.source(this.type.outflow, this.full[0]);
         }
     };
     
@@ -279,7 +292,7 @@ var PIPES = (function () {
         return this.size.width * this.size.height - this.pieceCount;
     };
     
-    Substrate.prototype.placePiece = function (position, piece) {
+    Substrate.prototype.place = function (position, piece) {
         if (position.valid() && this.isEmpty(position)) {
             this.pieceCount += 1;
             this.pieces[position.i][position.j] = piece;
@@ -291,7 +304,7 @@ var PIPES = (function () {
     }
     
     function getRandomElement(list, entropy) {
-        return list[randomInt(0, list.length)];
+        return list[randomInt(entropy, 0, list.length)];
     }
     
     function PieceQueue(size, entropy) {
@@ -343,7 +356,7 @@ var PIPES = (function () {
     };
     
     Gameplay.prototype.position = function (i, j) {
-        return new Position(this.substrate.size, this.i, this.j);
+        return new Position(this.substrate.size, i < this.width() ? i : INVALID, j < this.height() ? j : INVALID);
     };
     
     Gameplay.prototype.setupSource = function() {
@@ -352,7 +365,7 @@ var PIPES = (function () {
             randomInt(this.entropy, 0, this.width()),
             randomInt(this.entropy, 0, this.height())
         );
-        this.substrate.place(this.source, this.sourcePosition);
+        this.substrate.place(this.sourcePosition, this.source);
     };
 
 	Gameplay.prototype.isGameOver = function () {
@@ -440,6 +453,148 @@ var PIPES = (function () {
         this.flowCount = -this.height() * this.width();
     };
     
+    var loader = new ImageBatch("images/", function() {
+            tileWidth = sourceImages[0].width;
+            tileHeight = sourceImages[0].height;
+        }),
+        background = loader.load("background.jpeg"),
+        sourceImages = [
+            loader.load("sourceTop.png"),
+            loader.load("sourceBottom.png"),
+            loader.load("sourceLeft.png"),
+            loader.load("sourceRight.png")
+        ],
+        sourceGooImages = [
+            loader.load("sourceTopGoo.png"),
+            loader.load("sourceBottomGoo.png"),
+            loader.load("sourceLeftGoo.png"),
+            loader.load("sourceRightGoo.png")
+        ],
+        pieceImages = [
+            loader.load("horizontal.png"),
+            loader.load("vertical.png"),
+            loader.load("topLeft.png"),
+            loader.load("topRight.png"),
+            loader.load("bottomLeft.png"),
+            loader.load("bottomRight.png")
+        ],
+        pieceGooImages = [
+            loader.load("horizontalGoo.png"),
+            loader.load("verticalGoo.png"),
+            loader.load("topLeftGoo.png"),
+            loader.load("topRightGoo.png"),
+            loader.load("bottomLeftGoo.png"),
+            loader.load("bottomRightGoo.png")
+        ],
+        tapbook = new Flipbook(loader, "tap", 6, 1),
+        tileWidth = 10,
+        tileHeight = 10,
+        pointer = null,
+        TAP_TURN_TIME = 2000,
+        TAP_FRAME_TIME = 80,
+        QUEUE_DRAW_OFFSET = 20,
+        OVER_COLOR = "rgba(255,0,0,0.5)";
+
+    loader.commit();
+
+    function SubstrateView(game) {
+        this.setGame(game, true);
+    }
+    
+    SubstrateView.prototype.setGame = function (game, playing) {
+        var self = this;
+        this.game = game;
+		this.playing = playing;
+		game.addObserver(function (eventName) {
+            if (eventName == "TAP") {
+                self.startTap();
+            }
+        });
+        this.tapTimer = null;
+        this.tap = tapbook.setupPlayback(80, true);
+    };
+    
+    SubstrateView.prototype.update = function (now, elapsed, pointer) {        
+        if (pointer.primary !== null) {
+            if (pointer.primary.isStart && this.playing) {
+                var i = Math.floor(pointer.primary.x / tileWidth),
+                    j = Math.floor(pointer.primary.y / tileHeight),
+                    position = this.game.position(i,j);
+
+                this.game.placeNext(position);
+            }
+        }
+        if (this.tapTimer > 0) {
+            this.tapTimer -= elapsed;
+            tapbook.updatePlayback(elapsed, this.tap);
+        }
+    };
+
+	SubstrateView.prototype.startTap = function () {
+		this.tapTimer = TAP_TURN_TIME;
+	};
+
+	SubstrateView.prototype.width = function () { return this.game.width() * tileWidth; };
+	SubstrateView.prototype.height = function () { return this.game.height() * tileHeight; };
+
+	SubstrateView.prototype.tileWidth = function () { return tileWidth; };
+	SubstrateView.prototype.tileHeight = function () { return tileHeight; };
+
+    SubstrateView.prototype.draw = function (context) {
+        context.drawImage(background, 0, 0, this.width(), this.height());
+        this.drawSubstrate(context);
+    };
+
+	SubstrateView.prototype.drawSubstrate = function (context) {
+		if (this.game === null || !loader.loaded) {
+			return;
+		}
+		var x = 0, y = 0,
+            tapDraw = this.tap,
+            queue = this.game.peek(),
+            drawVisitor = {
+                pipe: function (type, isFull) {
+                    var index = typeIndex(type);
+                    context.drawImage(pieceImages[index], x, y);
+                    if (isFull) {
+                        context.drawImage(pieceGooImages[index], x, y);
+                    }
+                },
+                source: function (side, isFull) {
+                    context.drawImage(sourceImages[side], x, y);
+                    if (isFull) {
+                        context.drawImage(sourceGooImages[side], x, y);
+                    }
+                    tapbook.draw(context, tapDraw, x, y, ALIGN.Top | ALIGN.Left); 
+                }
+            };
+        
+        for (var i = 0; i < this.game.width(); ++i) {
+            for (var j = 0; j < this.game.height(); ++j) {
+                x = i * tileWidth;
+                y = j * tileWidth;                
+                this.game.visit(i, j, drawVisitor);
+            }
+        }
+        
+        x = this.game.width() * tileWidth + QUEUE_DRAW_OFFSET,
+        y = QUEUE_DRAW_OFFSET;
+        
+        context.fillStyle = "rgb(128,128,128)"
+        context.strokeStyle = "rgb(0,0,0)";
+        for (var q = 0; q < queue.length; ++q) {
+            context.fillRect(x, y, tileWidth, tileHeight);
+            context.strokeRect(x - 1, y - 1, tileWidth + 2, tileWidth + 2);
+            queue[queue.length - (q + 1)].accept(drawVisitor);
+            y += tileHeight + 2
+        }
+        
+        if (this.game.isGameOver()) {
+            context.fillStyle = OVER_COLOR;
+            context.fillRect(0, 0, this.width(), this.height());
+        }
+	};
+    
     // Constructs a gameplay object with the default setup.
     function createDefault(entropy) {
         return new Gameplay(12, 12, 5, 15, entropy);
@@ -460,6 +615,7 @@ var PIPES = (function () {
         Piece: Piece,
         Substrate: Substrate,
         GamePlay: Gameplay,
+        SubstrateView: SubstrateView,
         createDefault: createDefault
     };
 }());

@@ -181,8 +181,8 @@ var INPUT = (function (TIMING, AUDIO) {
             if (this.mouse.leftDown || this.mouse.left) {
                 spot = {
                     isStart: this.mouse.leftDown,
-                    x: mouse.location[0],
-                    y: mouse.location[1]
+                    x: this.mouse.location[0],
+                    y: this.mouse.location[1]
                 };
             }
         }
