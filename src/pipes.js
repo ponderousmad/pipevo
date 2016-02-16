@@ -577,16 +577,16 @@ var PIPES = (function () {
             }
         }
         
-        x = this.game.width() * tileWidth + QUEUE_DRAW_OFFSET,
+        x = this.game.width() * tileWidth + QUEUE_DRAW_OFFSET;
         y = QUEUE_DRAW_OFFSET;
         
-        context.fillStyle = "rgb(128,128,128)"
+        context.fillStyle = "rgb(128,128,128)";
         context.strokeStyle = "rgb(0,0,0)";
         for (var q = 0; q < queue.length; ++q) {
             context.fillRect(x, y, tileWidth, tileHeight);
             context.strokeRect(x - 1, y - 1, tileWidth + 2, tileWidth + 2);
             queue[queue.length - (q + 1)].accept(drawVisitor);
-            y += tileHeight + 2
+            y += tileHeight + 2;
         }
         
         if (this.game.isGameOver()) {
