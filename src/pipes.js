@@ -429,6 +429,13 @@ var PIPES = (function () {
         return this.queue.queue;
     };
     
+    Gameplay.prototype.visit = function (i, j, visitor) {
+        var piece = this.substrate.at(this.position(i, j));
+        if (piece !== null) {
+            piece.accept(visitor);
+        }
+    };
+    
     Gameplay.prototype.setInfiniteTimeToFlow = function () {
         this.flowCount = -this.height() * this.width();
     };
