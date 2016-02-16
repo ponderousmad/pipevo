@@ -1,7 +1,7 @@
 var INPUT = (function (TIMING, AUDIO) {
     "use strict";
 
-    function KeyboardState(element, capture) {
+    function Keyboard(element, capture) {
         this.pressed = {};
         this.lastPressed = {};
         var self = this;
@@ -25,35 +25,35 @@ var INPUT = (function (TIMING, AUDIO) {
         }
     }
 
-    KeyboardState.prototype.isKeyDown = function (keyCode) {
+    Keyboard.prototype.isKeyDown = function (keyCode) {
         return this.pressed[keyCode] ? true : false;
     };
 
-    KeyboardState.prototype.wasKeyPressed = function (keyCode) {
+    Keyboard.prototype.wasKeyPressed = function (keyCode) {
         return this.pressed[keyCode] ? !this.lastPressed[keyCode] : false;
     };
 
-    KeyboardState.prototype.isShiftDown = function () {
+    Keyboard.prototype.isShiftDown = function () {
         return this.isKeyDown(16);
     };
 
-    KeyboardState.prototype.isCtrlDown = function () {
+    Keyboard.prototype.isCtrlDown = function () {
         return this.isKeyDown(17);
     };
 
-    KeyboardState.prototype.isAltDown = function () {
+    Keyboard.prototype.isAltDown = function () {
         return this.isKeyDown(18);
     };
        
-    KeyboardState.prototype.isAsciiDown = function (ascii) {
+    Keyboard.prototype.isAsciiDown = function (ascii) {
         return this.isKeyDown(ascii.charCodeAt());
     };
        
-    KeyboardState.prototype.wasAsciiPressed = function (ascii) {
+    Keyboard.prototype.wasAsciiPressed = function (ascii) {
         return this.wasKeyPressed(ascii.charCodeAt());
     };
        
-    KeyboardState.prototype.keysDown = function () {
+    Keyboard.prototype.keysDown = function () {
         var count = 0;
         for (var p in this.pressed) {
             if (this.pressed.hasOwnProperty(p)) {
@@ -63,7 +63,7 @@ var INPUT = (function (TIMING, AUDIO) {
         return count;
     };
     
-    KeyboardState.prototype.postUpdate = function () {
+    Keyboard.prototype.postUpdate = function () {
         this.lastPressed = {};
         for (var p in this.pressed) {
             if (this.pressed.hasOwnProperty(p)) {
@@ -72,11 +72,11 @@ var INPUT = (function (TIMING, AUDIO) {
         }
     };
     
-    KeyboardState.prototype.keyTime = function (keyCode) {
+    Keyboard.prototype.keyTime = function (keyCode) {
         return this.pressed[keyCode];
     };
 
-    function MouseState(element) {
+    function Mouse(element) {
         this.location = [0, 0];
         this.left = false;
         this.middle = false;
@@ -122,13 +122,13 @@ var INPUT = (function (TIMING, AUDIO) {
         element.addEventListener("mouseup", updateState);
     }
     
-    MouseState.prototype.postUpdate = function () {
+    Mouse.prototype.postUpdate = function () {
         this.leftDown = false;
         this.middleDown = false;
         this.rightDown = false;
     };
     
-    function TouchState(element) {
+    function Touch(element) {
         this.touches = [];
         
         var self = this;
@@ -144,7 +144,7 @@ var INPUT = (function (TIMING, AUDIO) {
         element.addEventListener("touchcancel", handleTouch);
     }
     
-    TouchState.prototype.getTouch = function (id) {
+    Touch.prototype.getTouch = function (id) {
         for (var t = 0; t < this.touches.length; ++t) {
             if (this.touches[t].identifier == id) {
                 return this.touches[t];
@@ -153,9 +153,47 @@ var INPUT = (function (TIMING, AUDIO) {
         return null;
     };
     
+    function Pointer(element) {
+        this.mouse = new Mouse(element);
+        this.touch = new Touch(element);
+        this.firstTouch = null;
+        this.primary = null;
+    }
+    
+    Pointer.prototype.update() {
+        var spot = null;
+        if (this.touch.touches.length > 0) {
+            var touch = this.touch.touches[0];
+            if (this.firstTouch !== null) {
+                this.touch.getTouch(this.firstTouch);
+            } else {
+                this.firstTouch = touch.identifier;
+            }
+            if (touch !== null) {
+                this.primary = {
+                    isStart: this.firstTouch === null,
+                    x: touch.clientX,
+                    y: touch.clientY
+                };
+            }
+        } else {
+            this.firstTouch = null;
+            if (this.mouse.leftDown || this.mouse.left) {
+                spot = {
+                    isStart: this.mouse.leftDown,
+                    x: mouse.location[0],
+                    y: mouse.location[1]
+                };
+            }
+        }
+        this.primary = spot;
+        this.mouse.postUpdate();
+    }
+    
     return {
-        KeyboardState: KeyboardState,
-        MouseState: MouseState,
-        TouchState: TouchState
+        Keyboard: Keyboard,
+        Mouse: Mouse,
+        Touch: Touch,
+        Pointer: Pointer
     };
 }(TIMING, AUDIO));

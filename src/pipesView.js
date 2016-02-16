@@ -64,8 +64,8 @@ var PIPES_VIEW = (function () {
     };
     
     SubstrateView.prototype.update = function (now, elapsed, pointer) {        
-        if (pointer.primary) {
-            if(pointer.primary.isStart && this.playing) {
+        if (pointer.primary !== null) {
+            if (pointer.primary.isStart && this.playing) {
                 var position = this.game.position(pointer.primary.x / tileWidth,
                                                   pointer.primary.y / tileHeight );
                 this.game.placeNext(position);
