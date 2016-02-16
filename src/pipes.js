@@ -583,9 +583,14 @@ var PIPES = (function () {
         context.fillStyle = "rgb(128,128,128)";
         context.strokeStyle = "rgb(0,0,0)";
         for (var q = 0; q < queue.length; ++q) {
+            var index = queue.length - (q + 1);
+            if (index === 0) {
+                context.fillStyle = "rgb(196,196,196)";
+                context.strokeStyle = "rgb(0,128,0)";
+            }
             context.fillRect(x, y, tileWidth, tileHeight);
             context.strokeRect(x - 1, y - 1, tileWidth + 2, tileWidth + 2);
-            queue[queue.length - (q + 1)].accept(drawVisitor);
+            queue[index].accept(drawVisitor);
             y += tileHeight + 2;
         }
         
