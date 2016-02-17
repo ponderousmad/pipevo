@@ -362,8 +362,8 @@ var PIPES = (function () {
     Gameplay.prototype.setupSource = function() {
         this.source = randomPiece(SOURCE_TYPES, this.entropy);
         this.sourcePosition = this.position(
-            randomInt(this.entropy, 0, this.width()),
-            randomInt(this.entropy, 0, this.height())
+            randomInt(this.entropy, 1, this.width() - 1),
+            randomInt(this.entropy, 1, this.height() - 1)
         );
         this.substrate.place(this.sourcePosition, this.source);
     };
