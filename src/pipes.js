@@ -598,6 +598,14 @@ var PIPES = (function () {
             context.fillStyle = OVER_COLOR;
             context.fillRect(0, 0, this.width(), this.height());
         }
+        
+        context.fillStyle = "rgb(64,64,64)";
+        context.font = "15px mono";
+        context.textAlign = "center";
+        x += tileWidth * 0.5;
+        y += tileWidth * 0.5;
+        context.fillText("Score:", x, y);
+        context.fillText(this.game.score(), x, y + 20);
 	};
     
     // Constructs a gameplay object with the default setup.
