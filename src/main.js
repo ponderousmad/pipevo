@@ -14,6 +14,7 @@
                     elapsed = now - lastTime;
                 pointer.update(elapsed);
                 view.update(now, elapsed, keyboard, pointer);
+                keyboard.postUpdate();
                 lastTime = now;
             };
     

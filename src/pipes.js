@@ -531,16 +531,20 @@ var PIPES = (function () {
             tapbook.updatePlayback(elapsed, this.tap);
         }
         
-        if (!this.game.isGameOver()) {
-            if (keyboard.wasAsciiPressed("F")) {
-                this.fillTimer = 0;
-            }
-            if (this.fillTimer != null) {
-                this.fillTimer += elapsed;
-                if (this.fillTimer > PIPE_FILL_TIME) {
-                    this.game.updateFlow();
-                    this.fillTimer -= PIPE_FILL_TIME;
+        if (this.playing) {
+            if (!this.game.isGameOver()) {
+                if (keyboard.wasAsciiPressed("F")) {
+                    this.fillTimer = 0;
                 }
+                if (this.fillTimer != null) {
+                    this.fillTimer += elapsed;
+                    if (this.fillTimer > PIPE_FILL_TIME) {
+                        this.game.updateFlow();
+                        this.fillTimer -= PIPE_FILL_TIME;
+                    }
+                }
+            } else if (keyboard.wasAsciiPressed("R")) {
+                this.setGame(createDefault(this.game.entropy), this.playing);
             }
         }
     };
