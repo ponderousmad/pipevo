@@ -6,13 +6,14 @@
         var canvas = document.getElementById("canvas"),
             context = canvas.getContext("2d"),
             pointer = new INPUT.Pointer(canvas),
+            keyboard = new INPUT.Keyboard(window),
             view = new PIPES.SubstrateView(PIPES.createDefault(Math.random)),
             lastTime = TIMING.now(),
             update = function () {
                 var now = TIMING.now(),
                     elapsed = now - lastTime;
                 pointer.update(elapsed);
-                view.update(now, elapsed, pointer);
+                view.update(now, elapsed, keyboard, pointer);
                 lastTime = now;
             };
     

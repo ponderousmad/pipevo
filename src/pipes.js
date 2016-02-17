@@ -492,6 +492,7 @@ var PIPES = (function () {
         pointer = null,
         TAP_TURN_TIME = 2000,
         TAP_FRAME_TIME = 80,
+        PIPE_FILL_TIME = 100,
         QUEUE_DRAW_OFFSET = 20,
         OVER_COLOR = "rgba(255,0,0,0.5)";
 
@@ -512,9 +513,10 @@ var PIPES = (function () {
         });
         this.tapTimer = null;
         this.tap = tapbook.setupPlayback(80, true);
+        this.fillTimer = null;
     };
     
-    SubstrateView.prototype.update = function (now, elapsed, pointer) {        
+    SubstrateView.prototype.update = function (now, elapsed, keyboard, pointer) {        
         if (pointer.primary !== null) {
             if (pointer.primary.isStart && this.playing) {
                 var i = Math.floor(pointer.primary.x / tileWidth),
@@ -527,6 +529,19 @@ var PIPES = (function () {
         if (this.tapTimer > 0) {
             this.tapTimer -= elapsed;
             tapbook.updatePlayback(elapsed, this.tap);
+        }
+        
+        if (!this.game.isGameOver()) {
+            if (keyboard.wasAsciiPressed("F")) {
+                this.fillTimer = 0;
+            }
+            if (this.fillTimer != null) {
+                this.fillTimer += elapsed;
+                if (this.fillTimer > PIPE_FILL_TIME) {
+                    this.game.updateFlow();
+                    this.fillTimer -= PIPE_FILL_TIME;
+                }
+            }
         }
     };
 
