@@ -490,13 +490,38 @@ var PIPES = (function () {
         tileWidth = 10,
         tileHeight = 10,
         pointer = null,
+        scores = null,
         TAP_TURN_TIME = 2000,
         TAP_FRAME_TIME = 80,
         PIPE_FILL_TIME = 100,
         QUEUE_DRAW_OFFSET = 20,
         OVER_COLOR = "rgba(255,0,0,0.5)";
 
-    loader.commit();
+    function createEmptyScores() {
+        return {
+            player: []
+        };
+    }
+        
+    (function () {
+        loader.commit();
+        
+        try {
+            scores = JSON.parse(window.localStorage.getItem("pipes_scores")) || createEmptyScores();
+        } catch (error) {
+            console.log("Error loading scores: " + error);
+            scores = createEmptyScores();
+        }
+    }());
+    
+    function saveScore(score) {
+        scores.player.push(score);
+        try {
+            window.localStorage.setItem("pipes_scores", JSON.stringify(scores));
+        } catch (error) {
+            console.log("Error storing scores: " + error);
+        }
+    }
 
     function SubstrateView(game) {
         this.setGame(game, true);
@@ -509,6 +534,8 @@ var PIPES = (function () {
 		game.addObserver(function (eventName) {
             if (eventName == "TAP") {
                 self.startTap();
+            } else if (eventName == "FILL" && game.isGameOver() && self.playing) {
+                saveScore(game.score());
             }
         });
         this.tapTimer = null;
@@ -536,7 +563,7 @@ var PIPES = (function () {
                 if (keyboard.wasAsciiPressed("F")) {
                     this.fillTimer = 0;
                 }
-                if (this.fillTimer != null) {
+                if (this.fillTimer !== null) {
                     this.fillTimer += elapsed;
                     if (this.fillTimer > PIPE_FILL_TIME) {
                         this.game.updateFlow();
