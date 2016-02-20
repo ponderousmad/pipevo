@@ -675,6 +675,7 @@ var PIPES = (function () {
         Substrate: Substrate,
         GamePlay: Gameplay,
         SubstrateView: SubstrateView,
+        randomInt: randomInt,
         createDefault: createDefault
     };
 }());

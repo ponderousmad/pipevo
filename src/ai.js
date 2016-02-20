@@ -1,343 +1,195 @@
-package pipes.ai;
-
-import pipes.root.Piece;
-import pipes.root.Position;
-import pipes.root.Side;
-import pipes.root.Substrate;
-import pipes.root.GamePlay;
-import pipes.root.Substrate.Corner;
-
-public interface Stracetate {
-	public Piece at( Position position );
-	public boolean isEmpty( Position position );
-	public int empties();
-}
-
-public class SubstrateWrapper implements Stracetate {
-	public SubstrateWrapper( Substrate substrate ) {
-		mSubstrate = substrate;
-	}
-
-	public Piece at(Position position) {
-		return mSubstrate.at( position );
-	}
-
-	private Substrate mSubstrate;
-
-	public boolean isEmpty( Position position )	{
-		return mSubstrate.isEmpty( position );
-	}
-
-	public int empties() {
-		return mSubstrate.empties();
-	}
-}
-
-public class Acetate implements Stracetate {
-	private Stracetate mStracetate;
-	private Piece mPiece;
-	private Position mPosition;
-
-	public Acetate( Stracetate stracetate, Piece piece, Position position ) {
-		mStracetate = stracetate;
-		mPiece = piece;
-		mPosition = position;
-	}
-
-	public Piece at( Position position ) {
-		if( !position.valid() ) {
+var AI = (function () {
+    "use strict";
+    
+    function Acetate(base, piece, position) {
+        this.base = base;
+        this.piece = piece;
+        this.position = position;
+    }
+    
+    Acetate.prototype.at = function (position) {
+		if (!position.valid()) {
 			return null;
 		}
-		if( position.equals( mPosition ) ) {
-			return mPiece;
+		if (position.equals(this.position)) {
+			return this.piece;
 		}
-		return mStracetate.at( position );
-	}
+		return this.base.at(position);        
+    };
+    
+    Acetate.prototype.isEmpty = function (position) {
+        return this.at(position) === null;
+    };
+    
+    Acetate.prototype.empties = function () {
+        return base.empties() - (this.base.isEmpty(this.position) ? 1 : 0);
+    };
+    
+    function followPipe(game, overlay) {
+        var board = overlay ? overlay : game.substrate,
+            result = {
+                outFlow: game.sourceOut(),
+                position: game.sourcePosition().to(game.sourceOut()),
+                openEnd: false,
+                filled: 0,
+                length: 0
+            };
+        
+        do {
+            if (board.isEmpty(result.position)) {
+                result.openEnd = true;
+                break;
+            }
+            var piece = board.at(result.position),
+                inflow = result.outFlow.opposite();
+                
+            if (!piece.isPipeAt(inflow)) {
+                break;
+            }
+            
+            result.length += 1;
+            if (piece.isFull(inflow)) {
+                result.filled += 1;
+            }
+            
+			result.outFlow = piece.getFarSide( inSide );
+			result.position.moveTo(result.outFlow);
+        } while (result.position.valid());
+        
+        return result;
+    }
+    
+    function findEmptyPosFarFromOutput(game, overlay, followResult) {
+        var board = overlay ? overlay : game.substrate,
+            follow = followResult ? followResult : followPipe(game, board),
+            bestDistance = -1,
+            best = null;
+            
+        for (var i = 0; i < game.width(); ++i) {
+            for (var j = 0; j < game.height(); ++j) {
+                var pos = game.position(i, j);
+                if (board.isEmpty(pos)) {
+                    var distance = follow.outPosition.manhattanDistance(pos);
+                    if (distance > bestDistance) {
+                        bestDistance = distance;
+                        best = pos;
+                    }
+                }
+            }
+        }
+        
+        return best;
+    }
+    
+    function findFarCorner(game, overlay, position) {
+		var bestDistance = -1,
+            best = null;
 
-	public boolean isEmpty( Position position ) {
-		return at( position ) == null;
-	}
-
-	public int empties() {
-		return mStracetate.empties() - (isEmpty( mPosition ) ? 1 : 0);
-	}
-}
-
-public class PipeFollower {
-	public PipeFollower( GamePlay game ) {
-		setup( game, new SubstrateWrapper( game.substrate() ) );
-	}
-
-	public PipeFollower( GamePlay game, Stracetate stracetate ) {
-		setup( game, stracetate );
-	}
-
-	private void setup( GamePlay game, Stracetate stracetate ) {
-		mStracetate = stracetate;
-		mOutSide = game.sourceOut();
-		mPosition = game.sourcePosition();
-		mPosition.moveTo( mOutSide );
-		mOpenEnd = false;
-		assert( mPosition.valid() );
-	}
-
-	public boolean follow() {
-		do {
-			if( mStracetate.isEmpty( mPosition ) ) {
-				mOpenEnd = true;
-				return true;
-			}
-			Piece piece = mStracetate.at( mPosition );
-			Side inSide = mOutSide.opposite();
-			if( !piece.isPipeAt( inSide ) ) {
-				mOpenEnd = false;
-				return false;
-			}
-			++mLength;
-			if( piece.isFull( inSide ) ) {
-				++mFilled;
-			}
-			mOutSide = piece.getFarSide( inSide );
-			mPosition.moveTo( mOutSide );
-		} while( mPosition.valid() );
-		mOpenEnd = false;
-		return false;
-	}
-
-	public Side outDirection() {
-		return mOutSide;
-	}
-
-	public Position outPosition() {
-		return mPosition;
-	}
-
-	public boolean isEndOpen() {
-		return mOpenEnd;
-	}
-
-	public static PipeFollower follow( GamePlay game, Stracetate stracetate ) {
-		PipeFollower follower = new PipeFollower( game, stracetate );
-		follower.follow();
-		return follower;
-	}
-
-	public static PipeFollower follow( GamePlay game ) {
-		PipeFollower follower = new PipeFollower( game );
-		follower.follow();
-		return follower;
-	}
-
-	public int length() { return mLength; }
-	public int filled() { return mFilled; }
-
-	private Stracetate mStracetate;
-	private Position mPosition;
-	private Side mOutSide;
-	private boolean mOpenEnd;
-
-	private int mLength = 0;
-	private int mFilled = 0;
-}
-
-public class SubstrateExplorer {
-
-	Position findEmptyPosFarFromOutput() {
-		Position output = mPipeFollower.outPosition();
-		int farDistance = -1;
-		Position farPosition=null;
-
-		for (int i=0; i<mGame.width(); i++) {
-			for (int j=0; j<mGame.height(); j++) {
-				Position thisPosition = mGame.position( i, j );
-				if ( mStracetate.at(thisPosition) == null ) {
-					int thisDistance = output.manhattanDistance(thisPosition);
-					if (thisDistance > farDistance) {
-						farPosition = thisPosition;
-						farDistance = thisDistance;
-					}
-				}
-			}
-		}
-
-		return farPosition;
-	}
-
-	Position findFarCorner(Position here) {
-		int farDistance = -1;
-		Position farCorner = null;
-
-		for ( Corner c : Corner.values() ) {
-			Position thisCorner = mGame.substrate().corner(c);
-			int thisDistance = here.manhattanDistance(thisCorner);
-			if (thisDistance >  farDistance) {
-				farCorner = thisCorner;
-				farDistance = thisDistance;
-			}
+		for (var name in PIPES.Corner) {
+            if (PIPES.Corner.hasOwnProperty(name)) {
+                var corner = game.substrate.corner(PIPES.Corner(name)),
+                    distance = position.manhattanDistance(corner);
+                if (distance >  bestDistance) {
+                    bestDistance = distance;
+                    best = corner;
+                }
+            }
 		}
 
 		return farCorner;
 	}
-
-	static SubstrateExplorer buildExplorer( GamePlay game, Stracetate stracetate ) {
-		PipeFollower follower = PipeFollower.follow( game, stracetate );
-		if( follower == null ) {
-			return null;
-		}
-
-		return new SubstrateExplorer( follower, game, stracetate );
-	}
-
-	SubstrateExplorer( PipeFollower follower, GamePlay game, Stracetate stracetate  ) {
-		mStracetate = stracetate;
-		mPipeFollower = follower;
-		mGame = game;
-	}
     
-	PipeFollower mPipeFollower;
-	Stracetate mStracetate;
-	GamePlay mGame;
-}
-
-public interface Discarder {
-	public Position discard();
-}
-
-public class RandomDiscarder implements Discarder {
-	public RandomDiscarder( GamePlay game, long seed ) {
-		mGame = game;
-		mStracetate = new SubstrateWrapper( game.substrate() );
-		mRandom = new Random( seed );
-	}
-
-	public Position discard() {
-		if( mStracetate.empties() == 0 ) {
-			return null;
+    function RandomDiscarder(game, entropy) {
+        this.game = game;
+        this.entropy = entropy;
+    }
+    
+    RandomDiscarder.prototype.discard = function () {
+        var position = null;
+        if (this.game.substrate.empties() === 0) {
+            return position;
+        }
+        do {
+            var i = PIPES.randomInt(this.entropy, 0, this.game.width()),
+                j = PIPES.randomInt(this.entropy, 0, this.game.height());
+            position = this.game.position(i, j);
+        } while (!this.game.substrate.isEmpty(position));
+        
+        return position;
+    };
+    
+    function BorderDiscarder(game, overlay) {
+        this.game = game;
+        this.board = overlay ? overlay : game.substrate;
+        this.counter = 0;
+        this.sideLength = game.width() - 1;
+        this.edgeNumber = 3;
+        this.dump = null;
+        this.dumpNextSide = null;
+    }
+    
+    BorderDiscarder.prototype.discard = function () {
+        if( this.dump === null ) {
+			this.findTheDump();
 		}
-
-		for(;;) {
-			Position position = mGame.position(
-				mRandom.nextInt( mGame.width() ),
-				mRandom.nextInt( mGame.height() )
-			);
-			if( mStracetate.isEmpty( position ) ) {
-				return position;
-			}
+		while (this.dump !== null && !board.isEmpty(this.dump)) {
+			this.moveClockwise();
 		}
-	}
-
-	private GamePlay mGame;
-	private Stracetate mStracetate;
-	private Random mRandom;
-}
-
-public class BorderDiscarder implements Discarder {
-
-	public BorderDiscarder( GamePlay game ) {
-		mStracetate = new SubstrateWrapper( game.substrate() );
-		setGame( game );
-	}
-
-	public BorderDiscarder( GamePlay game, Stracetate stracetate ) {
-		mStracetate = stracetate;
-		setGame( game );
-	}
-
-	private void setGame( GamePlay game ) {
-		mGame = game;
-		mCounter = 0;
-		mSideLength = game.width() - 1;
-		mEdgeNumber = 3;
-	}
-
-	public Position discard() {
-		return dumpPosition();
-	}
-
-	Position moveClockwise( Position position ) {
-		Position nextSide = position.to( mDumpNextSide );
-		mCounter++;
-		if( mCounter == mSideLength ) {
-			mCounter = 0;
-			mDumpNextSide = mDumpNextSide.clockwise();
-			if( mEdgeNumber == 1 ) {
-				mEdgeNumber = 2;
-				--mSideLength;
-				if( mSideLength == 0 ) {
-					return null;
+		return this.dump;
+    };
+    
+    BorderDiscarder.prototype.findTheDump = function () {
+		var source = this.game.sourcePosition(),
+            left = source.coord(0) > (this.game.width() / 2),
+            top = source.coord(1) > (this.game.height() / 2);
+		if (top && left) {
+			this.dump = this.game.substrate.corner(PIPES.Corner.TOP_LEFT);
+			this.dumpNextSide = Side.RIGHT;
+		} else if (top) {
+			this.dump = this.game.substrate.corner(PIPES.Corner.TOP_RIGHT);
+			this.dumpNextSide = Side.BOTTOM;
+		} else if (left) {
+			this.dump = this.game.substrate.corner(PIPES.Corner.BOTTOM_LEFT);
+			this.dumpNextSide = Side.TOP;
+		} else {
+			this.dump = this.game.substrate.corner(PIPES.Corner.BOTTOM_RIGHT);
+			this.dumpNextSide = Side.LEFT;
+		}
+    };
+    
+    BorderDiscarder.prototype.moveClockwise = function () {
+		this.dump = position.to(this.dumpNextSide);
+		this.counter += 1;
+		if (this.counter === this.sideLength) {
+			this.counter = 0;
+			this.dumpNextSide = PIPES.CLOCKWISE(this.dumpNextSide);
+			if (this.edgeNumber === 1 ) {
+				this.edgeNumber = 2;
+				this.sideLength -= 1;
+				if( this.ideLength === 0 ) {
+					this.dump = null;
 				}
 			} else {
-				--mEdgeNumber;
+				this.edgeNumber -= 1;
 			}
 		}
 		return nextSide;
-	}
-
-	Position dumpPosition() {
-		if( mDump == null ) {
-			mDump = findTheDump();
-		}
-		while( mDump != null && !mStracetate.isEmpty( mDump ) ) {
-			mDump = moveClockwise( mDump );
-		}
-		return mDump;
-	}
-
-	private Position findTheDump()
-	{
-		Position source = mGame.sourcePosition();
-		Substrate substrate = mGame.substrate();
-		int[] pos = source.coords();
-		boolean left = pos[0] > ( mGame.width()  / 2 );
-		boolean top  = pos[1] > ( mGame.height() / 2 );
-		Position theDump;
-		if( top && left ) {
-			theDump = substrate.corner( Substrate.Corner.TOP_LEFT );
-			mDumpNextSide = Side.RIGHT;
-		} else if( top ) {
-			theDump = substrate.corner( Substrate.Corner.TOP_RIGHT );
-			mDumpNextSide = Side.BOTTOM;
-		} else if( left ) {
-			theDump = substrate.corner( Substrate.Corner.BOTTOM_LEFT );
-			mDumpNextSide = Side.TOP;
-		} else {
-			theDump = substrate.corner( Substrate.Corner.BOTTOM_RIGHT );
-			mDumpNextSide = Side.LEFT;
-		}
-
-		return theDump;
-
-	}
-
-	private Stracetate mStracetate;
-	private GamePlay mGame;
-
-	private Position mDump;
-	private Side mDumpNextSide;
-	private int mEdgeNumber;
-	private int mSideLength;
-
-	private int mCounter;
-}
-
-public class FarDiscarder implements Discarder {
-	public FarDiscarder( GamePlay game ) {
-		mGame = game;
-		mStracetate = new SubstrateWrapper( mGame.substrate() );
-	}
-
-	public FarDiscarder( GamePlay game, Stracetate stracetate ) {
-		mGame = game;
-		mStracetate = stracetate;
-	}
-
-	public Position discard() {
-		SubstrateExplorer explorer = SubstrateExplorer.buildExplorer( mGame, mStracetate );
-		assert( explorer != null );
-
-		return explorer.findEmptyPosFarFromOutput();
-	}
-
-	private GamePlay mGame;
-	private Stracetate mStracetate;
-}
+    };
+    
+    function FarDiscarder(game, overlay) {
+        this.game = game;
+        this.board = overlay ? overlay : game.substrate;
+    }
+    
+    FarDiscarder.prototype.discard = function () {
+        return findEmptyPosFarFromOutput(this.game, this.board);
+    };
+    
+    return {
+        Acetate: Acetate,
+        RandomDiscarder: RandomDiscarder,
+        FarDiscarder: FarDiscarder,
+        BorderDiscarder: BorderDiscarder,
+        followPipe: followPipe
+    };
+}());
