@@ -1,14 +1,9 @@
-/* ---------------------------------------------------------------
- * Copyright © Adrian Smith and Jason Wood
- * Licensed under the MIT license. See license.txt at project root.
- * --------------------------------------------------------------- */
 package pipes.ai.players;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import pipes.ai.Acetate;
+import pipes.ai.BorderDiscarder;
+import pipes.ai.RandomDiscarder;
 import pipes.ai.FarDiscarder;
+import pipes.ai.Discarder;
 import pipes.ai.PipeFollower;
 import pipes.ai.Stracetate;
 import pipes.ai.SubstrateWrapper;
@@ -17,7 +12,174 @@ import pipes.root.Piece;
 import pipes.root.PieceFactory;
 import pipes.root.PieceType;
 import pipes.root.Position;
+import pipes.root.Side;
+import pipes.root.Substrate;
 
+public enum Player {
+	//The number in brackets is the version number of each AI
+	HUMAN (1),
+	BORDER (1),
+	RANDOM (1),
+	RANDOM_END (1),
+	SUSAN (2),
+	BOB (8),
+	FAR (1);
+
+	public final int version;
+
+	Player (int ver) {
+		version = ver;
+	}
+}
+
+public interface PipeAI {
+	public void setGame( GamePlay game, long seed );
+	public boolean performMove();
+	public Player player();
+}
+
+public class BorderAI implements PipeAI {
+
+	public void setGame( GamePlay game, long seed ) {
+		game.setInfiniteTimeToFlow();
+		mGame = game;
+		mDiscarder = new BorderDiscarder( game );
+	}
+
+	public boolean performMove() {
+		return mGame.placeNext( mDiscarder.discard() );
+	}
+
+	public Player player() {
+		return Player.BORDER;
+	}
+
+	private GamePlay mGame;
+	private Discarder mDiscarder;
+}
+
+public class FarAI implements PipeAI {
+
+	public void setGame( GamePlay game, long seed ) {
+		game.setInfiniteTimeToFlow();
+		mGame = game;
+		mDiscarder = new FarDiscarder( game );
+
+	}
+
+	public boolean performMove() {
+		return mGame.placeNext( mDiscarder.discard() );
+	}
+
+	public Player player() {
+		return Player.FAR;
+	}
+
+	private GamePlay mGame;
+	private Discarder mDiscarder;
+}
+
+public class RandomAI implements PipeAI {
+	public void setGame( GamePlay game, long seed ) {
+		mGame = game;
+		mDiscarder = new RandomDiscarder( game, seed );
+	}
+
+	public boolean performMove() {
+		return mGame.placeNext( mDiscarder.discard() );
+	}
+
+	private GamePlay mGame;
+	private Discarder mDiscarder;
+
+	public Player player() {
+		return Player.RANDOM;
+	}
+}
+
+public class RandomEndAI implements PipeAI {
+
+	public void setGame( GamePlay game, long seed ) {
+		mGame = game;
+		mRandom.setGame( game, seed );
+	}
+
+	public boolean performMove() {
+		PipeFollower pipe = new PipeFollower( mGame );
+
+		if( pipe.follow() ) {
+			if( mGame.peek()[0].isPipeAt( pipe.outDirection().opposite() ) ) {
+				mGame.placeNext( pipe.outPosition() );
+			} else {
+				return mRandom.performMove();
+			}
+			return true;
+		}
+		return false;
+	}
+
+	public Player player() {
+		return Player.RANDOM_END;
+	}
+
+	GamePlay mGame = null;
+	RandomAI mRandom = new RandomAI();
+}
+
+public class Susan implements PipeAI {
+
+	public void setGame( GamePlay game, long seed ) {
+		mGame = game;
+		mDiscarder = new BorderDiscarder( game );
+	}
+
+	public boolean performMove() {
+		PipeFollower pipe = new PipeFollower( mGame );
+
+		if( pipe.follow() ) {
+			Piece nextPiece = mGame.peek()[0];
+			if( nextPiece.getFarSide( pipe.outDirection().opposite() ) != null ) {
+				Side outDirection = nextPiece.getFarSide( pipe.outDirection().opposite() );
+				Position nextOut = pipe.outPosition().to( outDirection );
+				if( canPlace( nextOut, outDirection ) ) {
+					mGame.placeNext( pipe.outPosition() );
+				} else {
+					return discard();
+				}
+			} else {
+				return discard();
+			}
+			return true;
+		}
+		return false;
+	}
+
+	private boolean discard()
+	{
+		return mGame.placeNext( mDiscarder.discard() );
+	}
+
+	private boolean canPlace( Position position, Side direction ) {
+		if( !position.valid() ) {
+			return false;
+		}
+		Substrate substrate = mGame.substrate();
+		return substrate.isEmpty( position ) ||	canFlowInto( substrate.at( position ), direction );
+	}
+
+
+
+	private boolean canFlowInto(Piece piece, Side fromDirection ) {
+		return piece.isPipeAt( fromDirection.opposite() );
+	}
+
+	public Player player() {
+		return Player.SUSAN;
+	}
+
+	private GamePlay mGame;
+	private Discarder mDiscarder;
+}
 
 public class Bob implements PipeAI {
 	static private class Attempt {
@@ -171,4 +333,3 @@ public class Bob implements PipeAI {
 		return Player.BOB;
 	}
 }
-
