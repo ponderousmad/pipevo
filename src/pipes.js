@@ -300,7 +300,7 @@ var PIPES = (function () {
     };
     
     function randomInt(entropy, min, max) {
-        return Math.floor(min + entropy() * (max - min) - 0.00001);
+        return Math.min(Math.floor(min + entropy() * (max - min)), max - 1);
     }
     
     function getRandomElement(list, entropy) {
