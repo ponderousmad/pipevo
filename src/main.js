@@ -33,7 +33,7 @@
             if (this.players.hasOwnProperty(player)) {
                 var button = document.getElementById(player);
                 if (button) {
-                    button.addEventListener('click', setupClick(this.players[player]), false)
+                    button.addEventListener('click', setupClick(this.players[player]), false);
                 }
             }
         }
@@ -46,7 +46,7 @@
                 this.playTime -= this.moveTime;
                 
                 var nextMove = this.activePlayer.nextMove();
-                if (nextMove != null && nextMove.valid()) {
+                if (nextMove !== null && nextMove.valid()) {
                     this.game.placeNext(nextMove);
                 } else {
                     this.view.startFilling();
