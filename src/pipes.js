@@ -181,7 +181,7 @@ var PIPES = (function () {
     Piece.prototype.getFarSide = function (side) {
         if (this.type.isSingle()) {
             return this.type.getFarSide(side);
-        } else if(this.type.isDual) {
+        } else if(this.type.isDual()) {
             var firstFar = this.type.first.getFarSide(side);
             if (firstFar !== null) {
                 return firstFar;
@@ -270,9 +270,9 @@ var PIPES = (function () {
     Substrate.prototype.corner = function (c) {
         switch (c) {
             case Corner.TOP_LEFT: return new Position(this.size, 0, 0);
-            case Corner.TOP_RIGHT: return new Position(this.size, size.width - 1, 0);
-            case Corner.BOTTOM_LEFT: return new Position(this.size, 0, size.height - 1);
-            case Corner.BOTTOM_RIGHT: return new Position(this.size, size.width - 1, size.height - 1);
+            case Corner.TOP_RIGHT: return new Position(this.size, this.size.width - 1, 0);
+            case Corner.BOTTOM_LEFT: return new Position(this.size, 0, this.size.height - 1);
+            case Corner.BOTTOM_RIGHT: return new Position(this.size, this.size.width - 1, this.size.height - 1);
             default: return null;
         }
     };
@@ -341,7 +341,7 @@ var PIPES = (function () {
         this.setupSource();
         this.flowPiece = this.source;
         this.flowOut = this.source.type.outflow;
-        this.flowPosition = this.sourcePosition;
+        this.flowPosition = this.sourcePosition.clone();
         this.flowCount = -delay;
         
         this.observers = [];
@@ -453,6 +453,12 @@ var PIPES = (function () {
         this.flowCount = -this.height() * this.width();
     };
     
+    Gameplay.prototype.forceFlow = function() {
+        if (this.flowCount < -2) {
+            this.flowCount = -2;
+        }
+    };
+    
     var loader = new ImageBatch("images/", function() {
             tileWidth = sourceImages[0].width;
             tileHeight = sourceImages[0].height;
@@ -558,22 +564,26 @@ var PIPES = (function () {
             tapbook.updatePlayback(elapsed, this.tap);
         }
         
-        if (this.playing) {
-            if (!this.game.isGameOver()) {
-                if (keyboard.wasAsciiPressed("F")) {
-                    this.fillTimer = 0;
+        if (this.game.isGameOver()) {
+            if (keyboard.wasAsciiPressed("R")) {
+                this.setGame(createDefault(this.game.entropy), true);
+            }
+        } else {
+            if (this.playing && keyboard.wasAsciiPressed("F")) {
+                this.startFilling();
+            } else if (this.fillTimer !== null) {
+                this.fillTimer += elapsed;
+                if (this.fillTimer > PIPE_FILL_TIME) {
+                    this.game.updateFlow();
+                    this.fillTimer -= PIPE_FILL_TIME;
                 }
-                if (this.fillTimer !== null) {
-                    this.fillTimer += elapsed;
-                    if (this.fillTimer > PIPE_FILL_TIME) {
-                        this.game.updateFlow();
-                        this.fillTimer -= PIPE_FILL_TIME;
-                    }
-                }
-            } else if (keyboard.wasAsciiPressed("R")) {
-                this.setGame(createDefault(this.game.entropy), this.playing);
             }
         }
+    };
+    
+    SubstrateView.prototype.startFilling = function () {
+        this.game.forceFlow();
+        this.fillTimer = 0;
     };
 
 	SubstrateView.prototype.startTap = function () {
@@ -582,6 +592,8 @@ var PIPES = (function () {
 
 	SubstrateView.prototype.width = function () { return this.game.width() * tileWidth; };
 	SubstrateView.prototype.height = function () { return this.game.height() * tileHeight; };
+    
+    SubstrateView.prototype.totalWidth = function () { return this.width() + tileWidth + QUEUE_DRAW_OFFSET; };
 
 	SubstrateView.prototype.tileWidth = function () { return tileWidth; };
 	SubstrateView.prototype.tileHeight = function () { return tileHeight; };

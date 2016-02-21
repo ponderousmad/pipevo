@@ -27,9 +27,10 @@ var AI = (function () {
     
     function followPipe(game, overlay) {
         var board = overlay ? overlay : game.substrate,
+            sourceOutflow = game.source.type.outflow,
             result = {
-                outFlow: game.sourceOut(),
-                position: game.sourcePosition().to(game.sourceOut()),
+                outflow: sourceOutflow,
+                position: game.sourcePosition.to(sourceOutflow),
                 openEnd: false,
                 filled: 0,
                 length: 0
@@ -41,7 +42,7 @@ var AI = (function () {
                 break;
             }
             var piece = board.at(result.position),
-                inflow = result.outFlow.opposite();
+                inflow = PIPES.OPPOSITES[result.outflow];
                 
             if (!piece.isPipeAt(inflow)) {
                 break;
@@ -52,8 +53,8 @@ var AI = (function () {
                 result.filled += 1;
             }
             
-			result.outFlow = piece.getFarSide( inSide );
-			result.position.moveTo(result.outFlow);
+			result.outflow = piece.getFarSide(inflow);
+			result.position.moveTo(result.outflow);
         } while (result.position.valid());
         
         return result;
@@ -69,7 +70,7 @@ var AI = (function () {
             for (var j = 0; j < game.height(); ++j) {
                 var pos = game.position(i, j);
                 if (board.isEmpty(pos)) {
-                    var distance = follow.outPosition.manhattanDistance(pos);
+                    var distance = follow.position.manhattanDistance(pos);
                     if (distance > bestDistance) {
                         bestDistance = distance;
                         best = pos;
@@ -132,37 +133,37 @@ var AI = (function () {
         if( this.dump === null ) {
 			this.findTheDump();
 		}
-		while (this.dump !== null && !board.isEmpty(this.dump)) {
+		while (this.dump !== null && !this.board.isEmpty(this.dump)) {
 			this.moveClockwise();
 		}
 		return this.dump;
     };
     
     BorderDiscarder.prototype.findTheDump = function () {
-		var source = this.game.sourcePosition(),
+		var source = this.game.sourcePosition,
             left = source.coord(0) > (this.game.width() / 2),
             top = source.coord(1) > (this.game.height() / 2);
 		if (top && left) {
 			this.dump = this.game.substrate.corner(PIPES.Corner.TOP_LEFT);
-			this.dumpNextSide = Side.RIGHT;
+			this.dumpNextSide = PIPES.Side.RIGHT;
 		} else if (top) {
 			this.dump = this.game.substrate.corner(PIPES.Corner.TOP_RIGHT);
-			this.dumpNextSide = Side.BOTTOM;
+			this.dumpNextSide = PIPES.Side.BOTTOM;
 		} else if (left) {
 			this.dump = this.game.substrate.corner(PIPES.Corner.BOTTOM_LEFT);
-			this.dumpNextSide = Side.TOP;
+			this.dumpNextSide = PIPES.Side.TOP;
 		} else {
 			this.dump = this.game.substrate.corner(PIPES.Corner.BOTTOM_RIGHT);
-			this.dumpNextSide = Side.LEFT;
+			this.dumpNextSide = PIPES.Side.LEFT;
 		}
     };
     
     BorderDiscarder.prototype.moveClockwise = function () {
-		this.dump = position.to(this.dumpNextSide);
+		this.dump.moveTo(this.dumpNextSide);
 		this.counter += 1;
 		if (this.counter === this.sideLength) {
 			this.counter = 0;
-			this.dumpNextSide = PIPES.CLOCKWISE(this.dumpNextSide);
+			this.dumpNextSide = PIPES.CLOCKWISE[this.dumpNextSide];
 			if (this.edgeNumber === 1 ) {
 				this.edgeNumber = 2;
 				this.sideLength -= 1;
@@ -173,7 +174,6 @@ var AI = (function () {
 				this.edgeNumber -= 1;
 			}
 		}
-		return nextSide;
     };
     
     function FarDiscarder(game, overlay) {
@@ -185,8 +185,8 @@ var AI = (function () {
         return farthestEmptyFromOutput(this.game, this.board);
     };
     
-    function DiscarderAI(game, Discarder) {
-        this.discarder = new Discarder(game);
+    function DiscarderAI(game, discarder) {
+        this.discarder = discarder;
         this.version = 1;
     }
     
@@ -194,23 +194,23 @@ var AI = (function () {
         return this.discarder.discard();
     };
     
-    function makeDiscarder(game, stopFlow, Discarder) {
+    function makeDiscarder(game, stopFlow, discarder) {
         if (stopFlow) {
             game.setInfiniteTimeToFlow();
         }
-        return new DiscarderAI(game, Discarder);
+        return new DiscarderAI(game, discarder);
     }
     
-    function FollowerAI(game, Discarder) {
+    function FollowerAI(game, discarder) {
         this.game = game;
-        this.discarder = makeDiscarder(game, false, Discarder);
+        this.discarder = makeDiscarder(game, false, discarder);
         this.version = 1;
     }
     
     FollowerAI.prototype.nextMove = function () {
         var follow = followPipe(this.game);
 		if (follow.openEnd) {
-			if (this.game.peek()[0].isPipeAt(PIPES.OPPOSITE(follow.outFlow))) {
+			if (this.game.peek()[0].isPipeAt(PIPES.OPPOSITES[follow.outflow])) {
 				return follow.position;
 			} else {
 				return this.discarder.nextMove();
@@ -219,13 +219,13 @@ var AI = (function () {
 		return null;
     };
     
-    function makeFollower(game, Discarder) {
-        return new FollowerAI(game, Discarder);
+    function makeFollower(game, discarder) {
+        return new FollowerAI(game, discarder);
     }
     
     function Susan(game) {
         this.game = game;
-        this.discarder = makeDiscarder(game, BorderDiscarder);
+        this.discarder = new BorderDiscarder(game);
         this.version = 2;
     }
 
@@ -241,12 +241,12 @@ var AI = (function () {
         var follow = followPipe(this.game);
 
 		if (follow.openEnd) {
-			var piece = mGame.peek()[0],
-                flow = nextPiece.getFarSide(PIPES.OPPOSITE(follow.outFlow));
+			var piece = this.game.peek()[0],
+                flow = piece.getFarSide(PIPES.OPPOSITES[follow.outflow]);
 			if (flow !== null) {
 				var next = follow.position.to(flow);
 				if (this.canPlace(next, flow)) {
-					return pipe.outPosition();
+					return follow.position;
 				}
 			}
             return this.discarder.discard();
@@ -308,16 +308,16 @@ var AI = (function () {
 		for (var p = 0; p < peeks.length; ++p) {
             var peek = peeks[p];
 			var target = hint,
-                overlay = tryPlace(board, peek, target),
+                overlay = this.tryPlace(board, peek, target),
                 follow = followPipe(this.game, overlay);
 
-			if (!follow.isEndOpen) {
+			if (!follow.openEnd) {
                 if (discard === null) {
                     discard = farthestEmptyFromOutput(this.game, overlay);
                 }
 				target = discard;
-				overlay = tryPlace(board, peek, target);
-				follow = PipeFollower.follow(this.game, overlay);
+				overlay = this.tryPlace(board, peek, target);
+				follow = followPipe(this.game, overlay);
 			}
             if (peek === 0) {
                 attempt = target;
@@ -334,9 +334,9 @@ var AI = (function () {
     Bob.prototype.findMaxPipeLength = function(board, position) {
 		var maxLength = 0;
 		for (var t = 0; t < this.ALL_PIECES.length; ++t) {
-            piece = this.ALL_PIECES[t];
-			var follow = followPipe(board, piece, position);
-			if (follow.isEndOpen) {
+            var piece = this.ALL_PIECES[t],
+                follow = this.followPipe(board, piece, position);
+			if (follow.openEnd) {
 				return this.game.width() * this.game.height();
 			}
 			if (follow.length > maxLength) {
@@ -352,7 +352,7 @@ var AI = (function () {
     
     Bob.prototype.nextMove = function () {
         var follow = followPipe(this.game);
-        if( !follow.isEndOpen ) {
+        if( !follow.openEnd ) {
             return null;
 		}
 		if (this.isNoPoint(this.game.substrate, this.game.peek()[0], follow.position)) {
