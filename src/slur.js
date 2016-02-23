@@ -408,7 +408,7 @@ var SLUR = (function () {
     };
 
 	Frame.prototype.nameLookup = function (name) {
-		var result = this.tryLookup(name);
+		var result = this.tryLookupName(name);
 		if (result === null) {
 			throw evalException("Symbol not found: " + name, this);
 		}
@@ -420,6 +420,10 @@ var SLUR = (function () {
 	};
 
 	Frame.prototype.tryLookupName = function (name) {
+        if (typeof name !== "string") {
+            throw evalException("Lookup name is not a string", this);
+        }
+        
         var binding = this.symbols[name];
         if (typeof found != 'undefined') {
             if (binding == SHADOW) {
@@ -437,8 +441,8 @@ var SLUR = (function () {
 		return this.tryLookupName(symbol.name);
 	};
 
-	Frame.prototype.bind = function(name, value) {
-		if (!name || value === null) {
+	Frame.prototype.bind = function (name, value) {
+		if ((typeof name !== "string") || value === null) {
             throw "Bad binding call";
         }
 		this.symbols[name] = value;
