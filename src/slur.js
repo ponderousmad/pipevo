@@ -114,16 +114,16 @@ var SLUR = (function () {
     function Symbol(name) {
         this.name = name;
     }
-    String.prototype.type = typeIs(ObjectType.SYMBOL);
-    String.prototype.eval = function (env) { return env.lookup(this); };
-    String.prototype.compile = function (env) {
+    Symbol.prototype.type = typeIs(ObjectType.SYMBOL);
+    Symbol.prototype.eval = function (env) { return env.lookup(this); };
+    Symbol.prototype.compile = function (env) {
         var found = env.tryLookup(this);
         if (found !== null) {
             return found;
         }
         return this;
     };
-    String.prototype.toString = function() { return this.name; };
+    Symbol.prototype.toString = function() { return this.name; };
     
     return {
     };
