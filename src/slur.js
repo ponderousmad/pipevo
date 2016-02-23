@@ -42,6 +42,10 @@ var SLUR = (function () {
     function typeIs(type) {
         return function() { return type; };
     }
+
+    function makeIsType(type) {
+        return function(object) { return object.type() === type; };
+    }
     
     function selfEval(env) {
         /*jshint validthis: true */
@@ -64,6 +68,11 @@ var SLUR = (function () {
             NULL: 128,
             TRUE: 256
         },
+        isFunction = makeIsType(ObjectType.FUNCTION),
+        isSpecialForm = makeIsType(ObjectType.SPECIAL_FORM),
+        isSymbol = makeIsType(ObjectType.SYMBOL),
+        isCons = makeIsType(ObjectType.CONS),
+        isNull = makeIsType(ObjectType.NULL),
         
         NULL = (function() {
             function Null() {}
@@ -125,6 +134,112 @@ var SLUR = (function () {
     };
     Symbol.prototype.toString = function() { return this.name; };
     
+    function Cons(car, cdr) {
+        this.car = car;
+        this.cdr = cdr;
+    }
+    Cons.prototype.type = typeIs(ObjectType.CONS);
+
+    Cons.prototype.eval = function (env) {
+		// Since a cons cell can contain a function or special form,
+		// this provides us with a place to hook into the abort mechanism.
+		// So every time a cons is evaluated, we check if the interpreter
+		// has aborted, and throw the abort exception.
+		var abort = env.abort();
+		if (abort !== null) {
+			throw abort;
+		}
+
+		// Evaluate the cons cell as an application or a special form.
+		// It also has support for limited tail call elimination, but
+		// it's a little experimental.
+		var result = null,
+            cons = this,
+            isTail = false;
+		do {
+			isTail = false;
+			var carEval = cons.car.eval(env);
+            
+			env.setupTail();
+			if (isFunction(carEval) || isSpecialForm(carEval)) {
+				result = carEval.invoke(env, cons.cdr);
+			} else {
+				// Since this is neither an application or a special form,
+				// it evaluates to itself.
+				result = cons;
+			}
+			env.clearTail();
+            
+			if (result === null) {
+				var tail = env.getTail();
+				cons = tail.Cons();
+				env = tail.Environment();
+				isTail = true;
+			}
+		} while (isTail);
+		return result;
+	};
+    
+    function prependList(list_or_single, tail) {
+        if (Array.isArray(list_or_single)) {
+            var cons = tail;
+            for (var i = list_or_single.length - 1; i >=0; --i) {
+                cons = new Cons(list_or_single[i], cons);
+            }
+            return cons;
+        } else {
+            return new Cons(list_or_single, tail);
+        }
+    }
+    
+    function makeList(list_or_single) {
+        if (typeof list_or_single == 'undefined') {
+            return NULL;
+        }
+        else if (Array.isArray(list_or_single)) {
+            var cons = NULL;
+            for (var i = list_or_single.length - 1; i >=0; --i) {
+                cons = new Cons(list_or_single[i], cons);
+            }
+            return cons;
+        } else {
+            return new Cons(list_or_single, NULL);
+        }
+    }
+    
+    function compileList(env, args) {
+        if (isNull(args)) {
+            return args;
+        } else if(isCons(args)) {
+            return prependList(args.car.complie(env), complieList(env, args.cdr));
+        }
+        throw compileException("Malformed list", env);
+    }
+    
+    Cons.prototype.compile = function (env) {
+        var carCompile = this.car.compile(env);
+		if (isFunction(carCompile)) {
+			return new Cons(carCompile, compileList(env, this.cdr));
+		} else if(isSpecialForm(carCompile)) {
+			return carCompile.compile(env, this.cdr);
+		} else {
+            return new Cons(carCompile, this.cdr.compile(env));
+        }
+    };
+    
+    Cons.prototype.innerString = function() {
+        var inner = this.car.toString();
+		if (isCons(this.cdr)) {
+			inner += " " + this.cdr.innerString();
+		} else if (!isNull(this.cdr)) {
+			inner += " . " + this.cdr.toString();
+		}
+        return inner;
+    };
+    Cons.prototype.toString = function() {
+        return "(" + this.innerString() + ")";
+    };
+
     return {
     };
 }());
@@ -198,177 +313,6 @@ public interface Obj {
 	public Obj compile( Environment env );
 }
 
-// Define a cons cell.
-public class Cons implements Obj {
-
-	public Cons( Obj first, Obj second ) {
-		mFirst = first;
-		mSecond = second;
-	}
-
-	public boolean isFunction() {
-		return false;
-	}
-
-	public boolean isSpecialForm() {
-		return false;
-	}
-
-	public boolean isFixNum() {
-		return false;
-	}
-
-	public boolean isReal() {
-		return false;
-	}
-
-	public boolean isString() {
-		return false;
-	}
-
-	public boolean isSymbol() {
-		return false;
-	}
-
-	public boolean isCons() {
-		return true;
-	}
-
-	public boolean isNull() {
-		return false;
-	}
-	public Obj eval( Environment env ) {
-		// Since a cons cell can contain a function or special form,
-		// this provides us with a place to hook into the abort mechanism.
-		// So every time a cons is evaluated, we check if the interpreter
-		// has aborted, and throw the abort exception.
-		RuntimeException abort = env.abort();
-		if( abort != null ) {
-			throw abort;
-		}
-
-		// Evaluate the cons cell as an application or a special form.
-		// It also has support for limited tail call elimination, but
-		// it's a little experimental.
-		Obj result = null;
-		Cons cons = this;
-		boolean isTail;
-		do {
-			isTail = false;
-			Obj firstEval = cons.mFirst.eval( env );
-			env.setupTail();
-			if( firstEval.isFunction() ) {
-				result = ( (Function)firstEval ).invoke( env, cons.mSecond );
-			} else if( firstEval.isSpecialForm() ) {
-				result = ( (SpecialForm)firstEval ).invoke( env, cons.mSecond );
-			} else {
-				// Since this is neither an application or a special form,
-				// it evaluates to itself.
-				result = cons;
-			}
-			env.clearTail();
-			if( result == null) {
-				Tail tail = env.getTail();
-				cons = tail.Cons();
-				env = tail.Environment();
-				isTail = true;
-			}
-		} while( isTail );
-		return result;
-	}
-
-	public static Obj compileList(Environment env, Obj arguments) {
-		if( arguments.isCons() ) {
-			Cons args = (Cons)arguments;
-			return Cons.prependList( args.car().compile( env ), compileList( env, args.cdr() ) );
-		} else if( arguments.isNull() ) {
-			return arguments;
-		}
-		throw new CompileException( "Malformed list", env );
-	}
-
-	public Obj compile(Environment env) {
-		Obj firstCompile = mFirst.compile(env);
-		if( firstCompile.isFunction() ) {
-			Function firstFunction = (Function)firstCompile;
-			return new Cons( firstFunction, compileList(env, mSecond ) );
-		} else if( firstCompile.isSpecialForm() ) {
-			SpecialForm firstSpecial = (SpecialForm)firstCompile;
-			return firstSpecial.compile( env, mSecond );
-		}
-		return new Cons( firstCompile, mSecond.compile(env) );
-	}
-
-	public Obj car() {
-		return mFirst;
-	}
-
-	public Obj cdr() {
-		return mSecond;
-	}
-
-	private void restString( StringBuffer buffer ) {
-		buffer.append( mFirst.toString() );
-		if( mSecond.isCons() ) {
-			buffer.append( ' ' );
-			((Cons)mSecond).restString( buffer );
-		} else if( !mSecond.isNull() ) {
-			buffer.append( " . " );
-			buffer.append( mSecond.toString() );
-		}
-	}
-
-	public String toString() {
-		StringBuffer buffer = new StringBuffer();
-		buffer.append( '(' );
-		restString( buffer );
-		buffer.append( ')' );
-		return buffer.toString();
-	}
-
-	public static Null list() {
-		return Null.NULL;
-	}
-
-	public static Cons list(Obj obj) {
-		return new Cons( obj, Null.NULL);
-	}
-
-	public static Cons list(Obj o1, Obj o2) {
-		return new Cons(o1, new Cons(o2, Null.NULL));
-	}
-
-	public static Cons list(Obj o1, Obj o2, Obj o3) {
-		return new Cons(o1, new Cons(o2, new Cons(o3, Null.NULL)));
-	}
-
-	public static Cons list(Obj o1, Obj o2, Obj o3, Obj o4) {
-		return new Cons(o1, new Cons(o2, new Cons(o3, new Cons(o4, Null.NULL))));
-	}
-
-	public static Cons list(Obj o1, Obj o2, Obj o3, Obj o4, Obj o5) {
-		return new Cons(o1, new Cons(o2, new Cons(o3, new Cons(o4, new Cons(o5, Null.NULL)))));
-	}
-
-	public static Cons prependList(Obj o1, Obj tail) {
-		return new Cons(o1, tail);
-	}
-
-	public static Cons prependList(Obj o1, Obj o2, Obj tail) {
-		return new Cons(o1, new Cons(o2, tail));
-	}
-
-	public static Cons prependList(Obj o1, Obj o2, Obj o3, Obj tail) {
-		return new Cons(o1, new Cons(o2, new Cons(o3, tail)));
-	}
-
-	public static Cons prependList(Obj o1, Obj o2, Obj o3, Obj o4, Obj tail) {
-		return new Cons(o1, new Cons(o2, new Cons(o3, new Cons(o4, tail))));
-	}
-
-	private Obj mFirst = Null.NULL;
-	private Obj mSecond = Null.NULL;
-}
 
 public class Function implements Obj {
 	public static interface Body
