@@ -39,6 +39,13 @@ var SLUR = (function () {
         return new SlurException("CompileException", message, environment);
     }
     
+    function invocationException(message, func, args, environment) {
+        var exception = new SlurException(message, environment);
+        exception.func = func;
+        exception.args = args;
+        return exception;
+    }
+    
     function typeIs(type) {
         return function() { return type; };
     }
@@ -48,14 +55,18 @@ var SLUR = (function () {
     }
     
     function selfEval(env) {
-        /*jshint validthis: true */
+        // jshint validthis: true
         return this;
     }
     
     function selfCompile(env) {
-        /*jshint validthis: true */
+        // jshint validthis: true
         return this;
     }
+    
+    // Every object has a type and can be compiled or evaluated.
+    // Evaluation calculates the value of the object given the environment.
+    // Compilation creates an efficent version of this object based on the environment.
     
     var ObjectType = {
             FUNCTION: 1,
@@ -79,7 +90,7 @@ var SLUR = (function () {
             Null.prototype.type = typeIs(ObjectType.NULL);
             Null.prototype.eval = selfEval;
             Null.prototype.compile = selfCompile;
-            Null.prototype.toString = function() { return "()"; }; 
+            Null.prototype.toString = function () { return "()"; }; 
         
             return new Null();
         }()),
@@ -89,7 +100,7 @@ var SLUR = (function () {
             True.prototype.type = typeIs(ObjectType.TRUE);
             True.prototype.eval = selfEval;
             True.prototype.compile = selfCompile;
-            True.prototype.toString = function() { return "#t"; }; 
+            True.prototype.toString = function () { return "#t"; }; 
         
             return new True();
         }());
@@ -101,7 +112,7 @@ var SLUR = (function () {
     FixNum.prototype.type = typeIs(ObjectType.FIX_NUM);
     FixNum.prototype.eval = selfEval;
     FixNum.prototype.compile = selfCompile;
-    FixNum.prototype.toString = function() { return this.value.toString(); };
+    FixNum.prototype.toString = function () { return this.value.toString(); };
     
     // Represent the floating point primitive.
     function Real(value) {
@@ -110,7 +121,7 @@ var SLUR = (function () {
     Real.prototype.type = typeIs(ObjectType.REAL);
     Real.prototype.eval = selfEval;
     Real.prototype.compile = selfCompile;
-    Real.prototype.toString = function() { return this.value.toString(); };
+    Real.prototype.toString = function () { return this.value.toString(); };
     
     function String(value) {
         this.value = value;
@@ -118,7 +129,7 @@ var SLUR = (function () {
     String.prototype.type = typeIs(ObjectType.STRING);
     String.prototype.eval = selfEval;
     String.prototype.compile = selfCompile;
-    String.prototype.toString = function() { return '"' + this.value + '"'; };
+    String.prototype.toString = function () { return '"' + this.value + '"'; };
 
     function Symbol(name) {
         this.name = name;
@@ -134,6 +145,7 @@ var SLUR = (function () {
     };
     Symbol.prototype.toString = function() { return this.name; };
     
+    // Define a cons cell.
     function Cons(car, cdr) {
         this.car = car;
         this.cdr = cdr;
@@ -227,7 +239,7 @@ var SLUR = (function () {
         }
     };
     
-    Cons.prototype.innerString = function() {
+    Cons.prototype.innerString = function () {
         var inner = this.car.toString();
 		if (isCons(this.cdr)) {
 			inner += " " + this.cdr.innerString();
@@ -240,27 +252,7 @@ var SLUR = (function () {
         return "(" + this.innerString() + ")";
     };
 
-    return {
-    };
-}());
-
 /*
-
-package functional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-
-import java.net.URL;
-
 public interface Environment {
 	class AbortRef {
 		private RuntimeException mAbort = null;
@@ -294,27 +286,6 @@ public interface Environment {
 	void clearTail();
 }
 
-// Defines an object that can be compiled or evaluated.
-// Also provides type checking functionality.
-public interface Obj {
-	public boolean isFunction();
-	public boolean isSpecialForm();
-	public boolean isFixNum();
-	public boolean isReal();
-	public boolean isString();
-	public boolean isSymbol();
-	public boolean isCons();
-	public boolean isNull();
-
-	// Determine the value of the object given the environment.
-	public Obj eval( Environment env );
-	
-	// Produce an efficent version of this object based on the environment.
-	public Obj compile( Environment env );
-}
-
-
-public class Function implements Obj {
 	public static interface Body
 	{
 		Obj invoke( Environment env );
@@ -323,210 +294,117 @@ public class Function implements Obj {
 	public static interface CompileableBody extends Body {
 		Body compile( Environment env );
 	}
+*/
 
-	public Function( String name, String[] argNames, String restName, Body body ) {
-		mName = name;
-		mArgNames = argNames;
-		mRestName = restName;
-		mBody = body;
-		check();
-	}
-
-	public Function( String[] argNames, String restName, Body body ) {
-		this( null, argNames, restName, body );
-	}
-
-	public String name() {
-		return mName;
-	}
-
-	public String[] parameters() {
-		return mArgNames;
-	}
-
-	public String restParameter() {
-		return mRestName;
-	}
-
-	public Body body() {
-		return mBody;
-	}
-
-	private void check() {
-		assert( mArgNames != null );
-		assert( mBody != null );
-	}
-
-	public boolean isFunction() {
-		return true;
-	}
-
-	public boolean isSpecialForm() {
-		return false;
-	}
-
-	public boolean isFixNum() {
-		return false;
-	}
-
-	public boolean isReal() {
-		return false;
-	}
-
-	public boolean isString() {
-		return false;
-	}
-
-	public boolean isSymbol() {
-		return false;
-	}
-
-	public boolean isCons() {
-		return false;
-	}
-
-	public boolean isNull() {
-		return false;
-	}
-
-	public Obj eval( Environment env ) {
-		return this;
-	}
-
-	public Obj compile( Environment env ) {
-		return this;
-	}
-
-	Environment shadowArgs( Environment env ) {
-		if( mArgNames.length == 0 && mRestName == null ) {
-			return env;
-		}
-		Environment frame = new Frame( env, mName );
-		for( String name : mArgNames ) {
-			frame.shadow(name);
-		}
-		if( mRestName != null ) {
-			frame.shadow( mRestName );
-		}
-		return frame;
-	}
-
-	public void compileBody(Environment env) {
-		if( mBody instanceof CompileableBody ) {
-			mBody = ((CompileableBody)mBody).compile(shadowArgs(env));
-		}
-	}
-
-	public Obj invoke( Environment env, Obj args ) {
-		Frame frame = bindArgs( env, args );
-		frame.useTail(env);
-		return mBody.invoke( frame );
-	}
-
-	public class InvocationException extends EvalException {
-		private static final long serialVersionUID = 8327649146617403150L;
-
-		InvocationException( String description, Function func, Environment env, Obj args ) {
-			super( description, env );
-			mFunc = func;
-			mArgs = args;
-		}
-		public Function mFunc;
-		public Obj mArgs;
-	}
-
-	protected Frame bodyFrame( Environment env, String name ) {
-		return new Frame(env, name);
-	}
-
-	public Frame bindArgs( Environment env, Obj args ) {
-		Frame frame = bodyFrame(env, mName );
-		Obj argsIn = args;
-		for( String name : mArgNames ) {
-			if( args.isNull() ) {
-				throw new InvocationException( "Insufficient Arguments", this, env, argsIn );
+    function Function(name, parameters, restParameter, body) {
+        this.name = name;
+        this.parameters = argNames;
+        this.restParameter = restName;
+        this.body = body;
+        
+        if (!this.parameters || !this.body) {
+            throw "Malformed function definition";
+        }
+    }
+    Function.prototype.type = typeIs(ObjectType.FUNCTION);
+    Function.prototype.eval = selfEval;
+    Function.prototype.compile = selfCompile;
+    Function.prototype.toString = function () { return this.name; };
+    
+    Function.prototype.shadowArgs = function (env) {
+        if (this.parameters.length === 0 && this.restParameter === null) {
+            return env;
+        }
+        var frame = new Frame(env, this.name);
+        for (var n = 0; n < this.parameters.length; ++n) {
+            frame.shadow(this.parameters[i]);
+        }
+        if (this.restParameter !== null) {
+            frame.shadow(this.restParameter);
+        }
+        return frame;
+    };
+    
+    Function.prototype.compileBody = function(env) {
+        this.body = this.body.compile(this.shadowArgs(env));
+    };
+    
+    Function.prototype.invoke = function(env, args) {
+        var frame = this.bindArgs(env, args);
+        frame.useTail(env);
+        return this.body.invoke(frame);
+    };
+    
+    Function.prototype.bindArgs = function (env, args) {
+        var frame = new Frame(env, this.name),
+            argsTail = args;
+        for (var p = 0; p < this.parameters.length; ++p) {           
+            if (isNull(argsTail)) {
+                throw invocationException("Insufficient Arguments", this, args, env);
+            }
+			if (!isCons(argsTail)) {
+				throw invocationException("Malformed expression", this, args, env);
 			}
-			if( !args.isCons() ) {
-				throw new InvocationException( "Malformed expression", this, env, argsIn );
-			}
-			Cons tail = (Cons)args;
-			frame.add( name, tail.car().eval( env ) );
-			args = tail.cdr();
-		}
-		if( mRestName != null ) {
-			frame.add( mRestName, evalList( env, args ) );
-		} else if( !args.isNull() ) {
-			throw new InvocationException( "Too many arguments", this, env, argsIn );
-		}
-		return frame;
-	}
+            frame.add(this.parameters[p], argsTail.car.eval(env));
+            argsTail = args.cdr;
+        }
+        if (this.restParameter !== null) {
+            frame.add(this.restParameter, this.evalList(env, argsTail));
+        } else if(!isNull(argsTail)) {
+            throw invocationException("Too many arguments", this, args, env);
+        }
+        return frame;
+    };
+    
+    Function.prototype.evalList = function (env, object) {
+        if (isNull(object)) {
+            return object;
+        } else if(!isCons(object)) {
+            throw invocationException("Malformed expression", this, object, env);
+        } else {
+            return new Cons(object.car.eval(env), evalList(env, object.cdr));
+        }
+    };
 
-	public Obj evalList( Environment env, Obj object ) {
-		if( object.isNull() ) {
-			return object;
-		}
-		if( !object.isCons() ) {
-			throw new InvocationException( "Malformed expression", this, env, object );
-		}
-		Cons cons = (Cons)object;
-		return new Cons( cons.car().eval( env ), evalList( env, cons.cdr() ) );
-	}
+    function Statements(body) {
+        this.body = body;
+    }
+    
+    Statements.prototype.compile = function(env) {
+        this.body = this.compileStatements(this.body, env);
+        return this;
+    };
+    
+    Statements.prototype.compileStatements = function (statements, env) {
+        var cdr = statements.cdr;
+        if (isCons(cdr)) {
+            cdr = this.compileStatements(cdr, env);
+        } else if(!isNull(cdr)) {
+            throw compileException("Malformed body", env);
+        }
+        return new Cons(statements.car().compile(env), cdr);
+    };
+    
+    Statements.prototype.invoke = function (env) {
+        var result = null,
+            body = this.body,
+            tail = env.getTail();
+        while (isCons(body)) {
+            if (tail !== null && isNull(body.cdr) && isCons(body.car)) {
+                tail.set(body.car, env);
+            }
+            result = body.car.eval(env);
+            body = body.cdr;
+        }
+        
+        if (!isNull(body) || result === null) {
+            throw evalException("Malformed statements", env);
+        }
+        
+        return result;
+    };
 
-	public String toString() {
-		return mName == null ? "lambda@" + hashCode(): mName;
-	}
-
-	private String mName = null;
-	private String[] mArgNames;
-	private String mRestName;
-	private Body mBody;
-}
-
-public class Statements implements Function.CompileableBody {
-	private Cons mBody;
-
-	public Statements( Cons body ) {
-		assert( body != null );
-		mBody = body;
-	}
-
-	public Function.Body compile(Environment env) {
-		mBody = compileStatements(mBody, env);
-		return this;
-	}
-
-	private Cons compileStatements(Cons statements, Environment env) {
-		Obj cdr = statements.cdr();
-		if( cdr.isCons() ) {
-			cdr = compileStatements((Cons)cdr, env);
-		} else if( !cdr.isNull() ) {
-			throw new CompileException("Malformed body", env);
-		}
-		return new Cons(statements.car().compile(env), cdr);
-	}
-
-	public Obj invoke(Environment env) {
-		Obj result = null;
-		Obj body = mBody;
-		Tail tail = env.getTail();
-		while( body.isCons() ) {
-			Cons statements = (Cons)body;
-			if( statements.cdr().isNull() && tail != null) {
-				if( statements.car().isCons() ) {
-					tail.set((Cons)statements.car(), env);
-				}
-			}
-			result = statements.car().eval( env );
-			body = statements.cdr();
-		}
-
-		if( !body.isNull() || result == null ) {
-			throw new EvalException( "Malformed statements.", env );
-		}
-		return result;
-	}
-}
-
+/*
 public class SpecialForm implements Obj {
 
 	public boolean isFunction() {
@@ -2104,3 +1982,7 @@ public class Interpreter {
 }
 
 */
+
+    return {
+    };
+}());
