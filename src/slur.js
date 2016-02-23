@@ -425,172 +425,118 @@ public interface Environment {
 		return this.invoke(env, args);
 	};
 
-/*
+    // Attempt to implement tail call elimination in limited cases.
+    function Tail() {
+        this.set(null, null);
+    }
+    
+    Tail.prototype.set = function(cons, env) {
+        this.cons = cons;
+        this.env = env;
+    };
+    
+    var SHADOW = {};
 
-// Attempt to implement tail call elimination in limited cases.
-public class Tail {
-	private Cons mCons;
-	private Environment mEnv;
+    function Frame(env, context) {
+        this.contextName = context ? context : null;
+        this.symbols = {};
+        this.env = env;
+        this.abort = null;
+        this.useTails = env ? env.useTails : false;
+    }
+    
+    Frame.prototype.enableTails = function () {
+        var frame = new Frame(this, "TailFrame");
+        frame.useTails = true;
+        return frame;
+    };
 
-	public Tail() {
-		mCons = null;
-		mEnv = null;
-	}
-
-	public void set(Cons cons, Environment env)	{
-		mCons = cons;
-		mEnv = env;
-	}
-
-	public Cons Cons() {
-		return mCons;
-	}
-
-	public Environment Environment() {
-		return mEnv;
-	}
-}
-
-public class Frame implements Environment {
-	private String mContext;
-	private Map< String, Obj > mMap;
-	private Environment mEnv = null;
-	private AbortRef mAbort;
-	private boolean mUseTail = false;
-	private Tail mTail = null;
-
-	public Frame() {
-		mContext = null;
-		mMap = new TreeMap< String, Obj >();
-		mAbort = new AbortRef();
-	}
-
-	public void abort(RuntimeException ex) {
-		mAbort.abort(ex);
-	}
-
-	public RuntimeException abort() {
-		return mAbort.abort();
-	}
-
-	public AbortRef getAbort() {
-		return mAbort;
-	}
-
-	public Frame( Environment env, String context ) {
-		mContext = context;
-		mMap = new TreeMap< String, Obj >();
-		mEnv = env;
-		mAbort = mEnv.getAbort();
-		mUseTail = env.useTails();
-	}
-
-	public static Frame enableTails(Environment env) {
-		Frame frame = new Frame(env, "TailFrame");
-		frame.mUseTail = true;
-		return frame;
-	}
-
-	public Obj lookup( String name ) {
-		Obj result = tryLookup( name );
-		if( result == null ) {
-			throw new EvalException( "Symbol not found: " + name, this );
+	Frame.prototype.nameLookup = function (name) {
+		var result = this.tryLookup(name);
+		if (result === null) {
+			throw evalException("Symbol not found: " + name, this);
 		}
 		return result;
-	}
+	};
 
-	public Obj lookup(Symbol symbol) {
-		return lookup( symbol.name() );
-	}
+	Frame.prototype.lookup = function (symbol) {
+		return this.nameLookup(symbol.name);
+	};
 
-	static private class Shadow extends BaseObj {
-		private Shadow() {}
-		public static Shadow SHADOW = new Shadow();
-	}
-
-	public Obj tryLookup(String name) {
-		if( mMap.containsKey( name ) ) {
-			Obj binding = mMap.get( name );
-			if( binding == Shadow.SHADOW ) {
-				return null;
-			}
-			return binding;
-		}
-		if( mEnv != null ) {
-			return mEnv.tryLookup( name );
+	Frame.prototype.tryLookupName = function (name) {
+        var binding = this.symbols[name];
+        if (typeof found != 'undefined') {
+            if (binding == SHADOW) {
+                return null;
+            }
+            return binding;
+        }
+		if (this.env !== null) {
+			return env.tryLookupName( name );
 		}
 		return null;
-	}
+	};
 
-	public Obj tryLookup(Symbol symbol) {
-		return tryLookup(symbol.name());
-	}
+	Frame.prototype.tryLookup = function (symbol) {
+		return this.tryLookupName(symbol.name);
+	};
 
-	public Symbol add(String name, Obj value) {
-		assert( name != null );
-		assert( value != null );
-		mMap.put( name, value );
-		return new Symbol( name );
-	}
+	Frame.prototype.bind = function(name, value) {
+		if (!name || value === null) {
+            throw "Bad binding call";
+        }
+		this.symbols[name] = value;
+		return new Symbol(name);
+	};
 
-	public Symbol add( Function function ) {
-		assert( function != null );
-		return add( function.name(), function );
-	}
+	Frame.prototype.bindFunction = function (func) {
+		if (func !== null) {
+            throw "Bad binding call";
+        }
+		return this.bind(func.name, func);
+	};
 
-	public Symbol set( String name, Obj value ) {
-		if( mEnv != null ) {
-			return mEnv.set( name, value );
+	Frame.prototype.set = function (name, value) {
+		if (this.env !== null) {
+			return this.env.set(name, value);
 		}
-		return add( name, value );
-	}
+		return this.bind(name, value);
+	};
 
-	public void shadow( String name ) {
-		add( name, Shadow.SHADOW );
-	}
+	Frame.prototype.shadow = function (name) {
+		this.add(name, SHADOW);
+	};
 
-	public List<String> context() {
-		List<String> c = null;
-		if( mEnv != null ) {
-			c = mEnv.context();
-		} else {
-			c = new ArrayList<String>();
-		}
-		if( mContext != null ) {
-			c.add( mContext );
+	Frame.prototype.context = function () {
+		var c = this.env ? this.env.context() : [];
+		if (this.context !== null) {
+			c.push(this.contextName);
 		}
 		return c;
-	}
+	};
 
-	public boolean useTails() {
-		return mUseTail;
-	}
+	Frame.prototype.getTail = function () {
+		return this.tail;
+	};
 
-	public Tail getTail() {
-		return mTail;
-	}
-
-	public void setTail(Cons cons, Environment env) {
-		if( mTail == null ) {
-			throw new EvalException("Tails not active.", this);
+	Frame.prototype.setTail = function (cons, env) {
+		if (this.tail === null) {
+			throw evalException("Tails not active.", this);
 		}
-		mTail.set(cons, env);
-	}
+		this.tail.set(cons, env);
+	};
 
-	public void setupTail() {
-		if( mUseTail ) {
-			mTail = new Tail();
+	Frame.prototype.setupTail = function () {
+		if (this.useTails) {
+			this.tail = new Tail();
 		}
-	}
+	};
 
-	public void clearTail() {
-		mTail = null;
-	}
+	Frame.prototype.clearTail = function () {
+		this.tail = null;
+	};
 
-	void useTail(Environment env) {
-		mTail = env.getTail();
-	}
-}
+/*
 
 public class Quote extends SpecialForm {
 	public Obj invoke( Environment env, Obj arguments ) {
@@ -625,7 +571,7 @@ public class If extends SpecialForm {
 			}
 			Tail tail = env.getTail();
 			if( tail != null ) {
-				if( eval.isCons() ) {
+			if( eval.isCons() ) {
 					tail.set((Cons)eval, env);
 					return null;
 				}
