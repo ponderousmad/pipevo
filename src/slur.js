@@ -1,3 +1,50 @@
+var SLUR = (function () {
+    "use strict";
+    
+    function SlurException(name, message, environment) {
+        this.name = name;
+        this.environment = environment;
+        this.message = message + this.context();
+    }
+    
+    SlurException.prototype.toString = function () {
+        return this.name + ": " + this.message;
+    };
+    
+    SlurException.prototype.context = function () {
+		var c = this.environment.context();
+		var description = "";
+		if ( c.length > 0 ) {
+			description.append( "\nIn functions " );
+			var first = true;
+			for (var s = 0; s < c.length; ++c) {
+				if (!first) {
+					description += ", ";
+				} else {
+					first = false;
+				}
+				description += c[s];
+
+			}
+			description += ":\n";
+		}
+		return description;
+	};
+    
+    function evalException(message, environment) {
+        return new SlurException("EvalException", message, environment);
+    }
+    
+    function compileException(message, environment) {
+        return new SlurException("CompileException", message, environment);
+    }
+    
+    return {
+    };
+}());
+
+/*
+
 package functional;
 
 import java.util.ArrayList;
@@ -44,45 +91,6 @@ public interface Environment {
 	void setTail(Cons cons, Environment env);
 	void setupTail();
 	void clearTail();
-}
-
-public class EvalException extends RuntimeException {
-	private static final long serialVersionUID = 4855022780860455202L;
-	private Environment mEnv;
-
-	public EvalException( String message, Environment env ) {
-		super( message );
-		mEnv = env;
-	}
-
-	public String context() {
-		List<String> c = mEnv.context();
-		StringBuffer description = new StringBuffer();
-		if( c.size() > 0 ) {
-			description.append( "In functions " );
-			boolean first = true;
-			for( String s : c ) {
-				if( !first ) {
-					description.append( ", " );
-				} else {
-					first = false;
-				}
-				description.append( s );
-
-			}
-			description.append( ":\n" );
-		}
-		return description.toString();
-	}
-}
-
-// Keep track of compilation errors (ie, errors which occur when optimizing s-expressions)
-public class CompileException extends EvalException {
-	private static final long serialVersionUID = -1299762129830845968L;
-
-	public CompileException( String message, Environment env ) {
-		super( message, env );
-	}
 }
 
 // Defines an object that can be compiled or evaluated.
@@ -2291,7 +2299,7 @@ public class Parser {
 	}
 
 	private boolean isSymbolChar( char c ) {
-		return isAlphaNum( c ) || ( "_+-*/<>|&^%$@=?".indexOf( c ) != -1 );
+		return isAlphaNum( c ) || ( "_+-/*<>|&^%$@=?".indexOf( c ) != -1 );
 	}
 
 	private boolean isAlphaNum(char c) {
@@ -2447,3 +2455,5 @@ public class Interpreter {
 		}
 	}
 }
+
+*/
