@@ -5,6 +5,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+
+import java.net.URL;
+
 public interface Environment {
 	class AbortRef {
 		private RuntimeException mAbort = null;
@@ -2048,5 +2056,394 @@ public class Numeric {
 				return new FixNum((int)Math.round(asReal(env,"x")));
 			}
 		}));
+	}
+}
+
+public class Parser {
+	public static class ParseException extends RuntimeException {
+		private static final long serialVersionUID = 5694742982275844142L;
+
+		public ParseException( String message ) {
+			super( message );
+		}
+	}
+
+	int mOffset = 0;
+	boolean mIsEscape = false;
+	String mString = null;
+
+	public Parser() {
+	}
+
+	public Parser( String string ) {
+		mOffset = 0;
+		mString = string;
+	}
+
+	public static Obj parse( String string ) {
+		Parser parser = new Parser( string );
+		Obj result = parser.parse();
+		return result;
+	}
+
+	public Obj parse() {
+		skipCommentsAndWhitespace();
+		if( !charsLeft() ) {
+			return null;
+		}
+		if( isOpen() ) {
+			return parseCons( true, false );
+		}
+		if( isDoubleQuote() ) {
+			return parseString();
+		}
+		if( isNumber() ) {
+			Obj number = parseNumber();
+			if( charsLeft() && !( isWhitespace() ||
+								  isOpen() ||
+								  isClose() ) )
+			{
+				throw new ParseException( "Unexpected character after number" );
+			}
+			return number;
+		}
+		if( mString.startsWith( "#t", mOffset ) ) {
+			mOffset += 2;
+			return True.TRUE;
+		}
+		if( isQuote() ) {
+			++mOffset;
+			return new Cons( new Symbol("quote"), new Cons( parse(), Null.NULL ) );
+		}
+		Obj symbol = parseSymbol();
+		if( symbol != null ) {
+			return symbol;
+		}
+		throw new ParseException("Invalid expression.");
+	}
+
+	private Obj parseSymbol() {
+		int start = mOffset;
+		while( charsLeft() && isSymbolChar( mString.charAt( mOffset ) ) ) {
+			++mOffset;
+		}
+		if( charsLeft() && !( isWhitespace() || isParen() ) ) {
+			throw new ParseException( "Unexpected end of symbol." );
+		}
+		if( start == mOffset ) {
+			return null;
+		}
+		return new Symbol( mString.substring( start, mOffset ) );
+	}
+
+	private Obj parseString() {
+		mIsEscape = false;
+		++mOffset;
+		StringBuffer result = new StringBuffer();
+		while( charsLeft() && !endOfString() ) {
+			if( !mIsEscape ) {
+				result.append( mString.charAt( mOffset ) );
+			}
+			++mOffset;
+		}
+		if( !charsLeft() ) {
+			throw new ParseException( "Could not find end of string." );
+		}
+		++mOffset;
+		return new StringObj( result.toString() );
+	}
+
+	private boolean endOfString() {
+		if( mIsEscape ) {
+			mIsEscape = false;
+			return false;
+		}
+		if( mString.charAt( mOffset ) == '\\' ) {
+			mIsEscape = true;
+			return false;
+		}
+		return mString.charAt( mOffset ) == '"';
+	}
+
+	private Obj parseNumber() {
+		int numberStart = mOffset;
+		boolean negative = isMinus();
+		if( negative ) ++mOffset;
+
+		int wholeStart = mOffset;
+		while( charsLeft() && isDigit( mString.charAt(mOffset) ) ) {
+			++mOffset;
+		}
+		int wholeEnd = mOffset;
+		boolean isReal = false;
+		if( charsLeft() ) {
+			isReal = isDot();
+			if( isReal ) {
+				++mOffset;
+				int decimalStart = mOffset;
+				while( charsLeft() && isDigit( mString.charAt(mOffset) ) ) {
+					++mOffset;
+				}
+				int decimalEnd = mOffset;
+				if( wholeStart == wholeEnd && decimalStart == decimalEnd ) {
+					throw new ParseException( "Number expected, not found:" + mString.substring(numberStart,mOffset) );
+				}
+			}
+			if( mString.startsWith("e",mOffset) ) {
+				isReal = true;
+				++mOffset;
+				if( isMinus() ) ++mOffset;
+				int exponentStart = mOffset;
+				while( charsLeft() && isDigit( mString.charAt(mOffset) ) ) {
+					++mOffset;
+				}
+				int exponentEnd = mOffset;
+				if( exponentStart == exponentEnd ) {
+					throw new ParseException( "Number expected, not found:" + mString.substring(numberStart,mOffset) );
+				}
+			}
+		}
+		if( !isReal )
+		{
+			if( wholeStart == wholeEnd ) {
+				throw new ParseException( "Number expected, not found:" + mString.substring(numberStart,mOffset));
+			}
+			return new FixNum( Integer.valueOf( mString.substring( numberStart, mOffset )));
+		}
+		return new Real( Double.valueOf( mString.substring( numberStart, mOffset )));
+	}
+
+	private Obj parseCons( boolean areStart, boolean justCdr ) {
+		if( areStart ) {
+			++mOffset;
+		}
+		skipCommentsAndWhitespace();
+
+		if( !charsLeft() ) {
+			throw new ParseException( "Missing ')'" );
+		}
+		if( isClose() ) {
+			if( justCdr ) {
+				throw new ParseException( "Cannot follow '.' with ')'" );
+			}
+			++mOffset;
+			return Null.NULL;
+		}
+		if( isDot() ) {
+			++mOffset;
+			if( !charsLeft() ) {
+				throw new ParseException( "Missing ')'" );
+			}
+			if( isWhitespace() ) {
+				if( areStart ) {
+					return new Cons( Null.NULL, parseCons( false, true ) );
+				} else {
+					if( justCdr ) {
+						throw new ParseException( "Multiple '.' in list" );
+					}
+					return parseCons( false, true );
+				}
+			} else {
+				--mOffset;
+			}
+		} else if( justCdr ) {
+			Obj cdr = parse();
+			skipCommentsAndWhitespace();
+			if( !isClose() ) {
+				throw new ParseException( "List with '.' had multiple cdr items." );
+			}
+			++mOffset;
+			return cdr;
+		}
+		Obj car = parse();
+		Obj cdr = parseCons( false, false );
+		return new Cons( car, cdr );
+	}
+
+	private boolean charsLeft() {
+		return mOffset < mString.length();
+	}
+
+	private boolean isNumber() {
+		if( isMinus() ) {
+			++mOffset;
+			boolean result = charsLeft() && ( isDigit() || isDot() );
+			--mOffset;
+			return result;
+		}
+		return isDot() || isDigit();
+	}
+
+	private boolean isMinus() {
+		return mString.charAt( mOffset ) == '-';
+	}
+
+	private boolean isDigit(char c) {
+		return '0' <= c && c <= '9';
+	}
+
+	private boolean isDigit() {
+		return isDigit( mString.charAt(mOffset) );
+	}
+
+	private boolean isDot() {
+		return mString.startsWith( ".", mOffset );
+	}
+
+	private boolean isSymbolChar( char c ) {
+		return isAlphaNum( c ) || ( "_+-*/<>|&^%$@=?".indexOf( c ) != -1 );
+	}
+
+	private boolean isAlphaNum(char c) {
+		return ( 'a' <= c && c <= 'z' ) ||
+			   ( 'A' <= c && c <= 'Z' ) ||
+			   ( '0' <= c && c <= '9' );
+	}
+
+	private boolean isQuote() {
+		return mString.charAt( mOffset ) == '\'';
+	}
+
+	private boolean isDoubleQuote() {
+		return mString.charAt( mOffset ) == '"';
+	}
+
+	private boolean isOpen() {
+		return mString.charAt( mOffset ) == '(';
+	}
+
+	private boolean isClose() {
+		return mString.startsWith(")",mOffset );
+	}
+
+	private boolean isParen() {
+		return isOpen() || isClose();
+	}
+
+	private boolean isWhitespace() {
+		String whitespace = " \t\n\r";
+		return whitespace.indexOf( mString.charAt(mOffset) ) != -1;
+	}
+
+	private boolean isLineBreak() {
+		Character nextChar = mString.charAt(mOffset);
+		return nextChar == '\n' || nextChar == '\r';
+	}
+
+	private boolean isCommentStart() {
+		return mString.charAt(mOffset) == ';';
+	}
+
+	private void skipCommentsAndWhitespace() {
+		while( charsLeft() && ( isCommentStart() || isWhitespace() ) ) {
+			if( isCommentStart() ) {
+				while( charsLeft() && !isLineBreak() ) {
+					++mOffset;
+				}
+			} else {
+				++mOffset;
+			}
+		}
+	}
+}
+
+public class Initialize {
+	public static Environment init() {
+		Environment env = new Frame();
+
+		List.install( env );
+		Numeric.install( env );
+		Types.install( env );
+
+		Special.install(env);
+
+		return env;
+	}
+
+	public static Environment initWithLibraries() {
+		Environment env = init();
+
+		String[] libraries = new String[]{"consCombos.slur", "list.slur", "map.slur", "reduce.slur", "reverse.slur"};
+
+		for( String library : libraries) {
+			loadLibrary(library, env);
+		}
+
+		return env;
+	}
+
+	private static void loadLibrary(String library, Environment env) {
+		try {
+			URL path = ClassLoader.getSystemResource("slur/" + library);
+			if( path == null ) {
+				return;
+			}
+			String filePath = path.getFile();
+			BufferedReader read = new BufferedReader(new FileReader(filePath));
+			String line;
+			StringBuffer buffer = new StringBuffer();
+			do {
+				line = read.readLine();
+				if( line != null) {
+					buffer.append(line);
+					buffer.append(" ");
+				}
+			}
+			while(line!=null);
+			String contents = buffer.toString();
+			if( contents.length() > 0 ) {
+				try {
+					Parser parser = new Parser( contents );
+					Obj result;
+					while( ( result = parser.parse() ) != null ) {
+						result = result.compile(env);
+						result.eval(env);
+					}
+				} catch( Parser.ParseException ex ) {
+					ex.printStackTrace();
+				}
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+}
+
+public class Interpreter {
+	public static void main(String[] args) {
+		launchInterpreter();
+	}
+
+	public static void launchInterpreter() {
+		BufferedReader read = new BufferedReader( new InputStreamReader( System.in ) );
+		PrintStream out = System.out;
+
+		Environment env = Initialize.initWithLibraries();
+
+		try {
+			String line;
+			do {
+				out.print( ":" );
+				line = read.readLine();
+				if( line != null && line.length() > 0 ) {
+					try {
+						Parser parser = new Parser( line );
+						Obj result;
+						while( ( result = parser.parse() ) != null ) {
+							out.println( result.toString() );
+							out.println( result.eval(env).toString() );
+						}
+					} catch( Parser.ParseException ex ) {
+						out.println( ex.getMessage() );
+					}
+				} else if( line != null ) {
+					line = null;
+				}
+			} while( line != null );
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }
