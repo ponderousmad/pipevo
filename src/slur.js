@@ -85,6 +85,31 @@ var SLUR = (function () {
             return new True();
         }());
     
+    // Represents the integer primitive.
+    function FixNum(value) {
+        this.value = Math.floor(value);
+    }
+    FixNum.prototype.type = typeIs(ObjectType.FIX_NUM);
+    FixNum.prototype.eval = selfEval;
+    FixNum.prototype.compile = selfCompile;
+    FixNum.prototype.toString = function() { return this.value.toString(); };
+    
+    // Represent the floating point primitive.
+    function Real(value) {
+        this.value = value;
+    }
+    Real.prototype.type = typeIs(ObjectType.REAL);
+    Real.prototype.eval = selfEval;
+    Real.prototype.compile = selfCompile;
+    Real.prototype.toString = function() { return this.value.toString(); };
+    
+    function String(value) {
+        this.value = value;
+    }
+    String.prototype.type = typeIs(ObjectType.STRING);
+    String.prototype.eval = selfEval;
+    String.prototype.compile = selfCompile;
+    String.prototype.toString = function() { return '"' + this.value + '"'; };
     
     return {
     };
@@ -159,231 +184,8 @@ public interface Obj {
 	public Obj compile( Environment env );
 }
 
-// The canonical 'True' value representation.
-public class True implements Obj {
 
-	public boolean isFunction() {
-		return false;
-	}
 
-	public boolean isSpecialForm() {
-		return false;
-	}
-
-	public boolean isFixNum() {
-		return false;
-	}
-
-	public boolean isReal() {
-		return false;
-	}
-
-	public boolean isString() {
-		return false;
-	}
-
-	public boolean isSymbol() {
-		return false;
-	}
-
-	public boolean isCons() {
-		return false;
-	}
-
-	public boolean isNull() {
-		return false;
-	}
-
-	public Obj eval(Environment env) {
-		return this;
-	}
-
-	public Obj compile( Environment env ) {
-		return this;
-	}
-
-	public String toString() {
-		return "#t";
-	}
-
-	private True() {
-	}
-
-	public static True TRUE = new True();
-}
-
-// Represents the integer primitive. Unlike some lisps, this is limited to a standard java int.
-public class FixNum implements Obj {
-
-	public FixNum( int value ) {
-		mValue = value;
-	}
-
-	public boolean isFunction() {
-		return false;
-	}
-
-	public boolean isSpecialForm() {
-		return false;
-	}
-
-	public boolean isFixNum() {
-		return true;
-	}
-
-	public boolean isReal() {
-		return false;
-	}
-
-	public boolean isString() {
-		return false;
-	}
-
-	public boolean isSymbol() {
-		return false;
-	}
-
-	public boolean isCons() {
-		return false;
-	}
-
-	public boolean isNull() {
-		return false;
-	}
-
-	public Obj eval( Environment env ) {
-		return this;
-	}
-
-	public Obj compile( Environment env ) {
-		return this;
-	}
-
-	public String toString() {
-		return Integer.toString( mValue );
-	}
-
-	public int value() {
-		return mValue;
-	}
-
-	private int mValue;
-}
-
-// Represent the floating point primitive (double precision).
-public class Real implements Obj {
-
-	public Real( double value ) {
-		mValue = value;
-	}
-
-	public boolean isReal() {
-		return true;
-	}
-
-	public boolean isFunction() {
-		return false;
-	}
-
-	public boolean isSpecialForm() {
-		return false;
-	}
-
-	public boolean isFixNum() {
-		return false;
-	}
-
-	public boolean isString() {
-		return false;
-	}
-
-	public boolean isSymbol() {
-		return false;
-	}
-
-	public boolean isCons() {
-		return false;
-	}
-
-	public boolean isNull() {
-		return false;
-	}
-
-	public Obj eval(Environment env) {
-		return this;
-	}
-
-	public Obj compile( Environment env ) {
-		return this;
-	}
-
-	public String toString() {
-		return Double.toString( mValue );
-	}
-
-	public double value() {
-		return mValue;
-	}
-
-	private double mValue;
-}
-
-public class StringObj implements Obj {
-
-	private String mString;
-
-	public StringObj( String string ) {
-		mString = string;
-	}
-
-	public boolean isFunction() {
-		return false;
-	}
-
-	public boolean isSpecialForm() {
-		return false;
-	}
-
-	public boolean isFixNum() {
-		return false;
-	}
-
-	public boolean isReal() {
-		return false;
-	}
-
-	public boolean isString() {
-		return true;
-	}
-
-	public boolean isSymbol() {
-		return false;
-	}
-
-	public boolean isCons() {
-		return false;
-	}
-
-	public boolean isNull() {
-		return false;
-	}
-
-	public Obj eval(Environment env) {
-		return this;
-	}
-
-	public Obj compile( Environment env ) {
-		return this;
-	}
-
-	public String value() {
-		return mString;
-	}
-
-	public String toString() {
-		return "\"" + mString + "\"";
-	}
-}
 
 public class Symbol implements Obj {
 	private String mName;
