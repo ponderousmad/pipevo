@@ -47,7 +47,8 @@ var SLUR = (function () {
         STRING: 16,
         SYMBOL: 32,
         CONS: 64,
-        NULL: 128        
+        NULL: 128,
+        TRUE: 256
     };
     
     function typeIs(type) {
@@ -69,8 +70,19 @@ var SLUR = (function () {
         Null.prototype.type = typeIs(ObjectType.NULL);
         Null.prototype.eval = selfEval;
         Null.prototype.compile = selfCompile;
+        Null.prototype.toString = function() { return "()"; }; 
     
         return new Null();
+    }());
+    
+    var TRUE = (function() {
+        function True() {}
+        True.prototype.type = typeIs(ObjectType.TRUE);
+        True.prototype.eval = selfEval;
+        True.prototype.compile = selfCompile;
+        True.prototype.toString = function() { return "#t"; }; 
+    
+        return new True();
     }());
     
     
