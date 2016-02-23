@@ -39,18 +39,6 @@ var SLUR = (function () {
         return new SlurException("CompileException", message, environment);
     }
     
-    var ObjectType = {
-        FUNCTION: 1,
-        SPECIAL_FORM: 2,
-        FIX_NUM: 4,
-        REAL: 8,
-        STRING: 16,
-        SYMBOL: 32,
-        CONS: 64,
-        NULL: 128,
-        TRUE: 256
-    };
-    
     function typeIs(type) {
         return function() { return type; };
     }
@@ -65,25 +53,37 @@ var SLUR = (function () {
         return this;
     }
     
-    var NULL = (function() {
-        function Null() {}
-        Null.prototype.type = typeIs(ObjectType.NULL);
-        Null.prototype.eval = selfEval;
-        Null.prototype.compile = selfCompile;
-        Null.prototype.toString = function() { return "()"; }; 
+    var ObjectType = {
+            FUNCTION: 1,
+            SPECIAL_FORM: 2,
+            FIX_NUM: 4,
+            REAL: 8,
+            STRING: 16,
+            SYMBOL: 32,
+            CONS: 64,
+            NULL: 128,
+            TRUE: 256
+        },
+        
+        NULL = (function() {
+            function Null() {}
+            Null.prototype.type = typeIs(ObjectType.NULL);
+            Null.prototype.eval = selfEval;
+            Null.prototype.compile = selfCompile;
+            Null.prototype.toString = function() { return "()"; }; 
+        
+            return new Null();
+        }()),
     
-        return new Null();
-    }());
-    
-    var TRUE = (function() {
-        function True() {}
-        True.prototype.type = typeIs(ObjectType.TRUE);
-        True.prototype.eval = selfEval;
-        True.prototype.compile = selfCompile;
-        True.prototype.toString = function() { return "#t"; }; 
-    
-        return new True();
-    }());
+        TRUE = (function() {
+            function True() {}
+            True.prototype.type = typeIs(ObjectType.TRUE);
+            True.prototype.eval = selfEval;
+            True.prototype.compile = selfCompile;
+            True.prototype.toString = function() { return "#t"; }; 
+        
+            return new True();
+        }());
     
     
     return {
