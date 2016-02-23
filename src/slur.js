@@ -110,6 +110,20 @@ var SLUR = (function () {
     String.prototype.eval = selfEval;
     String.prototype.compile = selfCompile;
     String.prototype.toString = function() { return '"' + this.value + '"'; };
+
+    function Symbol(name) {
+        this.name = name;
+    }
+    String.prototype.type = typeIs(ObjectType.SYMBOL);
+    String.prototype.eval = function (env) { return env.lookup(this); };
+    String.prototype.compile = function (env) {
+        var found = env.tryLookup(this);
+        if (found !== null) {
+            return found;
+        }
+        return this;
+    };
+    String.prototype.toString = function() { return this.name; };
     
     return {
     };
@@ -182,69 +196,6 @@ public interface Obj {
 	
 	// Produce an efficent version of this object based on the environment.
 	public Obj compile( Environment env );
-}
-
-
-
-
-public class Symbol implements Obj {
-	private String mName;
-
-	public Symbol( String name ) {
-		mName = name;
-	}
-
-	public boolean isFunction() {
-		return false;
-	}
-
-	public boolean isSpecialForm() {
-		return false;
-	}
-
-	public boolean isFixNum() {
-		return false;
-	}
-
-	public boolean isReal() {
-		return false;
-	}
-
-	public boolean isString() {
-		return false;
-	}
-
-	public boolean isSymbol() {
-		return true;
-	}
-
-	public boolean isCons() {
-		return false;
-	}
-
-	public boolean isNull() {
-		return false;
-	}
-
-	public Obj eval( Environment env ) {
-		return env.lookup( this );
-	}
-
-	public Obj compile( Environment env ) {
-		Obj found = env.tryLookup( this );
-		if( found != null ) {
-			return found;
-		}
-		return this;
-	}
-
-	public String toString() {
-		return mName;
-	}
-
-	public String name() {
-		return mName;
-	}
 }
 
 // Define a cons cell.
