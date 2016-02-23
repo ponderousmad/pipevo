@@ -252,50 +252,6 @@ var SLUR = (function () {
         return "(" + this.innerString() + ")";
     };
 
-/*
-public interface Environment {
-	class AbortRef {
-		private RuntimeException mAbort = null;
-		synchronized public void abort(RuntimeException ex) {
-			mAbort = ex;
-		}
-
-		synchronized public RuntimeException abort() {
-			return mAbort;
-		}
-	}
-
-	RuntimeException abort();
-	AbortRef getAbort();
-
-	Obj lookup( String name );
-	Obj lookup( Symbol symbol );
-	Obj tryLookup( String name );
-	Obj tryLookup( Symbol symbol );
-	Symbol add( String name, Obj value );
-	Symbol add( Function function );
-	Symbol set( String name, Obj value );
-	void shadow( String name );
-
-	List<String> context();
-
-	boolean useTails();
-	Tail getTail();
-	void setTail(Cons cons, Environment env);
-	void setupTail();
-	void clearTail();
-}
-
-	public static interface Body
-	{
-		Obj invoke( Environment env );
-	}
-
-	public static interface CompileableBody extends Body {
-		Body compile( Environment env );
-	}
-*/
-
     function Function(name, parameters, restParameter, body) {
         this.name = name;
         this.parameters = argNames;
@@ -345,11 +301,11 @@ public interface Environment {
 			if (!isCons(argsTail)) {
 				throw invocationException("Malformed expression", this, args, env);
 			}
-            frame.add(this.parameters[p], argsTail.car.eval(env));
+            frame.bind(this.parameters[p], argsTail.car.eval(env));
             argsTail = args.cdr;
         }
         if (this.restParameter !== null) {
-            frame.add(this.restParameter, this.evalList(env, argsTail));
+            frame.bind(this.restParameter, this.evalList(env, argsTail));
         } else if(!isNull(argsTail)) {
             throw invocationException("Too many arguments", this, args, env);
         }
@@ -504,7 +460,7 @@ public interface Environment {
 	};
 
 	Frame.prototype.shadow = function (name) {
-		this.add(name, SHADOW);
+		this.bind(name, SHADOW);
 	};
 
 	Frame.prototype.context = function () {
@@ -767,8 +723,8 @@ public class Labels extends SpecialForm {
 
 		public Obj eval(Environment env) {
 			Environment labelsEnv = new Frame( env, null );
-			for( Function function : mFunctions ) {
-				labelsEnv.add( function.name(), function );
+			for( Function func : mFunctions ) {
+				labelsEnv.bindFunction(func);
 			}
 
 			Obj result = null;
@@ -892,7 +848,7 @@ public class Let extends SpecialForm {
 		public Obj eval(Environment env) {
 			Environment letEnv = new Frame( env, null );
 			for( BindingForm form : mBindingForms ) {
-				letEnv.add(form.mSymbol.name(), form.mForm.eval(mType == Type.SEQUENTIAL ? letEnv : env));
+				letEnv.bind(form.mSymbol.name(), form.mForm.eval(mType == Type.SEQUENTIAL ? letEnv : env));
 			}
 
 			Obj result = null;
@@ -1066,7 +1022,7 @@ public class Define extends SpecialForm {
 		if( args.car().isCons() ) {
 			Function function = processFunction((Cons)args.car(), args.cdr(), env);
 			Frame selfFrame = new Frame(env, function.name() + " - compiling");
-			selfFrame.add(function);
+			selfFrame.bindFunction(function);
 			function.compileBody(selfFrame);
 			return Cons.list(this, new Symbol(function.name()), function);
 		}
@@ -1083,7 +1039,7 @@ public class Define extends SpecialForm {
 		Cons args = (Cons)arguments;
 		if( args.car().isCons() ) {
 			Function func = processFunction( (Cons)args.car(), args.cdr(), env );
-			return env.add( func );
+			return env.bindFunction( func );
 		}
 		if( args.car().isSymbol() ) {
 			return defineValue( (Symbol)args.car(), args.cdr(), env );
@@ -1100,7 +1056,7 @@ public class Define extends SpecialForm {
 			throw new DefineException( env );
 		}
 		Obj value = rest.car().eval( env );
-		return env.add( symbol.name(), value );
+		return env.bind( symbol.name(), value );
 	}
 
 	private Obj compileValue(Obj obj, Environment env) {
@@ -1148,28 +1104,28 @@ public class Define extends SpecialForm {
 
 public class Special {
 	public static void install(Environment env) {
-		env.add( "cond", new Cond() );
-		env.add( "if", new If() );
-		env.add( "lambda", new Lambda() );
-		env.add( "quote", new Quote() );
-		env.add( "let", new Let( Let.Type.PARALLEL ) );
-		env.add( "let*", new Let( Let.Type.SEQUENTIAL ) );
-		env.add( "labels", new Labels() );
-		env.add( "define", new Define() );
-		env.add( "and", new And() );
-		env.add( "or", new Or() );
+		env.bind( "cond", new Cond() );
+		env.bind( "if", new If() );
+		env.bind( "lambda", new Lambda() );
+		env.bind( "quote", new Quote() );
+		env.bind( "let", new Let( Let.Type.PARALLEL ) );
+		env.bind( "let*", new Let( Let.Type.SEQUENTIAL ) );
+		env.bind( "labels", new Labels() );
+		env.bind( "define", new Define() );
+		env.bind( "and", new And() );
+		env.bind( "or", new Or() );
 	}
 }
 
 public class List {
 	static public void install( Environment env ) {
-		env.add( new Function( "cons", new String[] {"car","cdr"}, null, new Function.Body() {
+		env.bindFunction( new Function( "cons", new String[] {"car","cdr"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				return new Cons( env.lookup("car"), env.lookup("cdr") );
 			}
 		}));
 
-		env.add( new Function( "car", new String[] {"cons"}, null, new Function.Body() {
+		env.bindFunction( new Function( "car", new String[] {"cons"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				Obj cons = env.lookup( "cons" );
 				if( cons.isCons() ) {
@@ -1179,7 +1135,7 @@ public class List {
 			}
 		}));
 
-		env.add( new Function( "cdr", new String[] {"cons"}, null, new Function.Body() {
+		env.bindFunction( new Function( "cdr", new String[] {"cons"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				Obj cons = env.lookup( "cons" );
 				if( cons.isCons() ) {
@@ -1189,7 +1145,7 @@ public class List {
 			}
 		}));
 
-		env.add( new Function( "isList?", new String[] {"l"}, null, new Function.Body() {
+		env.bindFunction( new Function( "isList?", new String[] {"l"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				Obj l = env.lookup("l");
 				if( l.isNull() ) {
@@ -1208,7 +1164,7 @@ public class List {
 			}
 		}));
 
-		env.add( new Function( "list", new String[] {}, "rest", new Function.Body() {
+		env.bindFunction( new Function( "list", new String[] {}, "rest", new Function.Body() {
 			public Obj invoke(Environment env) {
 				return env.lookup( "rest" );
 			}
@@ -1218,49 +1174,49 @@ public class List {
 
 public class Types {
 	public static void install( Environment env ) {
-		env.add( new Function( "isCons?", new String[] {"c"}, null, new Function.Body() {
+		env.bindFunction( new Function( "isCons?", new String[] {"c"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				return env.lookup( "c" ).isCons() ? True.TRUE : Null.NULL;
 			}
 		}));
 
-		env.add( new Function( "isSym?", new String[] { "s" }, null, new Function.Body() {
+		env.bindFunction( new Function( "isSym?", new String[] { "s" }, null, new Function.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "s" ).isSymbol() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.add( new Function( "isString?", new String[] { "s" }, null, new Function.Body() {
+		env.bindFunction( new Function( "isString?", new String[] { "s" }, null, new Function.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "s" ).isString() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.add( new Function( "isFn?", new String[] { "f" }, null, new Function.Body() {
+		env.bindFunction( new Function( "isFn?", new String[] { "f" }, null, new Function.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "f" ).isFunction() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.add( new Function( "isMacro?", new String[] { "m" }, null, new Function.Body() {
+		env.bindFunction( new Function( "isMacro?", new String[] { "m" }, null, new Function.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "m" ).isSpecialForm() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.add( new Function( "isNull?", new String[] { "n" }, null, new Function.Body() {
+		env.bindFunction( new Function( "isNull?", new String[] { "n" }, null, new Function.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "n" ).isNull() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.add( new Function( "isFixNum?", new String[] { "x" }, null, new Function.Body() {
+		env.bindFunction( new Function( "isFixNum?", new String[] { "x" }, null, new Function.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "x" ).isFixNum() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.add( new Function( "isReal?", new String[] { "x" }, null, new Function.Body() {
+		env.bindFunction( new Function( "isReal?", new String[] { "x" }, null, new Function.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "x" ).isReal() ? True.TRUE : Null.NULL ;
 			}
@@ -1329,11 +1285,11 @@ public class Numeric {
 	}
 
 	static void install( Environment env, String name, Operation op ) {
-		env.add( new Function( name, Operator.sArgs, null, new Operator( op ) ) );
+		env.bindFunction( new Function( name, Operator.sArgs, null, new Operator( op ) ) );
 	}
 
 	static void install( Environment env, String name, UnaryOperation op ) {
-		env.add( new Function( name, UnaryOperator.sArgs, null, new UnaryOperator( op ) ) );
+		env.bindFunction( new Function( name, UnaryOperator.sArgs, null, new UnaryOperator( op ) ) );
 	}
 
 	private static double asReal(Environment env, String name) {
@@ -1346,7 +1302,7 @@ public class Numeric {
 	}
 
 	static void installRealFunc( Environment env, String name, final RealFunc func ) {
-		env.add( new Function( name, new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Function( name, new String[]{"x"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				return new Real(func.calc(asReal(env,"x")));
 			}
@@ -1359,7 +1315,7 @@ public class Numeric {
 	}
 
 	static void installRealFunc2( Environment env, String name, final RealFunc2 func ) {
-		env.add( new Function( name, new String[]{"x", "y"}, null, new Function.Body() {
+		env.bindFunction( new Function( name, new String[]{"x", "y"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				return new Real(func.calc(asReal(env,"x"), asReal(env,"y")));
 			}
@@ -1376,7 +1332,7 @@ public class Numeric {
 	}
 
 	static void installFixNumFunc( Environment env, String name, final FixNumFunc func ) {
-		env.add( new Function( name, new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Function( name, new String[]{"x"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum(func.calc(asInt(env,"x")));
 			}
@@ -1389,7 +1345,7 @@ public class Numeric {
 	}
 
 	static void installFixNumFunc2( Environment env, String name, final FixNumFunc2 func ) {
-		env.add( new Function( name, new String[]{"x", "y"}, null, new Function.Body() {
+		env.bindFunction( new Function( name, new String[]{"x", "y"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum(func.calc(asInt(env,"x"),asInt(env,"y")));
 			}
@@ -1400,7 +1356,7 @@ public class Numeric {
 		final Obj T= True.TRUE;
 		final Obj F= Null.NULL;
 
-		env.add( new Function( "not", new String[] { "x" }, null, new Function.Body(){
+		env.bindFunction( new Function( "not", new String[] { "x" }, null, new Function.Body(){
 			public Obj invoke(Environment env) {
 				Obj x = env.lookup( "x" );
 				return x.isNull() ? T : F;
@@ -1480,24 +1436,24 @@ public class Numeric {
 		installRealFunc(env, "atan", new RealFunc() { public double calc(double x) {return Math.atan(x);}});
 		installRealFunc2(env, "atan2", new RealFunc2() { public double calc(double y, double x) {return Math.atan2(y,x);}});
 
-		env.add("PI", new Real(Math.PI));
-		env.add("E", new Real(Math.E));
+		env.bind("PI", new Real(Math.PI));
+		env.bind("E", new Real(Math.E));
 
 		installRealFunc2(env, "pow", new RealFunc2() { public double calc(double x, double y) {return Math.pow(x,y);}});
 
-		env.add( new Function( "ciel", new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Function( "ciel", new String[]{"x"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum((int)Math.ceil(asReal(env,"x")));
 			}
 		}));
 
-		env.add( new Function( "floor", new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Function( "floor", new String[]{"x"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum((int)Math.floor(asReal(env,"x")));
 			}
 		}));
 
-		env.add( new Function( "round", new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Function( "round", new String[]{"x"}, null, new Function.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum((int)Math.round(asReal(env,"x")));
 			}
