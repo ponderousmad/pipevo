@@ -39,6 +39,41 @@ var SLUR = (function () {
         return new SlurException("CompileException", message, environment);
     }
     
+    var ObjectType = {
+        FUNCTION: 1,
+        SPECIAL_FORM: 2,
+        FIX_NUM: 4,
+        REAL: 8,
+        STRING: 16,
+        SYMBOL: 32,
+        CONS: 64,
+        NULL: 128        
+    };
+    
+    function typeIs(type) {
+        return function() { return type; };
+    }
+    
+    function selfEval(env) {
+        /*jshint validthis: true */
+        return this;
+    }
+    
+    function selfCompile(env) {
+        /*jshint validthis: true */
+        return this;
+    }
+    
+    var NULL = (function() {
+        function Null() {}
+        Null.prototype.type = typeIs(ObjectType.NULL);
+        Null.prototype.eval = selfEval;
+        Null.prototype.compile = selfCompile;
+    
+        return new Null();
+    }());
+    
+    
     return {
     };
 }());
@@ -110,103 +145,6 @@ public interface Obj {
 	
 	// Produce an efficent version of this object based on the environment.
 	public Obj compile( Environment env );
-}
-
-// Convienience base class for object types with resonable defaults.
-public class BaseObj implements Obj {
-
-	public Obj eval(Environment env) {
-		return this;
-	}
-
-	public Obj compile(Environment env) {
-		return this;
-	}
-
-	public boolean isCons() {
-		return false;
-	}
-
-	public boolean isFixNum() {
-		return false;
-	}
-
-	public boolean isFunction() {
-		return false;
-	}
-
-	public boolean isNull() {
-		return false;
-	}
-
-	public boolean isReal() {
-		return false;
-	}
-
-	public boolean isSpecialForm() {
-		return false;
-	}
-
-	public boolean isString() {
-		return false;
-	}
-
-	public boolean isSymbol() {
-		return false;
-	}
-}
-
-// Explicitly represents null.
-public class Null implements Obj {
-
-	public boolean isFunction() {
-		return false;
-	}
-
-	public boolean isSpecialForm() {
-		return false;
-	}
-
-	public boolean isFixNum() {
-		return false;
-	}
-
-	public boolean isReal() {
-		return false;
-	}
-
-	public boolean isString() {
-		return false;
-	}
-
-	public boolean isSymbol() {
-		return false;
-	}
-
-	public boolean isCons() {
-		return false;
-	}
-
-	public boolean isNull() {
-		return true;
-	}
-
-	public Obj eval(Environment env) {
-		return this;
-	}
-
-	public Obj compile( Environment env ) {
-		return this;
-	}
-
-	public String toString() {
-		return "()";
-	}
-
-	private Null() {
-	}
-
-	public static final Null NULL = new Null();
 }
 
 // The canonical 'True' value representation.
