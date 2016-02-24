@@ -15,7 +15,7 @@ var SLUR = (function () {
 		var c = this.environment.context();
 		var description = "";
 		if ( c.length > 0 ) {
-			description.append( "\nIn functions " );
+			description.append( " - In functions " );
 			var first = true;
 			for (var s = 0; s < c.length; ++c) {
 				if (!first) {
@@ -62,6 +62,11 @@ var SLUR = (function () {
     function selfCompile(env) {
         // jshint validthis: true
         return this;
+    }
+    
+    function selfName() {
+        // jshint validthis: true
+        return this.name;
     }
     
     // Every object has a type and can be compiled or evaluated.
@@ -144,7 +149,7 @@ var SLUR = (function () {
         }
         return this;
     };
-    Symbol.prototype.toString = function() { return this.name; };
+    Symbol.prototype.toString = selfName;
     
     // Define a cons cell.
     function Cons(car, cdr) {
@@ -253,22 +258,23 @@ var SLUR = (function () {
         return "(" + this.innerString() + ")";
     };
 
-    function Function(name, parameters, restParameter, body) {
+    function Func(name, parameters, restParameter, body, frame) {
         this.name = name;
         this.parameters = argNames;
         this.restParameter = restName;
         this.body = body;
+        this.frame = frame ? frame : null; // For closures.
         
         if (!this.parameters || !this.body) {
             throw "Malformed function definition";
         }
     }
-    Function.prototype.type = typeIs(ObjectType.FUNCTION);
-    Function.prototype.eval = selfEval;
-    Function.prototype.compile = selfCompile;
-    Function.prototype.toString = function () { return this.name; };
+    Func.prototype.type = typeIs(ObjectType.FUNCTION);
+    Func.prototype.eval = selfEval;
+    Func.prototype.compile = selfCompile;
+    Func.prototype.toString = selfName;
     
-    Function.prototype.shadowArgs = function (env) {
+    Func.prototype.shadowArgs = function (env) {
         if (this.parameters.length === 0 && this.restParameter === null) {
             return env;
         }
@@ -282,18 +288,18 @@ var SLUR = (function () {
         return frame;
     };
     
-    Function.prototype.compileBody = function(env) {
+    Func.prototype.compileBody = function(env) {
         this.body = this.body.compile(this.shadowArgs(env));
     };
     
-    Function.prototype.invoke = function(env, args) {
+    Func.prototype.invoke = function(env, args) {
         var frame = this.bindArgs(env, args);
         frame.useTail(env);
         return this.body.invoke(frame);
     };
     
-    Function.prototype.bindArgs = function (env, args) {
-        var frame = new Frame(env, this.name),
+    Func.prototype.bindArgs = function (env, args) {
+        var frame = new Frame(this.frame ? frame : env, this.name),
             argsTail = args;
         for (var p = 0; p < this.parameters.length; ++p) {           
             if (isNull(argsTail)) {
@@ -313,7 +319,7 @@ var SLUR = (function () {
         return frame;
     };
     
-    Function.prototype.evalList = function (env, object) {
+    Func.prototype.evalList = function (env, object) {
         if (isNull(object)) {
             return object;
         } else if(!isCons(object)) {
@@ -369,7 +375,7 @@ var SLUR = (function () {
     SpecialForm.prototype.type = typeIs(ObjectType.SPECIAL_FORM);
     SpecialForm.prototype.eval = selfEval;
     SpecialForm.prototype.compile = selfCompile;
-    SpecialForm.prototype.toString = function () { return this.name; };
+    SpecialForm.prototype.toString = selfName;
     
     SpecialForm.prototype.compileSpecial = function(env, args) {
         if (this.build) {
@@ -684,101 +690,60 @@ var SLUR = (function () {
         result.compileClauses(env);
         return result;
     }
- 
-/*
-public class Lambda extends SpecialForm {
-	static class LambdaException extends EvalException {
-		private static final long serialVersionUID = 6714984979530711059L;
-
-		public LambdaException( String message, Environment env ) {
-			super( message, env );
-		}
-	}
-
-	public static class Closure extends Function  {
-		private Environment mFrame;
-		public Closure(Environment frame, Function function) {
-			super(function.parameters(), function.restParameter(), function.body());
-			mFrame = frame;
-		}
-
-		protected Frame bodyFrame(Environment env, String name) {
-			return new Frame(mFrame, name);
-		}
-
-		public Obj invoke(Environment env, Obj arguments) {
-			return super.invoke(env, arguments);
-		}
-	}
-
-	public static class CompiledLambda extends BaseObj {
-		private Function mFunction;
-
-		public CompiledLambda( Function function ) {
-			mFunction = function;
-		}
-
-		public Obj eval( Environment env ) {
-			return new Closure( env, mFunction );
-		}
-	}
-
-	public Obj compileSpecial(Environment env, Obj arguments) {
-		return compileLambda(env, arguments);
-	}
-
-	public CompiledLambda compileLambda(Environment env, Obj arguments) {
-		if( !arguments.isCons() ) {
-			throw new LambdaException( "Malformed lambda.", env );
-		}
-		Cons args = (Cons)arguments;
-		Function function = buildFunction(env, null, args.car(), args.cdr());
-		function.compileBody(env);
-		return new CompiledLambda( function );
-	}
-
-	static Function buildFunction(Environment env, String name, Obj parameters, Obj body) {
-		List<String> paramList = new LinkedList<String>();
-		while( parameters.isCons() ) {
-			Cons params = (Cons)parameters;
-			Obj param = params.car();
-			if( param.isSymbol() ) {
-				paramList.add( ((Symbol)param).name() );
+    
+    var lambdaID = 0;
+    
+    function CompiledLambda(func) {
+        this.name = "lambda#" + lambdaID;
+        lambdaID += 1;
+        this.func = func;
+    }
+    CompiledLambda.prototype.type = typeIs(ObjectType.INTERNAL);
+    CompiledLambda.prototype.eval = function (env) {
+        return new Func(this.name, this.func.parameters, this.func.restParameter, this.func.body, env);
+    };
+    CompiledLambda.prototype.compile = selfCompile;
+    CompiledLambda.prototype.toString = selfName;
+    
+    function buildFunction(env, name, parameters, body) {
+		var parameterNames = [];
+		while (isCons(parameters)) {
+			var param = parameters.car;
+			if (isSymbol(param)) {
+				parameterNames.push(param.name);
 			}
-			parameters = params.cdr();
+			parameters = parameters.cdr();
 		}
-		String restParam = null;
-		if( parameters.isSymbol() ) {
-			restParam = ((Symbol)parameters).name();
-		} else if( !parameters.isNull() ) {
-			throw new LambdaException( "Malformed lambda parameters.", env );
+		var restParam = null;
+		if (isSymbol(parameters)) {
+			restParam = parameters.name;
+		} else if (!isNull(parameters)) {
+			throw evalException("Malformed lambda parameters.", env);
 		}
 
-		if( body.isCons() ) {
-			Statements funcBody = new Statements( (Cons)body );
-			String[] parameterNames = paramList.toArray( new String[paramList.size()] );
-			return new Function( name, parameterNames, restParam, funcBody );
+		if (isCons(body)) {
+			var funcBody = new Statements(body);
+			return new Func( name, parameterNames, restParam, funcBody);
 		} else {
-			throw new LambdaException( "Malformed lambda body.", env );
+			throw evalException("Malformed lambda body.", env);
 		}
-	}
+    }
 
-	public Obj invoke( Environment env, Obj arguments ) {
-		return compileLambda( env, arguments ).eval( env );
-	}
+    function lambdaCompile(env, args) {
+        if (!isCons(args)) {
+            throw evalExpression("Malformed lambda.", env);
+        }
+        var func = buildFunction(env, null, args.car, args.cdr);
+        func.compileBody(env);
+        return new CompiledLambda(func);
+    }
+    
+    function lambdaInvoke(env, args) {
+        return lambdaCompile(env, args).eval(env);
+    }
 
-	public String toString() { return "lambda"; }
-}
-
+/*
 public class Let extends SpecialForm {
-	public static class LetException extends EvalException {
-		private static final long serialVersionUID = -3894351663272964169L;
-
-		public LetException( String message, Environment env ) {
-			super( message, env );
-		}
-	}
-
 	public enum Type {
 		PARALLEL,
 		SEQUENTIAL
@@ -939,7 +904,7 @@ public class Let extends SpecialForm {
 			}
 			var binding = func.car;
 			if (compile) {
-				frame.shadow( binding.name() );
+				frame.shadow(binding.name);
 			}
 
 			var definition = func.cdr,
@@ -950,7 +915,7 @@ public class Let extends SpecialForm {
 			if (isNull(definition.cdr)) {
 				throw evalException("Function body expected.", env);
 			}
-			result.functions.push(Lambda.buildFunction(env, binding.name(), parameters, definition.cdr));
+			result.functions.push(Lambda.buildFunction(env, binding.name, parameters, definition.cdr));
 			labels = labels.cdr;
 		}
 		if (!isNull(labels)) {
@@ -999,7 +964,7 @@ public class Define extends SpecialForm {
 		}
 		Cons args = (Cons)arguments;
 		if( args.car().isCons() ) {
-			Function function = processFunction((Cons)args.car(), args.cdr(), env);
+			Func function = processFunction((Cons)args.car(), args.cdr(), env);
 			Frame selfFrame = new Frame(env, function.name() + " - compiling");
 			selfFrame.bindFunction(function);
 			function.compileBody(selfFrame);
@@ -1017,7 +982,7 @@ public class Define extends SpecialForm {
 		}
 		Cons args = (Cons)arguments;
 		if( args.car().isCons() ) {
-			Function func = processFunction( (Cons)args.car(), args.cdr(), env );
+			Func func = processFunction( (Cons)args.car(), args.cdr(), env );
 			return env.bindFunction( func );
 		}
 		if( args.car().isSymbol() ) {
@@ -1049,7 +1014,7 @@ public class Define extends SpecialForm {
 		return rest.car().compile( env );
 	}
 
-	private Function processFunction(Cons spec, Obj body, Environment env) {
+	private Func processFunction(Cons spec, Obj body, Environment env) {
 		if( !spec.car().isSymbol() ) {
 			throw new DefineException( env );
 		}
@@ -1075,7 +1040,7 @@ public class Define extends SpecialForm {
 			throw new DefineException( env );
 		}
 		Statements funcBody = new Statements( (Cons)body );
-		return new Function( name.name(), paramList.toArray( new String[ paramList.size() ] ), restParam, funcBody );
+		return new Func( name.name(), paramList.toArray( new String[ paramList.size() ] ), restParam, funcBody );
 	}
 
 	public String toString() { return "define"; }
@@ -1103,13 +1068,13 @@ public class Define extends SpecialForm {
 /*
 public class List {
 	static public void install( Environment env ) {
-		env.bindFunction( new Function( "cons", new String[] {"car","cdr"}, null, new Function.Body() {
+		env.bindFunction( new Func( "cons", new String[] {"car","cdr"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				return new Cons( env.lookup("car"), env.lookup("cdr") );
 			}
 		}));
 
-		env.bindFunction( new Function( "car", new String[] {"cons"}, null, new Function.Body() {
+		env.bindFunction( new Func( "car", new String[] {"cons"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				Obj cons = env.lookup( "cons" );
 				if( cons.isCons() ) {
@@ -1119,7 +1084,7 @@ public class List {
 			}
 		}));
 
-		env.bindFunction( new Function( "cdr", new String[] {"cons"}, null, new Function.Body() {
+		env.bindFunction( new Func( "cdr", new String[] {"cons"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				Obj cons = env.lookup( "cons" );
 				if( cons.isCons() ) {
@@ -1129,7 +1094,7 @@ public class List {
 			}
 		}));
 
-		env.bindFunction( new Function( "isList?", new String[] {"l"}, null, new Function.Body() {
+		env.bindFunction( new Func( "isList?", new String[] {"l"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				Obj l = env.lookup("l");
 				if( l.isNull() ) {
@@ -1148,7 +1113,7 @@ public class List {
 			}
 		}));
 
-		env.bindFunction( new Function( "list", new String[] {}, "rest", new Function.Body() {
+		env.bindFunction( new Func( "list", new String[] {}, "rest", new Func.Body() {
 			public Obj invoke(Environment env) {
 				return env.lookup( "rest" );
 			}
@@ -1158,49 +1123,49 @@ public class List {
 
 public class Types {
 	public static void install( Environment env ) {
-		env.bindFunction( new Function( "isCons?", new String[] {"c"}, null, new Function.Body() {
+		env.bindFunction( new Func( "isCons?", new String[] {"c"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				return env.lookup( "c" ).isCons() ? True.TRUE : Null.NULL;
 			}
 		}));
 
-		env.bindFunction( new Function( "isSym?", new String[] { "s" }, null, new Function.Body() {
+		env.bindFunction( new Func( "isSym?", new String[] { "s" }, null, new Func.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "s" ).isSymbol() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.bindFunction( new Function( "isString?", new String[] { "s" }, null, new Function.Body() {
+		env.bindFunction( new Func( "isString?", new String[] { "s" }, null, new Func.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "s" ).isString() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.bindFunction( new Function( "isFn?", new String[] { "f" }, null, new Function.Body() {
+		env.bindFunction( new Func( "isFn?", new String[] { "f" }, null, new Func.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "f" ).isFunction() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.bindFunction( new Function( "isMacro?", new String[] { "m" }, null, new Function.Body() {
+		env.bindFunction( new Func( "isMacro?", new String[] { "m" }, null, new Func.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "m" ).isSpecialForm() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.bindFunction( new Function( "isNull?", new String[] { "n" }, null, new Function.Body() {
+		env.bindFunction( new Func( "isNull?", new String[] { "n" }, null, new Func.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "n" ).isNull() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.bindFunction( new Function( "isFixNum?", new String[] { "x" }, null, new Function.Body() {
+		env.bindFunction( new Func( "isFixNum?", new String[] { "x" }, null, new Func.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "x" ).isFixNum() ? True.TRUE : Null.NULL ;
 			}
 		}));
 
-		env.bindFunction( new Function( "isReal?", new String[] { "x" }, null, new Function.Body() {
+		env.bindFunction( new Func( "isReal?", new String[] { "x" }, null, new Func.Body() {
 			public Obj invoke( Environment env ) {
 				return env.lookup( "x" ).isReal() ? True.TRUE : Null.NULL ;
 			}
@@ -1219,7 +1184,7 @@ public class Numeric {
 		public Obj eval( double a );
 	}
 
-	static class Operator implements Function.Body {
+	static class Operator implements Func.Body {
 		static final String[] sArgs = new String[] { "a", "b" };
 
 		private Operation mOp;
@@ -1248,7 +1213,7 @@ public class Numeric {
 		}
 	}
 
-	static class UnaryOperator implements Function.Body {
+	static class UnaryOperator implements Func.Body {
 		static final String[] sArgs = new String[] { "a" };
 
 		private UnaryOperation mOp;
@@ -1269,11 +1234,11 @@ public class Numeric {
 	}
 
 	static void install( Environment env, String name, Operation op ) {
-		env.bindFunction( new Function( name, Operator.sArgs, null, new Operator( op ) ) );
+		env.bindFunction( new Func( name, Operator.sArgs, null, new Operator( op ) ) );
 	}
 
 	static void install( Environment env, String name, UnaryOperation op ) {
-		env.bindFunction( new Function( name, UnaryOperator.sArgs, null, new UnaryOperator( op ) ) );
+		env.bindFunction( new Func( name, UnaryOperator.sArgs, null, new UnaryOperator( op ) ) );
 	}
 
 	private static double asReal(Environment env, String name) {
@@ -1286,7 +1251,7 @@ public class Numeric {
 	}
 
 	static void installRealFunc( Environment env, String name, final RealFunc func ) {
-		env.bindFunction( new Function( name, new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Func( name, new String[]{"x"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				return new Real(func.calc(asReal(env,"x")));
 			}
@@ -1299,7 +1264,7 @@ public class Numeric {
 	}
 
 	static void installRealFunc2( Environment env, String name, final RealFunc2 func ) {
-		env.bindFunction( new Function( name, new String[]{"x", "y"}, null, new Function.Body() {
+		env.bindFunction( new Func( name, new String[]{"x", "y"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				return new Real(func.calc(asReal(env,"x"), asReal(env,"y")));
 			}
@@ -1316,7 +1281,7 @@ public class Numeric {
 	}
 
 	static void installFixNumFunc( Environment env, String name, final FixNumFunc func ) {
-		env.bindFunction( new Function( name, new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Func( name, new String[]{"x"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum(func.calc(asInt(env,"x")));
 			}
@@ -1329,7 +1294,7 @@ public class Numeric {
 	}
 
 	static void installFixNumFunc2( Environment env, String name, final FixNumFunc2 func ) {
-		env.bindFunction( new Function( name, new String[]{"x", "y"}, null, new Function.Body() {
+		env.bindFunction( new Func( name, new String[]{"x", "y"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum(func.calc(asInt(env,"x"),asInt(env,"y")));
 			}
@@ -1340,7 +1305,7 @@ public class Numeric {
 		final Obj T= True.TRUE;
 		final Obj F= Null.NULL;
 
-		env.bindFunction( new Function( "not", new String[] { "x" }, null, new Function.Body(){
+		env.bindFunction( new Func( "not", new String[] { "x" }, null, new Func.Body(){
 			public Obj invoke(Environment env) {
 				Obj x = env.lookup( "x" );
 				return x.isNull() ? T : F;
@@ -1425,19 +1390,19 @@ public class Numeric {
 
 		installRealFunc2(env, "pow", new RealFunc2() { public double calc(double x, double y) {return Math.pow(x,y);}});
 
-		env.bindFunction( new Function( "ciel", new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Func( "ciel", new String[]{"x"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum((int)Math.ceil(asReal(env,"x")));
 			}
 		}));
 
-		env.bindFunction( new Function( "floor", new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Func( "floor", new String[]{"x"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum((int)Math.floor(asReal(env,"x")));
 			}
 		}));
 
-		env.bindFunction( new Function( "round", new String[]{"x"}, null, new Function.Body() {
+		env.bindFunction( new Func( "round", new String[]{"x"}, null, new Func.Body() {
 			public Obj invoke(Environment env) {
 				return new FixNum((int)Math.round(asReal(env,"x")));
 			}
