@@ -69,6 +69,7 @@ var SLUR = (function () {
     // Compilation creates an efficent version of this object based on the environment.
     
     var ObjectType = {
+            INTERNAL: 0, // For stuff used to implement special forms.
             FUNCTION: 1,
             SPECIAL_FORM: 2,
             FIX_NUM: 4,
@@ -77,7 +78,7 @@ var SLUR = (function () {
             SYMBOL: 32,
             CONS: 64,
             NULL: 128,
-            TRUE: 256
+            BOOLEAN: 256
         },
         isFunction = makeIsType(ObjectType.FUNCTION),
         isSpecialForm = makeIsType(ObjectType.SPECIAL_FORM),
@@ -97,7 +98,7 @@ var SLUR = (function () {
     
         TRUE = (function() {
             function True() {}
-            True.prototype.type = typeIs(ObjectType.TRUE);
+            True.prototype.type = typeIs(ObjectType.BOOLEAN);
             True.prototype.eval = selfEval;
             True.prototype.compile = selfCompile;
             True.prototype.toString = function () { return "#t"; }; 
@@ -233,7 +234,7 @@ var SLUR = (function () {
 		if (isFunction(carCompile)) {
 			return new Cons(carCompile, compileList(env, this.cdr));
 		} else if(isSpecialForm(carCompile)) {
-			return carCompile.compile(env, this.cdr);
+			return carCompile.compileSpecial(env, this.cdr);
 		} else {
             return new Cons(carCompile, this.cdr.compile(env));
         }
@@ -360,9 +361,10 @@ var SLUR = (function () {
         return result;
     };
     
-    function SpecialForm(name, invoke) {
+    function SpecialForm(name, invoke, compile) {
         this.name = name;
         this.run = invoke;
+        this.build = compile;
     }
     SpecialForm.prototype.type = typeIs(ObjectType.SPECIAL_FORM);
     SpecialForm.prototype.eval = selfEval;
@@ -370,15 +372,15 @@ var SLUR = (function () {
     SpecialForm.prototype.toString = function () { return this.name; };
     
     SpecialForm.prototype.compileSpecial = function(env, args) {
-        return prependList(this, compileArgs(env, args));
+        if (this.build) {
+            return this.build(this, env, args);
+        } else {
+            return prependList(this, compileList(env, arguments));
+        }
     };
 
-	SpecialForm.prototype.compileArgs = function(env, argss) {
-		return compileList(env, arguments);
-	};
-
 	SpecialForm.prototype.invoke = function(env, args) {
-		return this.invoke(env, args);
+		return this.run(env, args);
 	};
 
     // Attempt to implement tail call elimination in limited cases.
@@ -495,140 +497,116 @@ var SLUR = (function () {
 	Frame.prototype.clearTail = function () {
 		this.tail = null;
 	};
+    
+    function quoteInvoke(env, args) {
+        if (!isCons(args)) {
+			throw new EvalException( "Cons expected.", env );
+        }
+        return args.car;
+    }
+    
+    function quoteCompile(self, env, args) {
+        return prependList(self, arguments);
+    }
+    
+    function IfExpression(predicate, thenClause, elseClause) {
+        if (!predicate || !thenClause || !elseClause) {
+            throw "Must provide predicate and both clauses";
+        }
+        this.predicate = predicate;
+        this.thenClause = thenClause;
+        this.elseClause = elseClause;
+    }
+    
+    IfExpression.prototype.eval = function (env) {
+        var clause = isNull(this.predicate.eval(env)) ? this.elseClause : this.thenClause,
+            tail = env.getTail();
+        if (tail !== null) {
+            if(isCons(clause)) {
+                tail.set(clause, env);
+                return null;
+            }
+        }
+        return clause.eval();
+    };
+    
+    IfExpression.prototype.compile = selfCompile;
+    
+    IfExpression.prototype.toString = function () {
+        var result = "(if " + this.predicate.toString() + " " + this.thenClause.toString();
+        if (this.elseClause !== null) {
+            result += " " + this.elseClause.toString();
+        }
+        return result + ")";
+    };
+    
+    IfExpression.prototype.compileClauses = function (env) {
+        this.predicate = this.predicate.compile(env);
+        this.thenClause = this.thenClause.compile(env);
+        this.elseClause = this.elseClause.compile(env);
+    };
+    
+    function processIf(env, args) {
+        if (!isCons(args.cdr)) {
+            throw evalException("Malformed if.", env);
+        }
+        var clauses = args.cdr,
+            elseClause = NULL;
+        if (isCons(clauses.cdr)) {
+            var elseCons = clauses.cdr;
+            if (!isNull(elseCons.cdr)) {
+                // Shouldn't be anything after an else clause
+                throw evalException("Malformed else clause.", env);
+            }
+            elseClause = elseCons.car;
+        }
+        return new IfExpression(args.car(), clauses.car(), elseClause);
+    }
+    
+    function ifInvoke(env, args) {
+        return processIf(env, args).eval(env);
+    }
+    
+    function ifCompile(env, args) {
+        var result = process(env, args);
+        result.compileClauses(env);
+        return result;
+    }
+    
+    function andInvoke(env, args) {
+        while (isCons(args)) {
+			var next = args.car.eval(env);
+			if (isNull(next)) {
+				return NULL;
+			}
+			if (isNull(args.cdr)) {
+				return TRUE;
+			}
+			args = args.cdr;
+		}
+		throw evalException("Malformed and", env);
+    }
+    
+    function orInvoke(env, args) {
+        while (isCons(args)) {
+			var next = args.car.eval(env);
+			if (!isNull(next)) {
+                // There are two resonable options here.
+                // 1. Return TRUE - or should only be a boolean calculation
+                // 2. Return next - or can double as a way to handle potentially nulls.
+                // Since Slur has a type system layer, went with option 1, since option 2
+                // would require special handling.
+				return TRUE;
+			}
+			if (isNull(args.cdr)) {
+				return NULL;
+			}
+			args = args.cdr;
+		}
+		throw evalException("Malformed or", env);
+    }
 
 /*
-
-public class Quote extends SpecialForm {
-	public Obj invoke( Environment env, Obj arguments ) {
-		if( !arguments.isCons() ) {
-			throw new EvalException( "Cons expected.", env );
-		}
-		return ((Cons)arguments).car();
-	}
-
-	public Obj compileArgs(Environment env, Obj arguments) {
-		return arguments;
-	}
-
-	public String toString() { return "quote"; }
-}
-
-public class If extends SpecialForm {
-	public static class IfExpression extends BaseObj {
-		public IfExpression( Obj predicate, Obj thenClause, Obj elseClause ) {
-			assert( predicate != null );
-			assert( thenClause != null );
-			assert( elseClause != null );
-			mPredicate = predicate;
-			mThen = thenClause;
-			mElse = elseClause;
-		}
-
-		public Obj eval(Environment env) {
-			Obj eval = mElse;
-			if( !mPredicate.eval(env).isNull() ) {
-				eval = mThen;
-			}
-			Tail tail = env.getTail();
-			if( tail != null ) {
-			if( eval.isCons() ) {
-					tail.set((Cons)eval, env);
-					return null;
-				}
-			}
-			return eval.eval(env);
-		}
-
-		void compileClauses(Environment env) {
-			mPredicate = mPredicate.compile(env);
-			mThen = mThen.compile(env);
-			if( mElse != null ) {
-				mElse = mElse.compile(env);
-			}
-		}
-
-		public String toString() {
-			String result = "(if " + mPredicate.toString() + " " + mThen.toString();
-			if( mElse != null ) {
-				result += " " + mElse.toString();
-			}
-			return result + ")";
-		}
-
-		Obj mPredicate;
-		Obj mThen;
-		Obj mElse;
-	}
-
-	private IfExpression process(Environment env, Obj arguments) {
-		Cons args = (Cons)arguments;
-		if( !args.cdr().isCons() ) {
-			throw new EvalException( "Malformed if.", env );
-		}
-		Cons clauses = (Cons)args.cdr();
-
-		Obj elseClause = Null.NULL;
-		if( clauses.cdr().isCons() ) {
-			Cons elseCons = (Cons)clauses.cdr();
-			if( !elseCons.cdr().isNull() ) {
-				throw new EvalException( "Malformed else clause.", env );
-			}
-			elseClause = elseCons.car();
-		}
-		return new IfExpression( args.car(), clauses.car(), elseClause );
-	}
-
-	public Obj invoke( Environment env, Obj arguments ) {
-		return process( env, arguments ).eval(env);
-	}
-
-	public Obj compile(Environment env, Obj arguments) {
-		IfExpression result = process(env, arguments);
-		result.compileClauses(env);
-		return result;
-	}
-
-	public String toString() { return "if"; }
-}
-
-public class And extends SpecialForm {
-	public Obj invoke( Environment env, Obj arguments ) {
-		while( arguments.isCons() ) {
-			Cons args = (Cons)arguments;
-			Obj next = args.car().eval( env );
-			if( next.isNull() ) {
-				return next;
-			}
-			if( args.cdr().isNull() ) {
-				return True.TRUE;
-			}
-			arguments = args.cdr();
-		}
-		throw new EvalException("Malformed and", env);
-	}
-
-	public String toString() { return "and"; }
-}
-
-public class Or extends SpecialForm {
-	public Obj invoke( Environment env, Obj arguments ) {
-		while( arguments.isCons() ) {
-			Cons args = (Cons)arguments;
-			Obj next = args.car().eval( env );
-			if( !next.isNull() ) {
-				return True.TRUE;
-			}
-			if( args.cdr().isNull() ) {
-				return Null.NULL;
-			}
-			arguments = args.cdr();
-		}
-		throw new EvalException("Malformed or", env);
-	}
-
-	public String toString() { return "or"; }
-}
-
 public class Cond extends SpecialForm {
 	static class Clause {
 		Clause( Obj predicate, Obj result ) {
@@ -699,7 +677,7 @@ public class Cond extends SpecialForm {
 		return process(env,arguments).eval(env);
 	}
 
-	public Obj compile(Environment env, Obj arguments) {
+	public Obj compileSpecial(Environment env, Obj arguments) {
 		Clauses result = process(env,arguments);
 		result.compileClauses(env);
 		return result;
@@ -798,7 +776,7 @@ public class Labels extends SpecialForm {
 		return result;
 	}
 
-	public Obj compile(Environment env, Obj arguments) {
+	public Obj compileSpecial(Environment env, Obj arguments) {
 		return process( env, arguments, true );
 	}
 
@@ -909,7 +887,7 @@ public class Let extends SpecialForm {
 		return result;
 	}
 
-	public Obj compile(Environment env, Obj arguments) {
+	public Obj compileSpecial(Environment env, Obj arguments) {
 		return process( env, arguments, true );
 	}
 
@@ -958,7 +936,7 @@ public class Lambda extends SpecialForm {
 		}
 	}
 
-	public Obj compile(Environment env, Obj arguments) {
+	public Obj compileSpecial(Environment env, Obj arguments) {
 		return compileLambda(env, arguments);
 	}
 
@@ -1018,7 +996,7 @@ public class Define extends SpecialForm {
 		}
 	}
 
-	public Obj compile(Environment env, Obj arguments) {
+	public Obj compileSpecial(Environment env, Obj arguments) {
 		if( !arguments.isCons() ) {
 			throw new DefineException( env );
 		}
@@ -1106,21 +1084,26 @@ public class Define extends SpecialForm {
 	public String toString() { return "define"; }
 }
 
-public class Special {
-	public static void install(Environment env) {
-		env.bind( "cond", new Cond() );
-		env.bind( "if", new If() );
-		env.bind( "lambda", new Lambda() );
-		env.bind( "quote", new Quote() );
-		env.bind( "let", new Let( Let.Type.PARALLEL ) );
-		env.bind( "let*", new Let( Let.Type.SEQUENTIAL ) );
-		env.bind( "labels", new Labels() );
-		env.bind( "define", new Define() );
-		env.bind( "and", new And() );
-		env.bind( "or", new Or() );
-	}
-}
+*/
 
+    function installSpecial(env) {
+        function bind(name, invoke, compile) {
+            env.bind(name, new SpecialForm(name, invoke, compile));
+        }
+        
+        bind("quote", quoteInvoke, quoteCompile);
+        bind("if", ifInvoke, ifCompile);
+		bind("and", andInvoke);
+		bind("or", orInvoke);
+        //bind("cond", new Cond());
+		//bind("lambda", new Lambda());
+        //bind("let", new Let(Let.Type.PARALLEL));
+		//bind("let*", new Let(Let.Type.SEQUENTIAL));
+		//bind("labels", new Labels());
+		//bind("define", new Define());
+    }
+
+/*
 public class List {
 	static public void install( Environment env ) {
 		env.bindFunction( new Function( "cons", new String[] {"car","cdr"}, null, new Function.Body() {
