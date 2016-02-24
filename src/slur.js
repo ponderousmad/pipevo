@@ -517,6 +517,8 @@ var SLUR = (function () {
         this.thenClause = thenClause;
         this.elseClause = elseClause;
     }
+
+    IfExpression.prototype.type = typeIs(ObjectType.INTERNAL);
     
     IfExpression.prototype.eval = function (env) {
         var clause = isNull(this.predicate.eval(env)) ? this.elseClause : this.thenClause,
@@ -568,7 +570,7 @@ var SLUR = (function () {
     }
     
     function ifCompile(env, args) {
-        var result = process(env, args);
+        var result = processIf(env, args);
         result.compileClauses(env);
         return result;
     }
@@ -606,186 +608,166 @@ var SLUR = (function () {
 		throw evalException("Malformed or", env);
     }
 
+    
+    function CondClauses() {
+        this.clauses = [];
+    }
+    
+    CondClauses.prototype.type = typeIs(ObjectType.INTERNAL);
+    
+    CondClauses.prototype.eval = function (env) {
+        for (var c = 0; c < this.clauses.length; ++c) {
+            var clause = this.clauses[c];
+            if (!isNull(clause.predicate.eval(env)) ) {
+                var tail = env.getTail();
+                if (tail !== null) {
+                    if (isCons(clause.result)) {
+                        tail.set(clause.result, env);
+                        return null;
+                    }
+                }
+                return clause.result.eval(env);
+            }
+        }
+        return NULL;
+    };
+    
+    CondClauses.prototype.compile = selfCompile;
+    
+    CondClauses.prototype.toString = function () {
+        var result = "(";
+        for (var c = 0; c < this.clauses.length; ++c) {
+            var clause = this.clauses[c];
+            result += "(" + clause.predicate.toString();
+            result += " " + clause.result.toString() + ")";
+        }
+        return result + ")";
+    };
+    
+    CondClauses.prototype.compileClauses = function () {
+        for (var c = 0; c < this.clauses.length; ++c) {
+            var clause = this.clauses[c];
+            clause.predicate = clause.predicate.compile(env);
+            clause.result = clause.result.compile(env);
+        }
+    };
+    
+    function processCons(env, args) {
+        var clauses = new Clauses();
+		while (isCons(args)) {
+			if (!isCons(args.car)) {
+				throw evalException("Malformed clause.", env);
+			}
+            var clause = args.car;
+			if (!isCons(clause.cdr)) {
+				throw evalException("Malformed clause.", env);
+			}
+			var statement = clause.cdr;
+			if (!isNull(statement.cdr)) {
+				throw evalException("Malformed clause.", env);
+			}
+            clauses.clauses.push({predicate: clause.car, result: statement.car});
+			args = args.cdr;
+		}
+		if (!isNull(args)) {
+			throw evalException("Malformed clauses.", env);
+		}
+		return clauses;
+    }
+    
+    function condInvoke(env, args) {
+        return processCons(env, args).eval(env);
+    }
+    
+    function condCompile(env, args) {
+        var result = processCons(env, args);
+        result.compileClauses(env);
+        return result;
+    }
+ 
 /*
-public class Cond extends SpecialForm {
-	static class Clause {
-		Clause( Obj predicate, Obj result ) {
-			mPredicate = predicate;
-			mResult = result;
-		}
-		Obj mPredicate;
-		Obj mResult;
-	}
+public class Lambda extends SpecialForm {
+	static class LambdaException extends EvalException {
+		private static final long serialVersionUID = 6714984979530711059L;
 
-	static class Clauses extends BaseObj {
-		Clause[] mClauses;
-
-		Clauses( Clause[] clauses ) {
-			mClauses = clauses;
-		}
-
-		public Obj eval(Environment env) {
-			for( Clause clause : mClauses ) {
-				if( !clause.mPredicate.eval(env).isNull() ) {
-					Tail tail = env.getTail();
-					if( tail != null ) {
-						if( clause.mResult.isCons() ) {
-							tail.set((Cons)clause.mResult, env);
-							return null;
-						}
-					}
-					return clause.mResult.eval(env);
-				}
-			}
-			return Null.NULL;
-		}
-
-		void compileClauses(Environment env) {
-			for( Clause clause : mClauses ) {
-				clause.mPredicate = clause.mPredicate.compile(env);
-				clause.mResult = clause.mResult.compile(env);
-			}
-		}
-	}
-
-	public Clauses process( Environment env, Obj arguments ) {
-		ArrayList<Clause> clauses = new ArrayList<Clause>();
-		while( arguments.isCons() ) {
-			Cons args = (Cons)arguments;
-
-			if( !args.isCons() ) {
-				throw new EvalException( "Malformed clause.", env );
-			}
-			Cons clause = (Cons)args.car();
-			if( !clause.cdr().isCons() ) {
-				throw new CompileException( "Malformed clause.", env );
-			}
-			Cons statement = (Cons)clause.cdr();
-			if( !statement.cdr().isNull() ) {
-				throw new CompileException( "Malformed clause.", env );
-			}
-			clauses.add(new Clause(clause.car(), statement.car()));
-			arguments = args.cdr();
-		}
-		if( !arguments.isNull() ) {
-			throw new EvalException( "Malformed clauses.", env );
-		}
-		return new Clauses( clauses.toArray(new Clause[clauses.size()]) );
-	}
-
-	public Obj invoke(Environment env, Obj arguments) {
-		return process(env,arguments).eval(env);
-	}
-
-	public Obj compileSpecial(Environment env, Obj arguments) {
-		Clauses result = process(env,arguments);
-		result.compileClauses(env);
-		return result;
-	}
-
-	public String toString() { return "cond"; }
-}
-
-public class Labels extends SpecialForm {
-	public static class LabelsException extends EvalException {
-		private static final long serialVersionUID = -6923382516003429164L;
-
-		public LabelsException( String message, Environment env ) {
+		public LambdaException( String message, Environment env ) {
 			super( message, env );
 		}
 	}
 
-	static class LabelsExpression extends BaseObj {
-		List<Function> mFunctions = new ArrayList<Function>();
-		Obj mBodyForm = null;
-
-		public void add( Function function ) {
-			mFunctions.add( function );
+	public static class Closure extends Function  {
+		private Environment mFrame;
+		public Closure(Environment frame, Function function) {
+			super(function.parameters(), function.restParameter(), function.body());
+			mFrame = frame;
 		}
 
-		public Obj eval(Environment env) {
-			Environment labelsEnv = new Frame( env, null );
-			for( Function func : mFunctions ) {
-				labelsEnv.bindFunction(func);
-			}
+		protected Frame bodyFrame(Environment env, String name) {
+			return new Frame(mFrame, name);
+		}
 
-			Obj result = null;
-			Obj body = mBodyForm;
-			while( body.isCons() ) {
-				Cons statements = (Cons)body;
-				result = statements.car().eval( labelsEnv );
-				body = statements.cdr();
-			}
-
-			if( !body.isNull() || result == null ) {
-				throw new LabelsException( "Malformed lambda body.", env );
-			}
-			return result;
+		public Obj invoke(Environment env, Obj arguments) {
+			return super.invoke(env, arguments);
 		}
 	}
 
-	public Obj process(Environment env, Obj arguments, boolean compile) {
-		LabelsExpression result = new LabelsExpression();
-		Environment labelsEnv = new Frame(env, null);
+	public static class CompiledLambda extends BaseObj {
+		private Function mFunction;
 
-		if( !arguments.isCons() ) {
-			throw new LabelsException( "Malformed labels.", env );
-		}
-		Cons args = (Cons)arguments;
-		Obj labels = args.car();
-		while( labels.isCons() ) {
-			Cons clauses = (Cons)labels;
-			if( !clauses.car().isCons() ) {
-				throw new LabelsException( "Malformed labels clauses.", env );
-			}
-			Cons func = (Cons)clauses.car();
-			if( !func.car().isSymbol() ) {
-				throw new LabelsException( "Symbol expected.", env );
-			}
-			if( !func.cdr().isCons() ) {
-				throw new LabelsException( "Malformed labels clause.", env );
-			}
-			Symbol funcName = (Symbol)func.car();
-			if( compile ) {
-				labelsEnv.shadow( funcName.name() );
-			}
-
-			Cons rest = (Cons)func.cdr();
-			Obj parameters = rest.car();
-			if( !parameters.isCons() ) {
-				throw new LabelsException( "Parameter list expected.", env );
-			}
-			Obj body = rest.cdr();
-			if( body.isNull() ) {
-				throw new LabelsException( "Function body expected.", env );
-			}
-			result.add(Lambda.buildFunction(env, funcName.name(), parameters, body));
-			labels = clauses.cdr();
-		}
-		if( !labels.isNull() ) {
-			throw new LabelsException( "Malformed labels clauses.", env );
+		public CompiledLambda( Function function ) {
+			mFunction = function;
 		}
 
-		if( compile ) {
-			for( Function function : result.mFunctions ) {
-				function.compileBody(labelsEnv);
-			}
+		public Obj eval( Environment env ) {
+			return new Closure( env, mFunction );
 		}
-
-		result.mBodyForm = compile ? Cons.compileList(labelsEnv, args.cdr()) : args.cdr();
-		return result;
 	}
 
 	public Obj compileSpecial(Environment env, Obj arguments) {
-		return process( env, arguments, true );
+		return compileLambda(env, arguments);
+	}
+
+	public CompiledLambda compileLambda(Environment env, Obj arguments) {
+		if( !arguments.isCons() ) {
+			throw new LambdaException( "Malformed lambda.", env );
+		}
+		Cons args = (Cons)arguments;
+		Function function = buildFunction(env, null, args.car(), args.cdr());
+		function.compileBody(env);
+		return new CompiledLambda( function );
+	}
+
+	static Function buildFunction(Environment env, String name, Obj parameters, Obj body) {
+		List<String> paramList = new LinkedList<String>();
+		while( parameters.isCons() ) {
+			Cons params = (Cons)parameters;
+			Obj param = params.car();
+			if( param.isSymbol() ) {
+				paramList.add( ((Symbol)param).name() );
+			}
+			parameters = params.cdr();
+		}
+		String restParam = null;
+		if( parameters.isSymbol() ) {
+			restParam = ((Symbol)parameters).name();
+		} else if( !parameters.isNull() ) {
+			throw new LambdaException( "Malformed lambda parameters.", env );
+		}
+
+		if( body.isCons() ) {
+			Statements funcBody = new Statements( (Cons)body );
+			String[] parameterNames = paramList.toArray( new String[paramList.size()] );
+			return new Function( name, parameterNames, restParam, funcBody );
+		} else {
+			throw new LambdaException( "Malformed lambda body.", env );
+		}
 	}
 
 	public Obj invoke( Environment env, Obj arguments ) {
-		Obj compiledLabels = process( env, arguments, false );
-		return compiledLabels.eval( env );
+		return compileLambda( env, arguments ).eval( env );
 	}
 
-	public String toString() { return "lables"; }
+	public String toString() { return "lambda"; }
 }
 
 public class Let extends SpecialForm {
@@ -898,90 +880,105 @@ public class Let extends SpecialForm {
 
 	public String toString() { return mType == Type.PARALLEL ? "let" : "let*"; }
 }
+*/
 
-public class Lambda extends SpecialForm {
-	static class LambdaException extends EvalException {
-		private static final long serialVersionUID = 6714984979530711059L;
-
-		public LambdaException( String message, Environment env ) {
-			super( message, env );
+    function LabelsExpression() {
+        this.functions = [];
+        this.body = null;
+    }
+    LabelsExpression.prototype.type = typeIs(ObjectType.INTERNAL);
+    LabelsExpression.prototype.compile = selfCompile;
+    LabelsExpression.prototype.eval = function (env) {
+        var frame = new Frame(env);
+        for (var f = 0; f < this.functions.length; ++f) {
+            frame.bindFunction(this.functions[f]);
+        }
+        
+        var result = null,
+            body = this.body;
+        while (isCons(body)) {
+            result = statements.car.eval(frame);
+            body = statements.cdr;
+        }
+        
+        if (!isNull(body) || result === null) {
+            throw evalException("Malformed lambda body.", env);
+        }
+        return result;
+    };
+    LabelsExpression.prototype.toString = function () {
+        var result = "(";
+        for (var f = 0; f < this.functions.length; ++f) {            
+            if (f > 0) {
+                result += " ";
+            }
+            result += "(" + this.functions[f].toString() + ")";
+        }
+        result += ") " + this.body.toString();
+    };
+    
+    function processLabels(env, args, compile) {
+		if (!isCons(args)) {
+			throw evalException("Malformed labels.", env);
 		}
-	}
 
-	public static class Closure extends Function  {
-		private Environment mFrame;
-		public Closure(Environment frame, Function function) {
-			super(function.parameters(), function.restParameter(), function.body());
-			mFrame = frame;
-		}
+        var result = new LabelsExpression(),
+            frame = new Frame(env, null),
+            labels = args.car;
 
-		protected Frame bodyFrame(Environment env, String name) {
-			return new Frame(mFrame, name);
-		}
-
-		public Obj invoke(Environment env, Obj arguments) {
-			return super.invoke(env, arguments);
-		}
-	}
-
-	public static class CompiledLambda extends BaseObj {
-		private Function mFunction;
-
-		public CompiledLambda( Function function ) {
-			mFunction = function;
-		}
-
-		public Obj eval( Environment env ) {
-			return new Closure( env, mFunction );
-		}
-	}
-
-	public Obj compileSpecial(Environment env, Obj arguments) {
-		return compileLambda(env, arguments);
-	}
-
-	public CompiledLambda compileLambda(Environment env, Obj arguments) {
-		if( !arguments.isCons() ) {
-			throw new LambdaException( "Malformed lambda.", env );
-		}
-		Cons args = (Cons)arguments;
-		Function function = buildFunction(env, null, args.car(), args.cdr());
-		function.compileBody(env);
-		return new CompiledLambda( function );
-	}
-
-	static Function buildFunction(Environment env, String name, Obj parameters, Obj body) {
-		List<String> paramList = new LinkedList<String>();
-		while( parameters.isCons() ) {
-			Cons params = (Cons)parameters;
-			Obj param = params.car();
-			if( param.isSymbol() ) {
-				paramList.add( ((Symbol)param).name() );
+		while (isCons(labels)) {
+			if (!isCons(labels.car)) {
+				throw evalException("Malformed labels clauses.", env);
 			}
-			parameters = params.cdr();
+			var func = labels.car;
+			if (!isSymbol(func.car)) {
+				throw evalException("Symbol expected.", env);
+			}
+			if (!isCons(func.cdr)) {
+				throw evalException("Malformed labels clause.", env);
+			}
+			var binding = func.car;
+			if (compile) {
+				frame.shadow( binding.name() );
+			}
+
+			var definition = func.cdr,
+                parameters = definition.car;
+			if (isCons(parameters.isCons)) {
+				throw evalException("Parameter list expected.", env);
+			}
+			if (isNull(definition.cdr)) {
+				throw evalException("Function body expected.", env);
+			}
+			result.functions.push(Lambda.buildFunction(env, binding.name(), parameters, definition.cdr));
+			labels = labels.cdr;
 		}
-		String restParam = null;
-		if( parameters.isSymbol() ) {
-			restParam = ((Symbol)parameters).name();
-		} else if( !parameters.isNull() ) {
-			throw new LambdaException( "Malformed lambda parameters.", env );
+		if (!isNull(labels)) {
+			throw evalException("Malformed labels clauses.", env);
 		}
 
-		if( body.isCons() ) {
-			Statements funcBody = new Statements( (Cons)body );
-			String[] parameterNames = paramList.toArray( new String[paramList.size()] );
-			return new Function( name, parameterNames, restParam, funcBody );
+		if (compile) {
+            for (var f = 0; f < result.functions.length; ++f) { 
+				result.functions[f].compileBody(frame);
+			}
+            result.body = compileList(frame, args.cdr);
 		} else {
-			throw new LambdaException( "Malformed lambda body.", env );
-		}
-	}
+            result.body = args.cdr;
+        }
+        
+		return result;
+    }
+    
+    function labelsInvoke(env, args) {
+        var labels = processLabels(env, arguments, false);
+		return labels.eval(env);
+    }
+    
+    function labelsCompile(env, args) {
+		return processLabels(env, args, true);
+    }
 
-	public Obj invoke( Environment env, Obj arguments ) {
-		return compileLambda( env, arguments ).eval( env );
-	}
-
-	public String toString() { return "lambda"; }
-}
+/*
 
 public class Define extends SpecialForm {
 	public static class DefineException extends EvalException {
@@ -1095,11 +1092,11 @@ public class Define extends SpecialForm {
         bind("if", ifInvoke, ifCompile);
 		bind("and", andInvoke);
 		bind("or", orInvoke);
-        //bind("cond", new Cond());
+        bind("cond", condInvoke, condCompile);
 		//bind("lambda", new Lambda());
         //bind("let", new Let(Let.Type.PARALLEL));
 		//bind("let*", new Let(Let.Type.SEQUENTIAL));
-		//bind("labels", new Labels());
+		bind("labels", labelsInvoke, lablesCompile);
 		//bind("define", new Define());
     }
 
