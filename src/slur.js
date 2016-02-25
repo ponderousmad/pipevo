@@ -1058,121 +1058,87 @@ public class Define extends SpecialForm {
 		bind("and", andInvoke);
 		bind("or", orInvoke);
         bind("cond", condInvoke, condCompile);
-		//bind("lambda", new Lambda());
+		bind("lambda", lambdaInvoke, lambdaCompile);
         //bind("let", new Let(Let.Type.PARALLEL));
 		//bind("let*", new Let(Let.Type.SEQUENTIAL));
 		bind("labels", labelsInvoke, lablesCompile);
 		//bind("define", new Define());
     }
 
+    function Builtin(invoke, name) {
+        this.name = name;
+        this.invoke = invoke;
+    }
+    Builtin.prototype.type = typeIs(ObjectType.INTERNAL);
+    Builtin.prototype.compile = selfCompile;
+    Builtin.prototype.eval = function (env) {
+        return this.invoke(env);
+    };
+    Builtin.prototype.toString = selfName;
+    
+    function define(env, name, parameters, restParameter, invoke) {
+        env.bindFunction(new Func(name, parameters, restParameter, new Builtin(name, invoke)));
+    }
+
+	function installList(env) {
+		define("cons", ["car", "cdr"], null, function (env) {
+            return new Cons(env.lookupName("car"), env.lookupName("cdr"));
+        });
+        
+		define("car", ["cons"], null, function (env) {
+            var cons = env.lookupName("cons");
+            if (isCons(cons)) {
+                return cons.car;
+            }
+            throw evalException("Cons expected.", env);
+        });
+        
+		define("cdr", ["cons"], null, function (env) {
+            var cons = env.lookupName("cons");
+            if (isCons(cons)) {
+                return cons.cdr;
+            }
+            throw evalException("Cons expected.", env);
+        });
+        
+		define("isList?", ["l"], null, function (env) {
+            var list = env.lookupName("l");
+            if (isNull(list)) {
+                return TRUE;
+            }
+            if (isCons(list)) {
+                while (isCons(list.cdr)) {
+                    list = list.cdr;
+                }
+                if (isNull(list.cdr)) {
+                    return TRUE;
+                }
+            }
+            return NULL;
+        });
+
+		define( "list", [], "rest", function (env) {return env.lookupName( "rest" );});
+	}
+
+	function installType(env) {
+        function addTypeCheck(env, name, type) {
+            define(env, name, ["entity"], null, function() {
+                return env.lookupName("entity").type() === type ? TRUE : NULL;
+            });
+        }
+        addTypeCheck(env, "isCons?",   ObjectType.CONS);
+		addTypeCheck(env, "isSym?",    ObjectType.SYMBOL);
+        addTypeCheck(env, "isString?", ObjectType.STRING);
+        addTypeCheck(env, "isFn?",     ObjectType.FUNCTION);
+        addTypeCheck(env, "isMacro?",  ObjectType.SPECIAL_FORM);
+        addTypeCheck(env, "isNull?",   ObjectType.NULL);
+        addTypeCheck(env, "isFixNum?", ObjectType.FIX_NUM);
+        addTypeCheck(env, "isReal?",   ObjectType.REAL);
+        addTypeCheck(env, "isCons?",   ObjectType.CONS);
+        addTypeCheck(env, "isCons?",   ObjectType.CONS);
+    }
+
 /*
-public class List {
-	static public void install( Environment env ) {
-		env.bindFunction( new Func( "cons", new String[] {"car","cdr"}, null, new Func.Body() {
-			public Obj invoke(Environment env) {
-				return new Cons( env.lookup("car"), env.lookup("cdr") );
-			}
-		}));
-
-		env.bindFunction( new Func( "car", new String[] {"cons"}, null, new Func.Body() {
-			public Obj invoke(Environment env) {
-				Obj cons = env.lookup( "cons" );
-				if( cons.isCons() ) {
-					return ((Cons)cons).car();
-				}
-				throw new EvalException( "Cons expected.", env );
-			}
-		}));
-
-		env.bindFunction( new Func( "cdr", new String[] {"cons"}, null, new Func.Body() {
-			public Obj invoke(Environment env) {
-				Obj cons = env.lookup( "cons" );
-				if( cons.isCons() ) {
-					return ((Cons)cons).cdr();
-				}
-				throw new EvalException( "Cons expected.", env );
-			}
-		}));
-
-		env.bindFunction( new Func( "isList?", new String[] {"l"}, null, new Func.Body() {
-			public Obj invoke(Environment env) {
-				Obj l = env.lookup("l");
-				if( l.isNull() ) {
-					return True.TRUE;
-				}
-				if( l.isCons() ) {
-					Cons list = (Cons)l;
-					while( list.cdr().isCons() ) {
-						list = (Cons)list.cdr();
-					}
-					if( list.cdr().isNull() ) {
-						return True.TRUE;
-					}
-				}
-				return Null.NULL;
-			}
-		}));
-
-		env.bindFunction( new Func( "list", new String[] {}, "rest", new Func.Body() {
-			public Obj invoke(Environment env) {
-				return env.lookup( "rest" );
-			}
-		}));
-	}
-}
-
-public class Types {
-	public static void install( Environment env ) {
-		env.bindFunction( new Func( "isCons?", new String[] {"c"}, null, new Func.Body() {
-			public Obj invoke(Environment env) {
-				return env.lookup( "c" ).isCons() ? True.TRUE : Null.NULL;
-			}
-		}));
-
-		env.bindFunction( new Func( "isSym?", new String[] { "s" }, null, new Func.Body() {
-			public Obj invoke( Environment env ) {
-				return env.lookup( "s" ).isSymbol() ? True.TRUE : Null.NULL ;
-			}
-		}));
-
-		env.bindFunction( new Func( "isString?", new String[] { "s" }, null, new Func.Body() {
-			public Obj invoke( Environment env ) {
-				return env.lookup( "s" ).isString() ? True.TRUE : Null.NULL ;
-			}
-		}));
-
-		env.bindFunction( new Func( "isFn?", new String[] { "f" }, null, new Func.Body() {
-			public Obj invoke( Environment env ) {
-				return env.lookup( "f" ).isFunction() ? True.TRUE : Null.NULL ;
-			}
-		}));
-
-		env.bindFunction( new Func( "isMacro?", new String[] { "m" }, null, new Func.Body() {
-			public Obj invoke( Environment env ) {
-				return env.lookup( "m" ).isSpecialForm() ? True.TRUE : Null.NULL ;
-			}
-		}));
-
-		env.bindFunction( new Func( "isNull?", new String[] { "n" }, null, new Func.Body() {
-			public Obj invoke( Environment env ) {
-				return env.lookup( "n" ).isNull() ? True.TRUE : Null.NULL ;
-			}
-		}));
-
-		env.bindFunction( new Func( "isFixNum?", new String[] { "x" }, null, new Func.Body() {
-			public Obj invoke( Environment env ) {
-				return env.lookup( "x" ).isFixNum() ? True.TRUE : Null.NULL ;
-			}
-		}));
-
-		env.bindFunction( new Func( "isReal?", new String[] { "x" }, null, new Func.Body() {
-			public Obj invoke( Environment env ) {
-				return env.lookup( "x" ).isReal() ? True.TRUE : Null.NULL ;
-			}
-		}));
-	}
-}
-
 public class Numeric {
 	static interface Operation {
 		public Obj eval( int a, int b );
