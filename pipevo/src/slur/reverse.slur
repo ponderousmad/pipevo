@@ -1,9 +1,0 @@
-(define (reverse list)
-  (labels
-    ((revAcc (list acc)
-      (if (isNull? list)
-        acc
-        (revAcc (cdr list) (cons (car list) acc)))))
-    (revAcc list ())
-  )
-)

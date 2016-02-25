@@ -1,0 +1,4 @@
+(define (reduce fn list start)
+  (if (isNull? list)
+    start
+    (fn (car list) (reduce fn (cdr list) start))))
