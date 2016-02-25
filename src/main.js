@@ -1,6 +1,6 @@
 (function () {
     "use strict";
-    
+
     // Port of this: https://en.wikipedia.org/wiki/Mersenne_Twister#Python_implementation
     function MersenneTwister(seed) {
         // Initialize the index to 0
@@ -11,7 +11,7 @@
             this.mt.push(this.asInt32(1812433253 * (this.mt[i - 1] ^ this.mt[i - 1] >> 30) + i));
         }
     }
-    
+
     MersenneTwister.prototype.asInt32 = function (x) {
         // Get the 32 least significant bits.
         return 0xFFFFFFFF & x;
@@ -54,7 +54,7 @@
         }
         this.index = 0;
     };
-    
+
     function makeEntropy(seed) {
         var twister = new MersenneTwister(seed),
             maxValue = Math.pow(2, 31);
@@ -63,13 +63,13 @@
             return twister.next() / maxValue;
         };
     }
-    
+
     function randomEntropy() {
         return makeEntropy(Math.floor(Math.random() * 193401701));
     }
 
     var entropy = randomEntropy();
-    
+
     function AIRunner(view) {
         this.view = view;
         this.players = {
@@ -84,9 +84,9 @@
         this.game = null;
         this.playTime = 0;
         this.moveTime = 100;
-        
+
         var self = this;
-        
+
         function setupClick(constructor) {
             return function(event) {
                 self.game = PIPES.createDefault(entropy);
@@ -95,7 +95,7 @@
                 self.view.setGame(self.game, false);
             };
         }
-        
+
         for (var player in this.players) {
             if (this.players.hasOwnProperty(player)) {
                 var button = document.getElementById(player);
@@ -105,13 +105,13 @@
             }
         }
     }
-    
+
     AIRunner.prototype.update = function (now, elapsed) {
         if (this.activePlayer !== null) {
             this.playTime += elapsed;
             if (this.playTime > this.moveTime) {
                 this.playTime -= this.moveTime;
-                
+
                 var nextMove = this.activePlayer.nextMove();
                 if (nextMove !== null && nextMove.valid()) {
                     this.game.placeNext(nextMove);
@@ -122,7 +122,7 @@
             }
         }
     };
-    
+
     window.onload = function(e) {
         console.log("window.onload", e, Date.now());
         var canvas = document.getElementById("canvas"),
@@ -152,7 +152,7 @@
         }
 
         window.setInterval(update, 16);
-        
+
         drawFrame();
     };
 }());

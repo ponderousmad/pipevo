@@ -1,6 +1,6 @@
 var PIPES = (function () {
     "use strict";
-    
+
     var Side = {
             TOP: 0,
             BOTTOM: 1,
@@ -11,18 +11,18 @@ var PIPES = (function () {
             TOP_LEFT: 0,
             TOP_RIGHT: 1,
             BOTTOM_LEFT: 2,
-            BOTTOM_RIGHT: 3 
+            BOTTOM_RIGHT: 3
         },
         OPPOSITES = [ Side.BOTTOM, Side.TOP, Side.RIGHT, Side.LEFT ],
         CLOCKWISE = [ Side.RIGHT, Side.LEFT, Side.TOP, Side.BOTTOM ],
         COUNTER_CLOCKWISE = [ Side.LEFT, Side.RIGHT, Side.BOTTOM, Side.TOP ],
         INVALID = -1;
-        
+
     function SubstrateSize(width, height) {
         this.width = width;
         this.height = height;
     }
-    
+
     function Position(sizeOrOther, i, j) {
         if (sizeOrOther.hasOwnProperty("size")) {
             this.size = sizeOrOther.size;
@@ -34,19 +34,19 @@ var PIPES = (function () {
             this.j = j;
         }
     }
-    
+
     Position.prototype.clone = function () {
         return new Position(this);
     };
-    
+
     Position.prototype.coord = function (index) {
         return index === 0 ? this.i : this.j;
     };
-    
+
     Position.prototype.valid = function () {
         return this.i !== INVALID && this.j !== INVALID;
     };
-    
+
     Position.prototype.equals = function (other) {
         if (this.i !== other.i) {
             return false;
@@ -59,47 +59,47 @@ var PIPES = (function () {
         }
         return true;
     };
-    
+
     Position.prototype.moveTo = function (side) {
-		if (!this.valid()) {
-			return this;
-		}
-		if (side === null) {
-			this.i = INVALID;
+        if (!this.valid()) {
+            return this;
+        }
+        if (side === null) {
+            this.i = INVALID;
             this.j = INVALID;
         }
-		// If already at left/top, will make invalid: ( 0 - 1 = INVALID )
-		if (side == Side.LEFT) {
-			this.i -= 1;
-		} else if (side == Side.TOP) {
-			this.j -= 1;
-		} else if (side == Side.RIGHT) {
-			this.i += 1;
-		} else if (side == Side.BOTTOM) {
-			this.j += 1;
-		}
-		if (this.i >= this.size.width) {
-			this.i = INVALID;
-		}
-		if (this.j >= this.size.height) {
-			this.j = INVALID;
-		}
-		return this;
+        // If already at left/top, will make invalid: ( 0 - 1 = INVALID )
+        if (side == Side.LEFT) {
+            this.i -= 1;
+        } else if (side == Side.TOP) {
+            this.j -= 1;
+        } else if (side == Side.RIGHT) {
+            this.i += 1;
+        } else if (side == Side.BOTTOM) {
+            this.j += 1;
+        }
+        if (this.i >= this.size.width) {
+            this.i = INVALID;
+        }
+        if (this.j >= this.size.height) {
+            this.j = INVALID;
+        }
+        return this;
     };
-    
+
     Position.prototype.to = function (side) {
         return this.clone().moveTo(side);
     };
-    
+
     Position.prototype.manhattanDistance = function (other) {
         return ( Math.abs(other.i - this.i) + Math.abs(other.j - this.j));
     };
-  
+
     function SingleType(start, end) {
         this.start = start;
         this.end = end;
     }
-    
+
     SingleType.prototype.isSingle = function () { return true; };
     SingleType.prototype.isDual   = function () { return false; };
     SingleType.prototype.isSource = function () { return false; };
@@ -111,20 +111,20 @@ var PIPES = (function () {
         }
         return null;
     };
-    
+
     function DualType(first, second) {
         this.first = first;
         this.second = second;
     }
-    
+
     DualType.prototype.isSingle = function () { return false; };
     DualType.prototype.isDual   = function () { return true; };
     DualType.prototype.isSource = function () { return false; };
-    
+
     function SourceType(side) {
         this.outflow = side;
     }
-    
+
     SourceType.prototype.isSingle = function () { return false; };
     SourceType.prototype.isDual   = function () { return false; };
     SourceType.prototype.isSource = function () { return true; };
@@ -141,11 +141,11 @@ var PIPES = (function () {
             SOURCE_LEFT:   new SourceType(Side.LEFT),
             SOURCE_RIGHT:  new SourceType(Side.RIGHT)
         };
-    
+
     PieceTypes.CROSS =          new DualType(PieceTypes.HORIZONTAL, PieceTypes.VERTICAL);
     PieceTypes.DUAL_TOP_LEFT =  new DualType(PieceTypes.TOP_LEFT,   PieceTypes.BOTTOM_RIGHT);
     PieceTypes.DUAL_TOP_RIGHT = new DualType(PieceTypes.TOP_RIGHT,  PieceTypes.BOTTOM_LEFT);
-    
+
     var SOURCE_TYPES = [
             PieceTypes.SOURCE_TOP,
             PieceTypes.SOURCE_BOTTOM,
@@ -163,7 +163,7 @@ var PIPES = (function () {
             PieceTypes.DUAL_TOP_LEFT,
             PieceTypes.DUAL_TOP_RIGHT
         ];
-        
+
     function typeIndex(type) {
         for (var i = 0; i < NON_SOURCE_TYPES.length; ++i) {
             if (NON_SOURCE_TYPES[i] == type) {
@@ -177,7 +177,7 @@ var PIPES = (function () {
         this.type = type;
         this.full = [false, false];
     }
-    
+
     Piece.prototype.getFarSide = function (side) {
         if (this.type.isSingle()) {
             return this.type.getFarSide(side);
@@ -190,7 +190,7 @@ var PIPES = (function () {
         }
         return null;
     };
-    
+
     Piece.prototype.isPipeAt = function (side) {
         if (this.type.isSingle()) {
             return this.type.start === side || this.type.end === side;
@@ -200,7 +200,7 @@ var PIPES = (function () {
             return this.type.outflow === side;
         }
     };
-    
+
     Piece.prototype.fill = function (side) {
         if (this.type.isSingle()) {
             if (this.isPipeAt(side)) {
@@ -224,7 +224,7 @@ var PIPES = (function () {
         }
         return false;
     };
-    
+
     Piece.prototype.isFull = function (side) {
         if (this.type.isSingle()) {
             if (this.isPipeAt(side)) {
@@ -242,7 +242,7 @@ var PIPES = (function () {
         }
         return false;
     };
-    
+
     Piece.prototype.accept = function (visitor) {
         if (this.type.isSingle()) {
             visitor.pipe(this.type, this.full[0]);
@@ -253,7 +253,7 @@ var PIPES = (function () {
             visitor.source(this.type.outflow, this.full[0]);
         }
     };
-    
+
     function Substrate(size) {
         this.size = size;
         this.pieces = [];
@@ -266,7 +266,7 @@ var PIPES = (function () {
         }
         this.pieceCount = 0;
     }
-    
+
     Substrate.prototype.corner = function (c) {
         switch (c) {
             case Corner.TOP_LEFT: return new Position(this.size, 0, 0);
@@ -276,89 +276,89 @@ var PIPES = (function () {
             default: return null;
         }
     };
-    
+
     Substrate.prototype.at = function (position) {
         if (position.valid()) {
             return this.pieces[position.i][position.j];
         }
         return null;
     };
-    
+
     Substrate.prototype.isEmpty = function (position) {
         return this.at(position) === null;
     };
-    
+
     Substrate.prototype.empties = function () {
         return this.size.width * this.size.height - this.pieceCount;
     };
-    
+
     Substrate.prototype.place = function (position, piece) {
         if (position.valid() && this.isEmpty(position)) {
             this.pieceCount += 1;
             this.pieces[position.i][position.j] = piece;
         }
     };
-    
+
     function randomInt(entropy, min, max) {
         return Math.min(Math.floor(min + entropy() * (max - min)), max - 1);
     }
-    
+
     function getRandomElement(list, entropy) {
         return list[randomInt(entropy, 0, list.length)];
     }
-    
+
     function PieceQueue(size, entropy) {
         this.size = size;
         this.entropy = entropy;
         this.queue = [];
-        
+
         this.fill();
     }
-    
+
     function randomPiece(types, entropy) {
         return new Piece(getRandomElement(types, entropy));
     }
-    
+
     PieceQueue.prototype.fill = function () {
         while (this.queue.length < this.size) {
             this.queue.push(randomPiece(NON_SOURCE_TYPES, this.entropy));
         }
     };
-    
+
     PieceQueue.prototype.nextPiece = function () {
         var next = this.queue[0];
         this.queue.splice(0, 1);
         this.fill();
         return next;
     };
-    
+
     function Gameplay(width, height, queueSize, delay, entropy) {
         this.substrate = new Substrate(new SubstrateSize(width, height));
         this.queue = new PieceQueue(queueSize, entropy);
         this.delay = delay;
         this.entropy = entropy;
-        
+
         this.setupSource();
         this.flowPiece = this.source;
         this.flowOut = this.source.type.outflow;
         this.flowPosition = this.sourcePosition.clone();
         this.flowCount = -delay;
-        
+
         this.observers = [];
     }
-    
+
     Gameplay.prototype.width = function () {
         return this.substrate.size.width;
     };
-    
+
     Gameplay.prototype.height = function () {
         return this.substrate.size.height;
     };
-    
+
     Gameplay.prototype.position = function (i, j) {
         return new Position(this.substrate.size, i < this.width() ? i : INVALID, j < this.height() ? j : INVALID);
     };
-    
+
     Gameplay.prototype.setupSource = function() {
         this.source = randomPiece(SOURCE_TYPES, this.entropy);
         this.sourcePosition = this.position(
@@ -368,21 +368,21 @@ var PIPES = (function () {
         this.substrate.place(this.sourcePosition, this.source);
     };
 
-	Gameplay.prototype.isGameOver = function () {
-		if (this.flowPiece === null) {
-			return true;
-		}
-		var nextPos = this.flowPosition.to(this.flowOut);
-		if (!nextPos.valid()) {
-			return true;
-		}
-		var next = this.substrate.at(nextPos);
-		if (next !== null && !next.isPipeAt(OPPOSITES[this.flowOut]) ) {
-			return true;
-		}
-		return false;
-	};
-    
+    Gameplay.prototype.isGameOver = function () {
+        if (this.flowPiece === null) {
+            return true;
+        }
+        var nextPos = this.flowPosition.to(this.flowOut);
+        if (!nextPos.valid()) {
+            return true;
+        }
+        var next = this.substrate.at(nextPos);
+        if (next !== null && !next.isPipeAt(OPPOSITES[this.flowOut]) ) {
+            return true;
+        }
+        return false;
+    };
+
     Gameplay.prototype.placeNext = function(position) {
         if (this.isGameOver()) {
             return false;
@@ -395,70 +395,70 @@ var PIPES = (function () {
         }
         return false;
     };
-    
-    Gameplay.prototype.updateFlow = function () {
-		this.flowCount += 1;
-		// When we fill the source, we don't
-		// update the flow in/out
-		if (this.flowCount == -1) {
-			this.notify("TAP");
-		} else if (this.flowCount === 0) {
-			this.flowPiece.fill(null);
-		} else if (this.flowCount > 0) {
-			// We have to wait till just before we
-			// fill the next piece to find out what piece
-			// is next, because it might have just
-			// been placed.
-			this.flowPosition.moveTo(this.flowOut);
-			this.flowPiece = this.substrate.at(this.flowPosition);
-			if (this.flowPiece !== null) {
-				var flowIn = OPPOSITES[this.flowOut];
-				this.flowPiece.fill(flowIn);
-				this.flowOut = this.flowPiece.getFarSide(flowIn);
-			}
-		}
-		this.notify("FILL");
-	};
 
-	Gameplay.prototype.score = function () {
-		return this.flowCount > 0 ? this.flowCount : 0;
-	};
-    
+    Gameplay.prototype.updateFlow = function () {
+        this.flowCount += 1;
+        // When we fill the source, we don't
+        // update the flow in/out
+        if (this.flowCount == -1) {
+            this.notify("TAP");
+        } else if (this.flowCount === 0) {
+            this.flowPiece.fill(null);
+        } else if (this.flowCount > 0) {
+            // We have to wait till just before we
+            // fill the next piece to find out what piece
+            // is next, because it might have just
+            // been placed.
+            this.flowPosition.moveTo(this.flowOut);
+            this.flowPiece = this.substrate.at(this.flowPosition);
+            if (this.flowPiece !== null) {
+                var flowIn = OPPOSITES[this.flowOut];
+                this.flowPiece.fill(flowIn);
+                this.flowOut = this.flowPiece.getFarSide(flowIn);
+            }
+        }
+        this.notify("FILL");
+    };
+
+    Gameplay.prototype.score = function () {
+        return this.flowCount > 0 ? this.flowCount : 0;
+    };
+
     Gameplay.prototype.addObserver = function (observer) {
         this.observers.push(observer);
     };
-    
+
     Gameplay.prototype.clearObservers = function () {
         this.observers.splice(0, this.observers.length);
     };
-    
+
     Gameplay.prototype.notify = function (eventName) {
         for (var i = 0; i < this.observers.length; ++i) {
             this.observers[i](eventName);
         }
     };
-    
+
     Gameplay.prototype.peek = function () {
         return this.queue.queue;
     };
-    
+
     Gameplay.prototype.visit = function (i, j, visitor) {
         var piece = this.substrate.at(this.position(i, j));
         if (piece !== null) {
             piece.accept(visitor);
         }
     };
-    
+
     Gameplay.prototype.setInfiniteTimeToFlow = function () {
         this.flowCount = -this.height() * this.width();
     };
-    
+
     Gameplay.prototype.forceFlow = function() {
         if (this.flowCount < -2) {
             this.flowCount = -2;
         }
     };
-    
+
     var loader = new ImageBatch("images/", function() {
             tileWidth = sourceImages[0].width;
             tileHeight = sourceImages[0].height;
@@ -508,10 +508,10 @@ var PIPES = (function () {
             player: []
         };
     }
-        
+
     (function () {
         loader.commit();
-        
+
         try {
             scores = JSON.parse(window.localStorage.getItem("pipes_scores")) || createEmptyScores();
         } catch (error) {
@@ -519,7 +519,7 @@ var PIPES = (function () {
             scores = createEmptyScores();
         }
     }());
-    
+
     function saveScore(score) {
         scores.player.push(score);
         try {
@@ -532,12 +532,12 @@ var PIPES = (function () {
     function SubstrateView(game) {
         this.setGame(game, true);
     }
-    
+
     SubstrateView.prototype.setGame = function (game, playing) {
         var self = this;
         this.game = game;
-		this.playing = playing;
-		game.addObserver(function (eventName) {
+        this.playing = playing;
+        game.addObserver(function (eventName) {
             if (eventName == "TAP") {
                 self.startTap();
             } else if (eventName == "FILL" && game.isGameOver() && self.playing) {
@@ -548,8 +548,8 @@ var PIPES = (function () {
         this.tap = tapbook.setupPlayback(80, true);
         this.fillTimer = null;
     };
-    
-    SubstrateView.prototype.update = function (now, elapsed, keyboard, pointer) {        
+
+    SubstrateView.prototype.update = function (now, elapsed, keyboard, pointer) {
         if (pointer.primary !== null) {
             if (pointer.primary.isStart && this.playing) {
                 var i = Math.floor(pointer.primary.x / tileWidth),
@@ -563,7 +563,7 @@ var PIPES = (function () {
             this.tapTimer -= elapsed;
             tapbook.updatePlayback(elapsed, this.tap);
         }
-        
+
         if (this.game.isGameOver()) {
             if (keyboard.wasAsciiPressed("R")) {
                 this.setGame(createDefault(this.game.entropy), true);
@@ -580,34 +580,34 @@ var PIPES = (function () {
             }
         }
     };
-    
+
     SubstrateView.prototype.startFilling = function () {
         this.game.forceFlow();
         this.fillTimer = 0;
     };
 
-	SubstrateView.prototype.startTap = function () {
-		this.tapTimer = TAP_TURN_TIME;
-	};
+    SubstrateView.prototype.startTap = function () {
+        this.tapTimer = TAP_TURN_TIME;
+    };
 
-	SubstrateView.prototype.width = function () { return this.game.width() * tileWidth; };
-	SubstrateView.prototype.height = function () { return this.game.height() * tileHeight; };
-    
+    SubstrateView.prototype.width = function () { return this.game.width() * tileWidth; };
+    SubstrateView.prototype.height = function () { return this.game.height() * tileHeight; };
+
     SubstrateView.prototype.totalWidth = function () { return this.width() + tileWidth + QUEUE_DRAW_OFFSET; };
 
-	SubstrateView.prototype.tileWidth = function () { return tileWidth; };
-	SubstrateView.prototype.tileHeight = function () { return tileHeight; };
+    SubstrateView.prototype.tileWidth = function () { return tileWidth; };
+    SubstrateView.prototype.tileHeight = function () { return tileHeight; };
 
     SubstrateView.prototype.draw = function (context) {
         context.drawImage(background, 0, 0, this.width(), this.height());
         this.drawSubstrate(context);
     };
 
-	SubstrateView.prototype.drawSubstrate = function (context) {
-		if (this.game === null || !loader.loaded) {
-			return;
-		}
-		var x = 0, y = 0,
+    SubstrateView.prototype.drawSubstrate = function (context) {
+        if (this.game === null || !loader.loaded) {
+            return;
+        }
+        var x = 0, y = 0,
             tapDraw = this.tap,
             queue = this.game.peek(),
             drawVisitor = {
@@ -623,21 +623,21 @@ var PIPES = (function () {
                     if (isFull) {
                         context.drawImage(sourceGooImages[side], x, y);
                     }
-                    tapbook.draw(context, tapDraw, x, y, ALIGN.Top | ALIGN.Left); 
+                    tapbook.draw(context, tapDraw, x, y, ALIGN.Top | ALIGN.Left);
                 }
             };
-        
+
         for (var i = 0; i < this.game.width(); ++i) {
             for (var j = 0; j < this.game.height(); ++j) {
                 x = i * tileWidth;
-                y = j * tileWidth;                
+                y = j * tileWidth;
                 this.game.visit(i, j, drawVisitor);
             }
         }
-        
+
         x = this.game.width() * tileWidth + QUEUE_DRAW_OFFSET;
         y = QUEUE_DRAW_OFFSET;
-        
+
         context.fillStyle = "rgb(128,128,128)";
         context.strokeStyle = "rgb(0,0,0)";
         for (var q = 0; q < queue.length; ++q) {
@@ -651,12 +651,12 @@ var PIPES = (function () {
             queue[index].accept(drawVisitor);
             y += tileHeight + 2;
         }
-        
+
         if (this.game.isGameOver()) {
             context.fillStyle = OVER_COLOR;
             context.fillRect(0, 0, this.width(), this.height());
         }
-        
+
         context.fillStyle = "rgb(64,64,64)";
         context.font = "15px mono";
         context.textAlign = "center";
@@ -664,13 +664,13 @@ var PIPES = (function () {
         y += tileWidth * 0.5;
         context.fillText("Score:", x, y);
         context.fillText(this.game.score(), x, y + 20);
-	};
-    
+    };
+
     // Constructs a gameplay object with the default setup.
     function createDefault(entropy) {
         return new Gameplay(12, 12, 5, 15, entropy);
     }
-    
+
     return {
         Side: Side,
         Corner: Corner,
