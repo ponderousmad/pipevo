@@ -92,7 +92,7 @@ var SLUR = (function () {
         isNull = makeIsType(ObjectType.NULL),
 
         NULL = (function() {
-            function Null() {}
+            function Null() { this.value = false; }
             Null.prototype.type = typeIs(ObjectType.NULL);
             Null.prototype.eval = selfEval;
             Null.prototype.compile = selfCompile;
@@ -102,7 +102,7 @@ var SLUR = (function () {
         }()),
 
         TRUE = (function() {
-            function True() {}
+            function True() { this.value = true; }
             True.prototype.type = typeIs(ObjectType.BOOLEAN);
             True.prototype.eval = selfEval;
             True.prototype.compile = selfCompile;
@@ -113,7 +113,7 @@ var SLUR = (function () {
 
     // Represents the integer primitive.
     function FixNum(value) {
-        this.value = Math.floor(value);
+        this.value = value > 0 ? Math.floor(value) : Math.ceil(value);
     }
     FixNum.prototype.type = typeIs(ObjectType.FIX_NUM);
     FixNum.prototype.eval = selfEval;
@@ -993,12 +993,12 @@ var SLUR = (function () {
         env.bindFunction(new Func(name, parameters, restParameter, new Builtin(name, invoke)));
     }
 
-    function installList(env) {
-        define("cons", ["car", "cdr"], null, function (env) {
+    function installList(root) {
+        define(root, "cons", ["car", "cdr"], null, function (env) {
             return new Cons(env.lookupName("car"), env.lookupName("cdr"));
         });
 
-        define("car", ["cons"], null, function (env) {
+        define(root, "car", ["cons"], null, function (env) {
             var cons = env.lookupName("cons");
             if (isCons(cons)) {
                 return cons.car;
@@ -1006,7 +1006,7 @@ var SLUR = (function () {
             throw evalException("Cons expected.", env);
         });
 
-        define("cdr", ["cons"], null, function (env) {
+        define(root, "cdr", ["cons"], null, function (env) {
             var cons = env.lookupName("cons");
             if (isCons(cons)) {
                 return cons.cdr;
@@ -1014,7 +1014,7 @@ var SLUR = (function () {
             throw evalException("Cons expected.", env);
         });
 
-        define("isList?", ["l"], null, function (env) {
+        define(root, "isList?", ["l"], null, function (env) {
             var list = env.lookupName("l");
             if (isNull(list)) {
                 return TRUE;
@@ -1030,264 +1030,96 @@ var SLUR = (function () {
             return NULL;
         });
 
-        define( "list", [], "rest", function (env) { return env.lookupName( "rest" ); });
+        define(root, "list", [], "rest", function (env) { return env.lookupName( "rest" ); });
     }
 
-    function installType(env) {
-        function addTypeCheck(env, name, type) {
-            define(env, name, ["entity"], null, function() {
+    function installType(root) {
+        function addTypeCheck(name, type) {
+            define(root, name, ["entity"], null, function(env) {
                 return env.lookupName("entity").type() === type ? TRUE : NULL;
             });
         }
-        addTypeCheck(env, "isCons?",   ObjectType.CONS);
-        addTypeCheck(env, "isSym?",    ObjectType.SYMBOL);
-        addTypeCheck(env, "isString?", ObjectType.STRING);
-        addTypeCheck(env, "isFn?",     ObjectType.FUNCTION);
-        addTypeCheck(env, "isMacro?",  ObjectType.SPECIAL_FORM);
-        addTypeCheck(env, "isNull?",   ObjectType.NULL);
-        addTypeCheck(env, "isFixNum?", ObjectType.FIX_NUM);
-        addTypeCheck(env, "isReal?",   ObjectType.REAL);
-        addTypeCheck(env, "isCons?",   ObjectType.CONS);
-        addTypeCheck(env, "isCons?",   ObjectType.CONS);
+        addTypeCheck("isCons?",   ObjectType.CONS);
+        addTypeCheck("isSym?",    ObjectType.SYMBOL);
+        addTypeCheck("isString?", ObjectType.STRING);
+        addTypeCheck("isFn?",     ObjectType.FUNCTION);
+        addTypeCheck("isMacro?",  ObjectType.SPECIAL_FORM);
+        addTypeCheck("isNull?",   ObjectType.NULL);
+        addTypeCheck("isFixNum?", ObjectType.FIX_NUM);
+        addTypeCheck("isReal?",   ObjectType.REAL);
+        addTypeCheck("isCons?",   ObjectType.CONS);
+        addTypeCheck("isCons?",   ObjectType.CONS);
     }
 
-/*
-public class Numeric {
-    static interface Operation {
-        public Obj eval( int a, int b );
-        public Obj eval( double a, double b );
-    }
-
-    static interface UnaryOperation {
-        public Obj eval( int a );
-        public Obj eval( double a );
-    }
-
-    static class Operator implements Func.Body {
-        static final String[] sArgs = new String[] { "a", "b" };
-
-        private Operation mOp;
-
-        Operator( Operation op ) {
-            mOp = op;
-        }
-
-        public Obj invoke( Environment env ) {
-            Obj a = env.lookup( sArgs[0] );
-            Obj b = env.lookup( sArgs[1] );
-            if( a.isFixNum() ) {
-                if( b.isFixNum() ) {
-                    return mOp.eval( ((FixNum)a).value(), ((FixNum)b).value() );
-                } else if( b.isReal() ) {
-                    return mOp.eval( ((FixNum)a).value(), ((Real)b).value() );
-                }
-            } else if( a.isReal() ) {
-                if( b.isFixNum() ) {
-                    return mOp.eval( ((Real)a).value(), ((FixNum)b).value() );
-                } else if( b.isReal() ) {
-                    return mOp.eval( ((Real)a).value(), ((Real)b).value() );
-                }
-            }
-            throw new EvalException( "Invalid types", env );
-        }
-    }
-
-    static class UnaryOperator implements Func.Body {
-        static final String[] sArgs = new String[] { "a" };
-
-        private UnaryOperation mOp;
-
-        UnaryOperator( UnaryOperation op ) {
-            mOp = op;
-        }
-
-        public Obj invoke( Environment env ) {
-            Obj a = env.lookup( sArgs[0] );
-            if( a.isFixNum() ) {
-                return mOp.eval(((FixNum)a).value());
-            } else if( a.isReal() ) {
-                return mOp.eval(((Real)a).value());
-            }
-            throw new EvalException( "Invalid type", env );
-        }
-    }
-
-    static void install( Environment env, String name, Operation op ) {
-        env.bindFunction( new Func( name, Operator.sArgs, null, new Operator( op ) ) );
-    }
-
-    static void install( Environment env, String name, UnaryOperation op ) {
-        env.bindFunction( new Func( name, UnaryOperator.sArgs, null, new UnaryOperator( op ) ) );
-    }
-
-    private static double asReal(Environment env, String name) {
-        return ((Real)env.lookup(name)).value();
-    }
-
-    private interface RealFunc
-    {
-        double calc(double x);
-    }
-
-    static void installRealFunc( Environment env, String name, final RealFunc func ) {
-        env.bindFunction( new Func( name, new String[]{"x"}, null, new Func.Body() {
-            public Obj invoke(Environment env) {
-                return new Real(func.calc(asReal(env,"x")));
-            }
-        }));
-    }
-
-    private interface RealFunc2
-    {
-        double calc(double x, double y);
-    }
-
-    static void installRealFunc2( Environment env, String name, final RealFunc2 func ) {
-        env.bindFunction( new Func( name, new String[]{"x", "y"}, null, new Func.Body() {
-            public Obj invoke(Environment env) {
-                return new Real(func.calc(asReal(env,"x"), asReal(env,"y")));
-            }
-        }));
-    }
-
-    private static int asInt(Environment env, String name) {
-        return ((FixNum)env.lookup(name)).value();
-    }
-
-    private interface FixNumFunc
-    {
-        int calc(int x);
-    }
-
-    static void installFixNumFunc( Environment env, String name, final FixNumFunc func ) {
-        env.bindFunction( new Func( name, new String[]{"x"}, null, new Func.Body() {
-            public Obj invoke(Environment env) {
-                return new FixNum(func.calc(asInt(env,"x")));
-            }
-        }));
-    }
-
-    private interface FixNumFunc2
-    {
-        int calc(int x, int y);
-    }
-
-    static void installFixNumFunc2( Environment env, String name, final FixNumFunc2 func ) {
-        env.bindFunction( new Func( name, new String[]{"x", "y"}, null, new Func.Body() {
-            public Obj invoke(Environment env) {
-                return new FixNum(func.calc(asInt(env,"x"),asInt(env,"y")));
-            }
-        }));
-    }
-
-    public static void install( Environment env ) {
-        final Obj T= True.TRUE;
-        final Obj F= Null.NULL;
-
-        env.bindFunction( new Func( "not", new String[] { "x" }, null, new Func.Body(){
-            public Obj invoke(Environment env) {
-                Obj x = env.lookup( "x" );
-                return x.isNull() ? T : F;
-            }
-        }));
-
-        install( env, "!=", new Operation() {
-            public Obj eval( int a, int b ) { return a != b ? T : F; }
-            public Obj eval( double a, double b ) { return a != b ? T : F; }
-        });
-
-        install( env, "=", new Operation() {
-            public Obj eval( int a, int b ) { return a == b ? T : F; }
-            public Obj eval( double a, double b ) { return a == b ? T : F; }
-        });
-
-        install( env, "+", new Operation() {
-            public Obj eval( int a, int b ) { return new FixNum( a + b ); }
-            public Obj eval( double a, double b ) { return new Real( a + b ); }
-        });
-
-        install( env, "-", new Operation() {
-            public Obj eval( int a, int b ) { return new FixNum( a - b ); }
-            public Obj eval( double a, double b ) { return new Real( a - b ); }
-        });
-
-        install( env, "*", new Operation() {
-            public Obj eval( int a, int b ) { return new FixNum( a * b ); }
-            public Obj eval( double a, double b ) { return new Real( a * b ); }
-        });
-
-        install( env, "/", new Operation() {
-            public Obj eval( int a, int b ) { return new FixNum( a / b ); }
-            public Obj eval( double a, double b ) { return new Real( a / b ); }
-        });
-
-        install( env, ">", new Operation() {
-            public Obj eval( int a, int b ) { return ( a > b ) ? T : F; }
-            public Obj eval( double a, double b ) { return ( a > b ) ? T : F; }
-        });
-
-        install( env, ">=", new Operation() {
-            public Obj eval( int a, int b ) { return ( a >= b ) ? T : F; }
-            public Obj eval( double a, double b ) { return ( a >= b ) ? T : F; }
-        });
-
-        install( env, "<", new Operation() {
-            public Obj eval( int a, int b ) { return ( a < b ) ? T : F; }
-            public Obj eval( double a, double b ) { return ( a < b ) ? T : F; }
-        });
-
-        install( env, "<=", new Operation() {
-            public Obj eval( int a, int b ) { return ( a <= b ) ? T : F; }
-            public Obj eval( double a, double b ) { return ( a <= b ) ? T : F; }
-        });
-
-        install( env, "min", new Operation() {
-            public Obj eval( int a, int b ) { return new FixNum(Math.min(a, b)); }
-            public Obj eval( double a, double b ) { return new Real(Math.min(a, b)); }
-        });
-
-        install( env, "max", new Operation() {
-            public Obj eval( int a, int b ) { return new FixNum(Math.max(a, b)); }
-            public Obj eval( double a, double b ) { return new Real(Math.max(a, b)); }
-        });
-
-        install( env, "abs", new UnaryOperation() {
-            public Obj eval( int a ) { return new FixNum(Math.abs(a)); }
-            public Obj eval( double a ) { return new Real(Math.abs(a)); }
-        });
-
-        installRealFunc(env, "sin", new RealFunc() { public double calc(double x) {return Math.sin(x);}});
-        installRealFunc(env, "cos", new RealFunc() { public double calc(double x) {return Math.cos(x);}});
-        installRealFunc(env, "tan", new RealFunc() { public double calc(double x) {return Math.tan(x);}});
-        installRealFunc(env, "asin", new RealFunc() { public double calc(double x) {return Math.asin(x);}});
-        installRealFunc(env, "acos", new RealFunc() { public double calc(double x) {return Math.acos(x);}});
-        installRealFunc(env, "atan", new RealFunc() { public double calc(double x) {return Math.atan(x);}});
-        installRealFunc2(env, "atan2", new RealFunc2() { public double calc(double y, double x) {return Math.atan2(y,x);}});
-
+    function installNumeric(root) {
         env.bind("PI", new Real(Math.PI));
         env.bind("E", new Real(Math.E));
 
-        installRealFunc2(env, "pow", new RealFunc2() { public double calc(double x, double y) {return Math.pow(x,y);}});
+        var INT = ObjectType.FIXNUM,
+            REAL = ObjectType.REAL,
+            BOOL = ObjectType.BOOLEAN;
 
-        env.bindFunction( new Func( "ciel", new String[]{"x"}, null, new Func.Body() {
-            public Obj invoke(Environment env) {
-                return new FixNum((int)Math.ceil(asReal(env,"x")));
-            }
-        }));
+        function unary(name, type, operator) {
+            var args = ["a"];
+            define(root, name, args, null, function(env) {
+                var a = env.lookupName(args[0]),
+                    aType = a.type(),
+                    result = operator(aType == INT || aType == REAL ? a.value : a);
+                if (type === BOOL) {
+                    return result ? TRUE : NULL;
+                } else if (type === INT || (type === null && a.type() === INT)) {
+                    return new FixNum(result);
+                } else {
+                    return new Real(result);
+                }
+            });
+        }
 
-        env.bindFunction( new Func( "floor", new String[]{"x"}, null, new Func.Body() {
-            public Obj invoke(Environment env) {
-                return new FixNum((int)Math.floor(asReal(env,"x")));
-            }
-        }));
+        unary("not",  BOOL, function (a) { return !isNull(a); });
+        unary("abs",  null, function (a) { return Math.abs(a); });
+        unary("sin",  REAL, function (a) { return Math.sin(a); });
+        unary("cos",  REAL, function (a) { return Math.cos(a); });
+        unary("tan",  REAL, function (a) { return Math.tan(a); });
+        unary("asin", REAL, function (a) { return Math.asin(a); });
+        unary("acos", REAL, function (a) { return Math.acos(a); });
+        unary("atan", REAL, function (a) { return Math.atan(a); });
+        unary("ceil",  INT, function (a) { return Math.ceil(a); });
+        unary("floor", INT, function (a) { return Math.floor(a); });
+        unary("trunc", INT, function (a) { return a > 0 ? Math.floor(a) : Math.ceil(a); });
+        unary("round", INT, function (a) { return Math.round(a); });
 
-        env.bindFunction( new Func( "round", new String[]{"x"}, null, new Func.Body() {
-            public Obj invoke(Environment env) {
-                return new FixNum((int)Math.round(asReal(env,"x")));
-            }
-        }));
+        function binary(name, type, operator) {
+            var args = ["a", "b"];
+            define(root, name, args, null, function(env) {
+                var a = env.lookupName(args[0]),
+                    b = env.lookupName(args[1]),
+                    result = operator(a.value, b.value);
+                if (type === BOOL) {
+                    return result ? TRUE : NULL;
+                } else if (type === INT || (type === null && a.type() === INT && b.type() === INT)) {
+                    return new FixNum(result);
+                } else {
+                    return new Real(result);
+                }
+            });
+        }
+
+        binary("!=", BOOL, function (a, b) { return a !==b; });
+        binary("=",  BOOL, function (a, b) { return a ===b; });
+        binary(">",  BOOL, function (a, b) { return a >  b; });
+        binary(">=", BOOL, function (a, b) { return a >= b; });
+        binary("<",  BOOL, function (a, b) { return a <  b; });
+        binary("<=", BOOL, function (a, b) { return a <= b; });
+        binary("+",  null, function (a, b) { return a +  b; });
+        binary("-",  null, function (a, b) { return a -  b; });
+        binary("*",  null, function (a, b) { return a *  b; });
+        binary("/",  null, function (a, b) { return a /  b; });
+        binary("min",null, function (a, b) { return Math.min(a, b); });
+        binary("max",null, function (a, b) { return Math.min(a, b); });
+        binary("pow",null, function (a, b) { return Math.pow(a, b); });
+        binary("atan2",REAL, function (a, b) { return Math.atan2(b, a); });
     }
-}
+/*
 
 public class Parser {
     public static class ParseException extends RuntimeException {
