@@ -295,7 +295,7 @@ var SLUR = (function () {
     Func.prototype.invoke = function(env, args) {
         var frame = this.bindArgs(env, args);
         frame.useTail(env);
-        return this.body.invoke(frame);
+        return this.body.eval(frame);
     };
     
     Func.prototype.bindArgs = function (env, args) {
@@ -309,7 +309,7 @@ var SLUR = (function () {
 				throw invocationException("Malformed expression", this, args, env);
 			}
             frame.bind(this.parameters[p], argsTail.car.eval(env));
-            argsTail = args.cdr;
+            argsTail = argsTail.cdr;
         }
         if (this.restParameter !== null) {
             frame.bind(this.restParameter, this.evalList(env, argsTail));
@@ -343,12 +343,12 @@ var SLUR = (function () {
         if (isCons(cdr)) {
             cdr = this.compileStatements(cdr, env);
         } else if(!isNull(cdr)) {
-            throw compileException("Malformed body", env);
+            throw compileException("Malformed statements", env);
         }
         return new Cons(statements.car().compile(env), cdr);
     };
     
-    Statements.prototype.invoke = function (env) {
+    Statements.prototype.eval = function (env) {
         var result = null,
             body = this.body,
             tail = env.getTail();
@@ -367,6 +367,10 @@ var SLUR = (function () {
         return result;
     };
     
+    Statements.prototype.toString = function () {
+        return body.toString();
+    };
+    
     function SpecialForm(name, invoke, compile) {
         this.name = name;
         this.run = invoke;
@@ -379,7 +383,7 @@ var SLUR = (function () {
     
     SpecialForm.prototype.compileSpecial = function(env, args) {
         if (this.build) {
-            return this.build(this, env, args);
+            return this.build(env, args);
         } else {
             return prependList(this, compileList(env, arguments));
         }
@@ -511,8 +515,9 @@ var SLUR = (function () {
         return args.car;
     }
     
-    function quoteCompile(self, env, args) {
-        return prependList(self, arguments);
+    function quoteCompile(env, args) {
+        // jshint validthis: true
+        return prependList(this, arguments);
     }
     
     function IfExpression(predicate, thenClause, elseClause) {
@@ -708,25 +713,22 @@ var SLUR = (function () {
     function buildFunction(env, name, parameters, body) {
 		var parameterNames = [];
 		while (isCons(parameters)) {
-			var param = parameters.car;
-			if (isSymbol(param)) {
-				parameterNames.push(param.name);
+			if (isSymbol(parameters.car)) {
+				parameterNames.push(parameters.car.name);
 			}
-			parameters = parameters.cdr();
+			parameters = parameters.cdr;
 		}
-		var restParam = null;
+		var restParameter = null;
 		if (isSymbol(parameters)) {
-			restParam = parameters.name;
+			restParameter = parameters.name;
 		} else if (!isNull(parameters)) {
-			throw evalException("Malformed lambda parameters.", env);
+			throw evalException("Malformed function parameters.", env);
 		}
 
-		if (isCons(body)) {
-			var funcBody = new Statements(body);
-			return new Func( name, parameterNames, restParam, funcBody);
-		} else {
-			throw evalException("Malformed lambda body.", env);
+		if (!isCons(body)) {
+			throw evalException("Malformed function body.", env);
 		}
+        return new Func(name, parameterNames, restParameter, new Statements(body));
     }
 
     function lambdaCompile(env, args) {
@@ -755,15 +757,7 @@ var SLUR = (function () {
             var binding = this.bindings[b];
             frame.bind(binding.target.name, binding.value.eval(this.sequential ? frame : env));
         }
-        var result = null,
-            body = this.body;
-        while (isCons(body)) {
-            result = body.car.eval(frame);
-            body = body.cdr;
-        }
-        if (!isNull(body) || result === null ) {
-            throw evalException("Malformed let body.", env);
-        }
+        return this.body.eval(frame);
     };
     LetExpression.toString = function () {
         var result = "(";
@@ -811,8 +805,11 @@ var SLUR = (function () {
 			throw evalException("Malformed let clause.", env);
 		}
 
-		// Build body last - if compiling, need the environment with shadowed variables.
-		result.body = compile ? compileList(frame, args.cdr) : args.cdr;
+		result.body = new Statements(args.cdr);
+        if (compile) {
+            // Make sure to compile in the frame with variables shadowed.
+            result.body.compile(frame);
+        }
 		return result;
 	}
     
@@ -841,17 +838,7 @@ var SLUR = (function () {
             frame.bindFunction(this.functions[f]);
         }
         
-        var result = null,
-            body = this.body;
-        while (isCons(body)) {
-            result = statements.car.eval(frame);
-            body = statements.cdr;
-        }
-        
-        if (!isNull(body) || result === null) {
-            throw evalException("Malformed lambda body.", env);
-        }
-        return result;
+        return this.body.eval(frame);
     };
     LabelsExpression.prototype.toString = function () {
         var result = "(";
@@ -897,20 +884,19 @@ var SLUR = (function () {
 			if (isNull(definition.cdr)) {
 				throw evalException("Function body expected.", env);
 			}
-			result.functions.push(Lambda.buildFunction(env, binding.name, parameters, definition.cdr));
+			result.functions.push(buildFunction(env, binding.name, parameters, definition.cdr));
 			labels = labels.cdr;
 		}
 		if (!isNull(labels)) {
 			throw evalException("Malformed labels clauses.", env);
 		}
 
+        result.body = new Statements(args.cdr);
 		if (compile) {
             for (var f = 0; f < result.functions.length; ++f) { 
 				result.functions[f].compileBody(frame);
 			}
-            result.body = compileList(frame, args.cdr);
-		} else {
-            result.body = args.cdr;
+            result.body.compile(frame);
         }
         
 		return result;
@@ -924,111 +910,56 @@ var SLUR = (function () {
     function labelsCompile(env, args) {
 		return processLabels(env, args, true);
     }
-
-/*
-
-public class Define extends SpecialForm {
-	public static class DefineException extends EvalException {
-		private static final long serialVersionUID = 7047262781903808993L;
-
-		public DefineException( String message, Environment env ) {
-			super( message, env );
+    
+    function processDefine(spec, body, env) {
+		if (!isSymbol(spec.car)) {
+			throw evalException("Malformed define", env);
 		}
-
-		public DefineException( Environment env ) {
-			super( "Malformed define.", env );
+        return buildFunction(env, spec.car.name, spec.cdr, body);
+    }
+    
+    function defineCheckTarget(target) {
+		if (!isCons(target)) {
+			throw evalException("Malformed define", env);
 		}
-	}
-
-	public Obj compileSpecial(Environment env, Obj arguments) {
-		if( !arguments.isCons() ) {
-			throw new DefineException( env );
+		if (!isNull(target.cdr)) {
+			throw evalException("Malformed define", env);
 		}
-		Cons args = (Cons)arguments;
-		if( args.car().isCons() ) {
-			Func function = processFunction((Cons)args.car(), args.cdr(), env);
-			Frame selfFrame = new Frame(env, function.name() + " - compiling");
-			selfFrame.bindFunction(function);
-			function.compileBody(selfFrame);
-			return Cons.list(this, new Symbol(function.name()), function);
+    }
+    
+    function defineInvoke(env, args) {
+        if (!isCons(args)) {
+			throw evalException("Malformed define", env);
 		}
-		if( args.car().isSymbol() ) {
-			return Cons.list(this, args.cdr(), compileValue(args.cdr(), env));
-		}
-		throw new DefineException( env );
-	}
-
-	public Obj invoke(Environment env, Obj arguments) {
-		if( !arguments.isCons() ) {
-			throw new DefineException( env );
-		}
-		Cons args = (Cons)arguments;
-		if( args.car().isCons() ) {
-			Func func = processFunction( (Cons)args.car(), args.cdr(), env );
+		if (isCons(args.car)) {
+			var func = processDefine(args.car, args.cdr, env);
 			return env.bindFunction( func );
-		}
-		if( args.car().isSymbol() ) {
-			return defineValue( (Symbol)args.car(), args.cdr(), env );
-		}
-		throw new DefineException( env );
-	}
-
-	private Obj defineValue(Symbol symbol, Obj obj, Environment env) {
-		if( !obj.isCons() ) {
-			throw new DefineException( env );
-		}
-		Cons rest = (Cons)obj;
-		if( !rest.cdr().isNull() ) {
-			throw new DefineException( env );
-		}
-		Obj value = rest.car().eval( env );
-		return env.bind( symbol.name(), value );
-	}
-
-	private Obj compileValue(Obj obj, Environment env) {
-		if( !obj.isCons() ) {
-			throw new DefineException( env );
-		}
-		Cons rest = (Cons)obj;
-		if( !rest.cdr().isNull() ) {
-			throw new DefineException( env );
-		}
-		return rest.car().compile( env );
-	}
-
-	private Func processFunction(Cons spec, Obj body, Environment env) {
-		if( !spec.car().isSymbol() ) {
-			throw new DefineException( env );
-		}
-		Symbol name = (Symbol)spec.car();
-
-		Obj parameters = spec.cdr();
-		List<String> paramList = new LinkedList<String>();
-		while( parameters.isCons() ) {
-			Cons params = (Cons)parameters;
-			Obj param = params.car();
-			if( param.isSymbol() ) {
-				paramList.add( ((Symbol)param).name() );
-			}
-			parameters = params.cdr();
-		}
-		String restParam = null;
-		if( parameters.isSymbol() ) {
-			restParam = ((Symbol)parameters).name();
-		} else if( !parameters.isNull() ) {
-			throw new DefineException( env );
-		}
-		if( !body.isCons() ) {
-			throw new DefineException( env );
-		}
-		Statements funcBody = new Statements( (Cons)body );
-		return new Func( name.name(), paramList.toArray( new String[ paramList.size() ] ), restParam, funcBody );
-	}
-
-	public String toString() { return "define"; }
-}
-
-*/
+		} else if (isSymbol(args.car)) {
+            defineCheckTarget(args.cdr);
+            return env.bind(args.car.name, args.cdr.car.eval(env));
+		} else {
+			throw evalException("Malformed define", env);
+        }
+    }
+    
+    function defineCompile(env, args) {
+        // jshint validthis: true
+        if (!isCons(args)) {
+            throw evalException("Malformed define", env);
+        }
+        if (isCons(args.car)) {
+            var func = processDefine(args.car, args.cdr, env),
+                frame = new Frame(env, func.name + " - compiled");
+            frame.bindFunction(func);
+            func.compileBody(frame);
+            return makeList(this, new Symbol(func.name), func);            
+        } else if (isSymbol(args.car)) {
+            defineCheckTarget(args.cdr);
+            return makeList(this, args.car, args.cdr.car.compile(env));
+        } else {
+            throw evalException("Malformed define", env);
+        }
+    }
 
     function installSpecial(env) {
         function bind(name, invoke, compile) {
@@ -1044,7 +975,7 @@ public class Define extends SpecialForm {
         bind("let", letInvoke(false), letCompile(false));
 		bind("let*", letInvoke(true), letComplie(true));
 		bind("labels", labelsInvoke, lablesCompile);
-		//bind("define", new Define());
+		bind("define", defineInvoke, defineCompile);
     }
 
     function Builtin(invoke, name) {
