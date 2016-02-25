@@ -658,7 +658,7 @@ var SLUR = (function () {
         }
     };
     
-    function processCons(env, args) {
+    function processCond(env, args) {
         var clauses = new Clauses();
 		while (isCons(args)) {
 			if (!isCons(args.car)) {
@@ -682,16 +682,16 @@ var SLUR = (function () {
     }
     
     function condInvoke(env, args) {
-        return processCons(env, args).eval(env);
+        return processCond(env, args).eval(env);
     }
     
     function condCompile(env, args) {
-        var result = processCons(env, args);
+        var result = processCond(env, args);
         result.compileClauses(env);
         return result;
     }
     
-    var lambdaID = 0;
+    var lambdaID = 10001;
     
     function CompiledLambda(func) {
         this.name = "lambda#" + lambdaID;
@@ -741,111 +741,93 @@ var SLUR = (function () {
     function lambdaInvoke(env, args) {
         return lambdaCompile(env, args).eval(env);
     }
+    
+    function LetExpression(sequential) {
+        this.sequential = sequential;
+        this.bindings = [];
+        this.body = null;
+    }
+    LetExpression.prototype.type = typeIs(ObjecType.INTERNAL);
+    LetExpression.compile = selfCompile;
+    LetExpression.eval = function(env) {
+        var frame = new Frame(env, null);
+        for (var b = 0; b < this.bindings.length; ++b) {
+            var binding = this.bindings[b];
+            frame.bind(binding.target.name, binding.value.eval(this.sequential ? frame : env));
+        }
+        var result = null,
+            body = this.body;
+        while (isCons(body)) {
+            result = body.car.eval(frame);
+            body = body.cdr;
+        }
+        if (!isNull(body) || result === null ) {
+            throw evalException("Malformed let body.", env);
+        }
+    };
+    LetExpression.toString = function () {
+        var result = "(";
+        for (var b = 0; b < this.bindings.length; ++b) {
+            var binding = this.bindings[b];
+            result += "(" + binding.target.toString();
+            result += " " + binding.value.toString();
+        }
+        result += ") " + this.body.toString();
+        return result;
+    };
+    LetExpression.prototype.bind = function(target, value) {
+        this.bindings.push({target: target, value: value});
+    };
 
-/*
-public class Let extends SpecialForm {
-	public enum Type {
-		PARALLEL,
-		SEQUENTIAL
-	}
-	private Type mType;
+    function processLet(env, args, sequential, compile) {
+		var result = new LetExpression(sequential);
+            frame = new Frame(env, null);
 
-	Let( Type type ) {
-		mType = type;
-	}
-
-	static class LetExpression extends BaseObj {
-		LetExpression( Type type ) {
-			mType = type;
+		if (isCons(args)) {
+			throw evalException("Malformed let.", env);
 		}
-
-		static class BindingForm {
-			BindingForm( Symbol symbol, Obj form ) {
-				mSymbol = symbol; mForm = form;
+		var lets = args.car;
+		while (isCons(lets)) {
+			if (!isCons(lets.car)) {
+				throw evalException("Malformed let clauses.", env);
 			}
-			Symbol mSymbol;
-			Obj mForm;
+			var binding = lets.car;
+			if (!isSymbol(binding.car)) {
+				throw evalException("Malformed let, Symbol expected.", env);
+			}
+			if (!isCons(binding.cdr) || !isNull(binding.cdr.cdr)) {
+				throw evalException("Malformed let clause.", env);
+			}
+            var target = binding.car,
+                value = binding.cdr.car;
+			if (compile) {
+				frame.shadow(target.name);
+				value = value.compile(sequential ? frame : env);
+			}
+			result.add(target, value);
+			lets = lets.cdr;
 		}
-		List<BindingForm> mBindingForms = new ArrayList<BindingForm>();
-		Obj mBodyForm = null;
-		private Type mType;
-
-		public void add( Symbol symbol, Obj form ) {
-			mBindingForms.add( new BindingForm( symbol, form ) );
-		}
-
-		public Obj eval(Environment env) {
-			Environment letEnv = new Frame( env, null );
-			for( BindingForm form : mBindingForms ) {
-				letEnv.bind(form.mSymbol.name(), form.mForm.eval(mType == Type.SEQUENTIAL ? letEnv : env));
-			}
-
-			Obj result = null;
-			Obj body = mBodyForm;
-			while( body.isCons() ) {
-				Cons statements = (Cons)body;
-				result = statements.car().eval( letEnv );
-				body = statements.cdr();
-			}
-
-			if( !body.isNull() || result == null ) {
-				throw new LetException( "Malformed let body.", env );
-			}
-			return result;
-		}
-	}
-
-	public Obj process(Environment env, Obj arguments, boolean compile) {
-		LetExpression result = new LetExpression(mType);
-		Environment letEnv = new Frame(env, null);
-
-		if( !arguments.isCons() ) {
-			throw new LetException( "Malformed let.", env );
-		}
-		Cons args = (Cons)arguments;
-		Obj lets = args.car();
-		while( lets.isCons() ) {
-			Cons clauses = (Cons)lets;
-			if( !clauses.car().isCons() ) {
-				throw new LetException( "Malformed let clauses.", env );
-			}
-			Cons let = (Cons)clauses.car();
-			if( !let.car().isSymbol() ) {
-				throw new LetException( "Symbol expected.", env );
-			}
-			if( !let.cdr().isCons() || !((Cons)let.cdr()).cdr().isNull() ) {
-				throw new LetException( "Malformed let clause.", env );
-			}
-			Symbol letSym = (Symbol)let.car();
-			Obj letVal = ((Cons)let.cdr()).car();
-			if( compile ) {
-				letEnv.shadow( letSym.name() );
-				letVal = letVal.compile( mType == Type.SEQUENTIAL ? letEnv : env );
-			}
-			result.add( letSym, letVal );
-			lets = clauses.cdr();
-		}
-		if( !lets.isNull() ) {
-			throw new LetException( "Malformed let clause.", env );
+		if (!isNull(lets)) {
+			throw evalException("Malformed let clause.", env);
 		}
 
 		// Build body last - if compiling, need the environment with shadowed variables.
-		result.mBodyForm = compile ? Cons.compileList(letEnv, args.cdr()) : args.cdr();
+		result.body = compile ? compileList(frame, args.cdr) : args.cdr;
 		return result;
 	}
-
-	public Obj compileSpecial(Environment env, Obj arguments) {
-		return process( env, arguments, true );
-	}
-
-	public Obj invoke( Environment env, Obj arguments ) {
-		Obj compiledLet = process( env, arguments, false );
-		return compiledLet.eval( env );
-	}
-
-	public String toString() { return mType == Type.PARALLEL ? "let" : "let*"; }
-}
-*/
+    
+    function letInvoke(sequential) {
+        return function (env, args) {
+            var result = processLet(env, args, sequential, false);
+            return result.eval(env);
+        };
+    }
+    
+    function letCompile(sequential) {
+        return function (env, args) {
+            return processLet(env, args, sequential, true);
+        };
+    }
 
     function LabelsExpression() {
         this.functions = [];
@@ -1059,8 +1041,8 @@ public class Define extends SpecialForm {
 		bind("or", orInvoke);
         bind("cond", condInvoke, condCompile);
 		bind("lambda", lambdaInvoke, lambdaCompile);
-        //bind("let", new Let(Let.Type.PARALLEL));
-		//bind("let*", new Let(Let.Type.SEQUENTIAL));
+        bind("let", letInvoke(false), letCompile(false));
+		bind("let*", letInvoke(true), letComplie(true));
 		bind("labels", labelsInvoke, lablesCompile);
 		//bind("define", new Define());
     }
@@ -1117,7 +1099,7 @@ public class Define extends SpecialForm {
             return NULL;
         });
 
-		define( "list", [], "rest", function (env) {return env.lookupName( "rest" );});
+		define( "list", [], "rest", function (env) { return env.lookupName( "rest" ); });
 	}
 
 	function installType(env) {
