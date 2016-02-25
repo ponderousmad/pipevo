@@ -15,8 +15,8 @@ var SLUR = (function () {
         var description = "";
         if (this.environment) {
             var c = this.environment.context();
-            if ( c.length > 0 ) {
-                description.append( " - In functions " );
+            if (c.length > 0) {
+                description.append(" - In functions ");
                 var first = true;
                 for (var s = 0; s < c.length; ++c) {
                     if (!first) {
@@ -347,7 +347,7 @@ var SLUR = (function () {
         } else if(!isNull(cdr)) {
             throw compileException("Malformed statements", env);
         }
-        return new Cons(statements.car().compile(env), cdr);
+        return new Cons(statements.car.compile(env), cdr);
     };
 
     Statements.prototype.eval = function (env) {
@@ -410,7 +410,7 @@ var SLUR = (function () {
     function Frame(env, context) {
         this.contextName = context ? context : null;
         this.symbols = {};
-        this.env = env;
+        this.env = env ? env : null;
         this.abort = null;
         this.useTails = env ? env.useTails : false;
     }
@@ -446,7 +446,7 @@ var SLUR = (function () {
             return binding;
         }
         if (this.env !== null) {
-            return env.tryLookupName( name );
+            return env.tryLookupName(name);
         }
         return null;
     };
@@ -512,7 +512,7 @@ var SLUR = (function () {
 
     function quoteInvoke(env, args) {
         if (!isCons(args)) {
-            throw new EvalException( "Cons expected.", env );
+            throw new EvalException("Cons expected.", env);
         }
         return args.car;
     }
@@ -575,7 +575,7 @@ var SLUR = (function () {
             }
             elseClause = elseCons.car;
         }
-        return new IfExpression(args.car(), clauses.car(), elseClause);
+        return new IfExpression(args.car, clauses.car, elseClause);
     }
 
     function ifInvoke(env, args) {
@@ -631,7 +631,7 @@ var SLUR = (function () {
     CondClauses.prototype.eval = function (env) {
         for (var c = 0; c < this.clauses.length; ++c) {
             var clause = this.clauses[c];
-            if (!isNull(clause.predicate.eval(env)) ) {
+            if (!isNull(clause.predicate.eval(env))) {
                 var tail = env.getTail();
                 if (tail !== null) {
                     if (isCons(clause.result)) {
@@ -935,7 +935,7 @@ var SLUR = (function () {
         }
         if (isCons(args.car)) {
             var func = processDefine(args.car, args.cdr, env);
-            return env.bindFunction( func );
+            return env.bindFunction(func);
         } else if (isSymbol(args.car)) {
             defineCheckTarget(args.cdr);
             return env.bind(args.car.name, args.cdr.car.eval(env));
@@ -1032,7 +1032,7 @@ var SLUR = (function () {
             return NULL;
         });
 
-        define(root, "list", [], "rest", function (env) { return env.lookupName( "rest" ); });
+        define(root, "list", [], "rest", function (env) { return env.lookupName("rest"); });
     }
 
     function installType(root) {
@@ -1183,8 +1183,8 @@ var SLUR = (function () {
     };
 
     Parser.prototype.isAlphaNum = function(code) {
-        return ( "a".charCodeAt(0) <= code && code <= "z".charCodeAt(0) ) ||
-               ( "A".charCodeAt(0) <= code && code <= "Z".charCodeAt(0) ) ||
+        return ("a".charCodeAt(0) <= code && code <= "z".charCodeAt(0)) ||
+               ("A".charCodeAt(0) <= code && code <= "Z".charCodeAt(0)) ||
                this.isDigit(c);
     };
 
@@ -1204,8 +1204,8 @@ var SLUR = (function () {
 
     Parser.prototype.skipCommentsAndWhitespace = function () {
         while (!this.atEnd() && (this.atComment() || this.asWhitespace())) {
-            if (this.atCommentStart() ) {
-                while (!this.atEnd() && !this.atLineBreak() ) {
+            if (this.atCommentStart()) {
+                while (!this.atEnd() && !this.atLineBreak()) {
                     this.advance(1);
                 }
             } else {
@@ -1232,7 +1232,7 @@ var SLUR = (function () {
         }
         if (atDot()) {
             if (this.atEnd()) {
-                throw new ParseException( "Missing ')'" );
+                throw new ParseException("Missing ')'");
             }
             if (this.atWhitespace()) {
                 this.advance(1);
@@ -1240,7 +1240,7 @@ var SLUR = (function () {
                     return new Cons(NULL, parseCons(false, true));
                 }
                 if (justCdr) {
-                    throw parseException( "Multiple '.' in list" );
+                    throw parseException("Multiple '.' in list");
                 }
                 return parseCons(false, true);
             }
@@ -1260,7 +1260,7 @@ var SLUR = (function () {
     };
 
     Parser.prototype.atStringEnd = function () {
-        if (this.inEscape ) {
+        if (this.inEscape) {
             this.inEscape = false;
             return false;
         }
@@ -1275,14 +1275,14 @@ var SLUR = (function () {
         this.inEscape = false;
         this.advance(1); // Skip opening quote.
         var result = "";
-        while (!this.atEnd() && !this.atStringEnd() ) {
+        while (!this.atEnd() && !this.atStringEnd()) {
             if (!this.inEscape) {
                 result += this.next();
             }
             this.advance(1);
         }
         if (this.atEnd()) {
-            throw new ParseException( "Could not find end of string." );
+            throw new ParseException("Could not find end of string.");
         }
         this.advance(1); // Skip closing quote.
         return new StringValue(result);
@@ -1358,7 +1358,7 @@ var SLUR = (function () {
         if (!this.atTerminator()) {
             throw parseException("Unexpected end of symbol.");
         }
-        if (start === this.offset ) {
+        if (start === this.offset) {
             return null;
         }
         return new Symbol(this.codeFrom(start));
@@ -1378,7 +1378,7 @@ var SLUR = (function () {
         if (atNumber()) {
             var number = this.parseNumber();
             if (!this.atTerminator()){
-                throw parseException( "Unexpected character after number" );
+                throw parseException("Unexpected character after number");
             }
             return number;
         }
@@ -1403,77 +1403,87 @@ var SLUR = (function () {
         return result;
     }
 
-/*
-public class Initialize {
-    public static Environment init() {
-        Environment env = new Frame();
+    function baseEnvironment() {
+        var env = new Frame();
 
-        List.install( env );
-        Numeric.install( env );
-        Types.install( env );
-
-        Special.install(env);
+        installSpecial(env);
+        installList(env);
+        installNumeric(env);
+        installType(env);
 
         return env;
     }
 
-    public static Environment initWithLibraries() {
-        Environment env = init();
+    function SlurFile(resource) {
+        this.resource = resource;
+        this.loaded = false;
+        this.code = null;
 
-        String[] libraries = new String[]{"consCombos.slur", "list.slur", "map.slur", "reduce.slur", "reverse.slur"};
-
-        for( String library : libraries) {
-            loadLibrary(library, env);
-        }
-
-        return env;
+        this.load();
     }
 
-    private static void loadLibrary(String library, Environment env) {
-        try {
-            URL path = ClassLoader.getSystemResource("slur/" + library);
-            if( path == null ) {
-                return;
-            }
-            String filePath = path.getFile();
-            BufferedReader read = new BufferedReader(new FileReader(filePath));
-            String line;
-            StringBuffer buffer = new StringBuffer();
-            do {
-                line = read.readLine();
-                if( line != null) {
-                    buffer.append(line);
-                    buffer.append(" ");
-                }
-            }
-            while(line!=null);
-            String contents = buffer.toString();
-            if( contents.length() > 0 ) {
-                try {
-                    Parser parser = new Parser( contents );
-                    Obj result;
-                    while( ( result = parser.parse() ) != null ) {
-                        result = result.compile(env);
-                        result.eval(env);
+    SlurFile.prototype.load = function() {
+        var self = this,
+            path = "src/slur/" + this.resource,
+            request = new XMLHttpRequest();
+
+        request.open("GET", path, true);
+        request.responseType = "text";
+        request.onload = function () {
+            self.code = request.response;
+            self.loaded = true;
+        };
+        request.send();
+    };
+
+    SlurFile.prototype.execute = function(env) {
+        if (this.code.length() > 0) {
+            try {
+                var parser = new Parser(this.code);
+                for(;;) {
+                    var result = parser.parse();
+                    if (result === null) {
+                        return;
                     }
-                } catch( Parser.ParseException ex ) {
-                    ex.printStackTrace();
+                    result = result.compile(env);
+                    result.eval(env);
                 }
+            } catch (error) {
+                console.log(error.toString());
             }
-
-        } catch (IOException e) {
-            e.printStackTrace();
         }
-    }
-}
+    };
 
+    var libraries = [
+        new SlurFile("consCombos.slur"),
+        new SlurFile("list.slur"),
+        new SlurFile("map.slur"),
+        new SlurFile("reduce.slur"),
+        new SlurFile("reverse.slur")
+    ];
+
+    function defaultEnvironment() {
+        for (var i = 0; i < libraries.length; ++i) {
+            if (!libraries[i].loaded) {
+                return null;
+            }
+        }
+
+        var env = baseEnvironment();
+        for (i = 0; i < libraries.length; ++i) {
+            libraries[i].execute(env);
+        }
+        return env;
+    }
+
+/*
 public class Interpreter {
     public static void main(String[] args) {
         launchInterpreter();
     }
 
     public static void launchInterpreter() {
-        BufferedReader read = new BufferedReader( new InputStreamReader( System.in ) );
+        BufferedReader read = new BufferedReader(new InputStreamReader(System.in));
         PrintStream out = System.out;
 
         Environment env = Initialize.initWithLibraries();
@@ -1481,31 +1491,280 @@ public class Interpreter {
         try {
             String line;
             do {
-                out.print( ":" );
+                out.print(":");
                 line = read.readLine();
-                if( line != null && line.length() > 0 ) {
+                if(line != null && line.length() > 0) {
                     try {
-                        Parser parser = new Parser( line );
+                        Parser parser = new Parser(line);
                         Obj result;
-                        while( ( result = parser.parse() ) != null ) {
-                            out.println( result.toString() );
-                            out.println( result.eval(env).toString() );
+                        while((result = parser.parse()) != null) {
+                            out.println(result.toString());
+                            out.println(result.eval(env).toString());
                         }
-                    } catch( Parser.ParseException ex ) {
-                        out.println( ex.getMessage() );
+                    } catch(Parser.ParseException ex) {
+                        out.println(ex.getMessage());
                     }
-                } else if( line != null ) {
+                } else if(line != null) {
                     line = null;
                 }
-            } while( line != null );
+            } while(line != null);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 }
-
 */
+
+    function testSuite() {
+        function fail() { throw "Assertion Failure"; }
+        function assertTrue(value) { if (!value) { fail(); } }
+        function assertFalse(value) { if (value) { fail(); } }
+        function assertEquals(a, b) { assertTrue(a === b); }
+        function assertSame(a, b) { assertTrue(a == b); }
+        function assertNull(value) { assertEquals(a, null); }
+
+        function isInt(n) { return n.type() === ObjectType.FIX_NUM; }
+        function isReal(n) { return n.type() === ObjectType.REAL; }
+        function isString(s) { return n.type() === ObjectType.STRING; }
+
+        var parseTests = [
+        	function testEmpty() {
+                assertNull(parse(""));
+            },
+            function testFixNum() {
+                var number = parse("1");
+                assertTrue(isInt(number));
+                assertEquals(number.value, 1);
+
+                number = parse("10");
+                assertTrue(isInt(number));
+                assertEquals(number.value, 10);
+
+                number = parse("-1");
+                assertTrue(isInt(number));
+                assertEquals(number.value, -1);
+
+                number = parse("9");
+                assertTrue(isInt(number));
+                assertEquals(number.value, 9);
+
+                number = parse("0");
+                assertTrue(isInt(number));
+                assertEquals(number.value, 0);
+
+                number = parse("-2345");
+                assertTrue(isInt(number));
+                assertEquals(number.value, -2345);
+            },
+            function testReal() {
+                var number = parse(".1");
+                assertTrue(isReal(number));
+                assertEquals(number.value, 0.1);
+
+                number = parse("-.1");
+                assertTrue(isReal(number));
+                assertEquals(number.value, -0.1);
+
+                number = parse("1e5");
+                assertTrue(isReal(number));
+                assertEquals(number.value, 1e5);
+
+                number = parse("1.");
+                assertTrue(isReal(number));
+                assertEquals(number.value, 1.0);
+
+                number = parse("1.6");
+                assertTrue(isReal(number));
+                assertEquals(number.value, 1.6);
+
+                number = parse("1.7e2");
+                assertTrue(isReal(number));
+                assertEquals(number.value, 1.7e2);
+
+                number = parse("-1e4");
+                assertTrue(isReal(number));
+                assertEquals(number.value, -1e4);
+
+                number = parse("-1.8e5");
+                assertTrue(isReal(number));
+                assertEquals(number.value, -1.8e5);
+            },
+            function testString() {
+                var string = parse("\"Hello\"");
+                assertTrue(isString(string));
+                assertEquals(string.value, "Hello");
+
+                string = parse("\"\"");
+                assertTrue(isString(string));
+                assertEquals(string.value, "");
+
+                string = parse("\"\\\"\"");
+                assertTrue(isString(string));
+                assertEquals(string.value, "\"");
+            },
+            function testSymbol() {
+                var symbol = parse("symbol");
+                assertTrue(isSymbol(symbol.isSymbol));
+                assertEquals(symbol.name, "symbol");
+            },
+            function testTrue() {
+                var truth = parse("#t");
+                assertSame(truth, True.TRUE);
+            },
+            function testCons() {
+                var cons = parse("()");
+                assertTrue(isNull(cons));
+
+                cons = parse("(1)");
+                assertTrue(isCons(cons));
+                assertTrue(isInt(cons.car));
+                assertTrue(isNull(cons.cdr));
+
+                cons = parse("(1 2)");
+                assertTrue(isCons(cons));
+                assertTrue(isInt(cons.car));
+                assertTrue(isCons(cons.cdr));
+                assertTrue(isNull(cons.cdr.cdr));
+
+                cons = parse("(1 . 2)");
+                assertTrue(isCons(cons));
+                assertFalse(isCons(cons.car));
+                assertFalse(isCons(cons.cdr));
+            },
+            function testBadCons() {
+                try {
+                    parse(")");
+                    fail("Exception expected");
+                } catch(e) {
+                }
+            },
+            function testNestedCons() {
+                var cons = parse("((1) (2))");
+                assertTrue(isCons(cons));
+                assertTrue(isCons(cons.car));
+                assertTrue(isCons(cons.cdr));
+                assertTrue(isInt(cons.car.car));
+                assertTrue(isNull(cons.car.cdr));
+                cons = cons.cdr;
+                assertTrue(isCons(cons.car));
+                assertTrue(isInt(cons.car.car));
+                assertTrue(isNull(cons.car.cdr));
+                assertTrue(isNull(cons.cdr));
+            },
+            function testDeepCons() {
+                var obj = parse("((((5 4) (1 2 3 4) ((-1) . 2)) \"Hello\" (goodbye)))");
+                assertEquals(obj.toString(), "((((5 4) (1 2 3 4) ((-1) . 2)) \"Hello\" (goodbye)))");
+
+                obj = parse("(define (map fn list) (if (isNull? list) () (cons (fn (car list)) (map fn (cdr list)))))");
+                assertEquals(obj.toString(), "(define (map fn list) (if (isNull? list) () (cons (fn (car list)) (map fn (cdr list)))))");
+            },
+            function testParseNestedConsDot() {
+                var obj = parse("((lambda (a . b) b) 1 2 3)");
+                assertEquals(obj.toString(), "((lambda (a . b) b) 1 2 3)");
+            },
+            function testParseSkipComments() {
+                var obj = parse(";Nothing to see here\n(foo)");
+                assertEquals(obj.toString(), "(foo)");
+                obj = parse("(foo);Nothing to see here");
+                assertEquals(obj.toString(), "(foo)");
+                obj = parse("(foo ;Nothing to see here \n)");
+                assertEquals(obj.toString(), "(foo)");
+                obj = parse("(;Nothing to see here \n foo)");
+                assertEquals(obj.toString(), "(foo)");
+                obj = parse("(foo . ;Nothing to see here \r bar)");
+                assertEquals(obj.toString(), "(foo . bar)");
+            },
+            function testParseMultiple() {
+                var parser = new Parser("(+ 1 2) (- 3 4)");
+                assertEquals(parser.parse().toString(), "(+ 1 2)");
+                assertEquals(parser.parse().toString(), "(- 3 4)");
+                assertNull(parser.parse());
+            }
+        ];
+
+        var evalTests = [
+            function testFixNum() {
+                var env = new Frame(),
+                    num = new FixNum(1),
+                    result = num.eval(env);
+                assertSame(num, result);
+                assertEquals(result.value, 1);
+            },
+            function testReal() {
+                var env = new Frame(),
+                    num = new Real(1.0),
+                    result = num.eval(env);
+                assertSame(num, result);
+                assertEquals(result.value, 1.0);
+            },
+            function testString() {
+                var env = new Frame(),
+                    string = new StringObj("a");
+                assertSame(string, string.eval(env));
+            },
+            function testSymbol() {
+                var env = new Frame(),
+                    num = new FixNum(1),
+                    symbol = new Symbol("a");
+                env.bind("a", num);
+                assertSame(num, symbol.eval(env));
+            },
+            function testNull() {
+                var env = new Frame();
+                assertSame(NULL.eval(env), NULL);
+            },
+            function testTrue() {
+                var env = new Frame();
+                assertSame(TRUE.eval(env), TRUE);
+            },
+            function testSpecial() {
+                var env = new Frame(),
+                    obj = new If(),
+                    result = obj.eval(env);
+                assertSame(obj, result);
+            },
+            function testRecurse() {
+                var env = baseEnvironment();
+                parse("(define (square x) (* x x))").eval(env);
+                parse("(define (map fn list) (if (isNull? list) () (cons (fn (car list)) (map fn (cdr list)))))").eval(env);
+                assertEquals(parse("(map square '(1 2 3))").eval(env).toString(), "(1 4 9)");
+            },
+            function testReverse() {
+                var env = baseEnvironment();
+                parse("(define (reverse list) (labels ((revAcc (list acc) (if (isNull? list) acc (revAcc (cdr list) (cons (car list) acc))))) (revAcc list ())))").eval(env);
+                assertEquals(parse("(reverse '(1 2 3))").eval(env).toString(), "(3 2 1)");
+            },
+            function testRemove() {
+                var env = baseEnvironment();
+                Parser.parse("(define (remove l pred) (cond ((isNull? l) l) ((pred (car l)) (remove (cdr l) pred)) (#t (cons (car l) (remove (cdr l) pred)))))").eval(env);
+                assertEquals(parse("(remove (list 1 2 3 4) (lambda (x) (= x 2)))").eval(env).toString(), "(1 3 4)");
+            },
+            function testLambda() {
+                var env = baseEnvironment();
+                parse("(define (bar x) (lambda (y) (+ x y)))").eval(env);
+                assertEquals(parse("((bar 6) 5)").eval(env).toString(), "11");
+            }
+        ];
+
+        function runTests(name, tests) {
+            console.log("Running " + name + " Tests");
+            for (var t = 0; t < tests.length; ++t) {
+                var test = tests[t]();
+                try {
+                    tests[t]();
+                } catch(e) {
+                    console.log("Failed test" + test.name + ":");
+                    console.log(e.toString());
+                }
+            }
+        }
+
+        runTests("Parse", parserTests);
+        runTests("Eval", evalTests);
+    }
+
+    testSuite();
 
     return {
     };
