@@ -1055,7 +1055,7 @@ var SLUR = (function () {
         env.bind("PI", new Real(Math.PI));
         env.bind("E", new Real(Math.E));
 
-        var INT = ObjectType.FIXNUM,
+        var INT = ObjectType.FIX_NUM,
             REAL = ObjectType.REAL,
             BOOL = ObjectType.BOOLEAN;
 
