@@ -1231,23 +1231,21 @@ var SLUR = (function () {
             return NULL;
         }
         if (atDot()) {
-            this.advance(1);
             if (this.atEnd()) {
                 throw new ParseException( "Missing ')'" );
             }
             if (this.atWhitespace()) {
+                this.advance(1);
                 if (atStart) {
                     return new Cons(NULL, parseCons(false, true));
-                } else {
-                    if (justCdr) {
-                        throw parseException( "Multiple '.' in list" );
-                    }
-                    return parseCons(false, true);
                 }
-            } else {
-                // TODO: Investigate this, it seems like something is off.
-                this.advance(1);
+                if (justCdr) {
+                    throw parseException( "Multiple '.' in list" );
+                }
+                return parseCons(false, true);
             }
+            // probably a floating point number,
+            // will get handled by recursive parse below.
         } else if (justCdr) {
             var cdr = parse();
             this.skipCommentsAndWhitespace();
