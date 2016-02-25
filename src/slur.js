@@ -1157,7 +1157,7 @@ var SLUR = (function () {
 
     Parser.prototype.atDigit = function () { return this.isDigit(this.next().charCodeAt(0)); };
     Parser.prototype.isDot = function(c) { return c === "."; };
-    Parser.prototype.atDot = function () { return this.next() === "."; };
+    Parser.prototype.atDot = function () { return this.isDot(this.next()); };
     Parser.prototype.atMinus = function () { return this.next() === "-"; };
     Parser.prototype.atQuote = function () { return this.next() === "'"; };
     Parser.prototype.atDoubleQuote = function () { return this.next() === '"'; };
