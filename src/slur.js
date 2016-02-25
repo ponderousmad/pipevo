@@ -14,20 +14,16 @@ var SLUR = (function () {
     SlurException.prototype.context = function () {
         var description = "";
         if (this.environment) {
-            var c = this.environment.context();
-            if (c.length > 0) {
-                description.append(" - In functions ");
-                var first = true;
-                for (var s = 0; s < c.length; ++c) {
-                    if (!first) {
+            var contexts = this.environment.context();
+            if (contexts.length > 0) {
+                description += " - In functions ";
+                for (var c = 0; c < contexts.length; ++c) {
+                    if (c > 0) {
                         description += ", ";
-                    } else {
-                        first = false;
                     }
-                    description += c[s];
+                    description += c[c];
 
                 }
-                description += ":\n";
             }
         }
         return description;
@@ -89,6 +85,9 @@ var SLUR = (function () {
         },
         isFunction = makeIsType(ObjectType.FUNCTION),
         isSpecialForm = makeIsType(ObjectType.SPECIAL_FORM),
+        isInt = makeIsType(ObjectType.FIX_NUM),
+        isReal = makeIsType(ObjectType.REAL),
+        isString = makeIsType(ObjectType.STRING),
         isSymbol = makeIsType(ObjectType.SYMBOL),
         isCons = makeIsType(ObjectType.CONS),
         isNull = makeIsType(ObjectType.NULL),
@@ -165,9 +164,8 @@ var SLUR = (function () {
         // this provides us with a place to hook into the abort mechanism.
         // So every time a cons is evaluated, we check if the interpreter
         // has aborted, and throw the abort exception.
-        var abort = env.abort();
-        if (abort !== null) {
-            throw abort;
+        if (env.abort !== null) {
+            throw env.abort;
         }
 
         // Evaluate the cons cell as an application or a special form.
@@ -231,7 +229,7 @@ var SLUR = (function () {
         if (isNull(args)) {
             return args;
         } else if(isCons(args)) {
-            return prependList(args.car.complie(env), complieList(env, args.cdr));
+            return prependList(args.car.compile(env), compileList(env, args.cdr));
         }
         throw compileException("Malformed list", env);
     }
@@ -262,8 +260,8 @@ var SLUR = (function () {
 
     function Func(name, parameters, restParameter, body, frame) {
         this.name = name;
-        this.parameters = argNames;
-        this.restParameter = restName;
+        this.parameters = parameters;
+        this.restParameter = restParameter;
         this.body = body;
         this.frame = frame ? frame : null; // For closures.
 
@@ -281,8 +279,8 @@ var SLUR = (function () {
             return env;
         }
         var frame = new Frame(env, this.name);
-        for (var n = 0; n < this.parameters.length; ++n) {
-            frame.shadow(this.parameters[i]);
+        for (var p = 0; p < this.parameters.length; ++p) {
+            frame.shadow(this.parameters[p]);
         }
         if (this.restParameter !== null) {
             frame.shadow(this.restParameter);
@@ -296,7 +294,7 @@ var SLUR = (function () {
 
     Func.prototype.invoke = function(env, args) {
         var frame = this.bindArgs(env, args);
-        frame.useTail(env);
+        frame.useTails = env.useTails;
         return this.body.eval(frame);
     };
 
@@ -305,7 +303,7 @@ var SLUR = (function () {
             argsTail = args;
         for (var p = 0; p < this.parameters.length; ++p) {
             if (isNull(argsTail)) {
-                throw invocationException("Insufficient Arguments", this, args, env);
+                throw invocationException("Insufficient arguments", this, args, env);
             }
             if (!isCons(argsTail)) {
                 throw invocationException("Malformed expression", this, args, env);
@@ -327,7 +325,7 @@ var SLUR = (function () {
         } else if(!isCons(object)) {
             throw invocationException("Malformed expression", this, object, env);
         } else {
-            return new Cons(object.car.eval(env), evalList(env, object.cdr));
+            return new Cons(object.car.eval(env), this.evalList(env, object.cdr));
         }
     };
 
@@ -387,7 +385,7 @@ var SLUR = (function () {
         if (this.build) {
             return this.build(env, args);
         } else {
-            return prependList(this, compileList(env, arguments));
+            return prependList(this, compileList(env, args));
         }
     };
 
@@ -413,6 +411,7 @@ var SLUR = (function () {
         this.env = env ? env : null;
         this.abort = null;
         this.useTails = env ? env.useTails : false;
+        this.tail = null;
     }
 
     Frame.prototype.enableTails = function () {
@@ -439,14 +438,14 @@ var SLUR = (function () {
         }
 
         var binding = this.symbols[name];
-        if (typeof found != 'undefined') {
+        if (typeof binding != 'undefined') {
             if (binding == SHADOW) {
                 return null;
             }
             return binding;
         }
         if (this.env !== null) {
-            return env.tryLookupName(name);
+            return this.env.tryLookupName(name);
         }
         return null;
     };
@@ -464,7 +463,7 @@ var SLUR = (function () {
     };
 
     Frame.prototype.bindFunction = function (func) {
-        if (func !== null) {
+        if (func === null) {
             throw "Bad binding call";
         }
         return this.bind(func.name, func);
@@ -519,7 +518,7 @@ var SLUR = (function () {
 
     function quoteCompile(env, args) {
         // jshint validthis: true
-        return prependList(this, arguments);
+        return prependList(this, args);
     }
 
     function IfExpression(predicate, thenClause, elseClause) {
@@ -542,7 +541,7 @@ var SLUR = (function () {
                 return null;
             }
         }
-        return clause.eval();
+        return clause.eval(env);
     };
 
     IfExpression.prototype.compile = selfCompile;
@@ -666,7 +665,7 @@ var SLUR = (function () {
     };
 
     function processCond(env, args) {
-        var clauses = new Clauses();
+        var clauses = new CondClauses();
         while (isCons(args)) {
             if (!isCons(args.car)) {
                 throw evalException("Malformed clause.", env);
@@ -751,7 +750,7 @@ var SLUR = (function () {
         this.bindings = [];
         this.body = null;
     }
-    LetExpression.prototype.type = typeIs(ObjecType.INTERNAL);
+    LetExpression.prototype.type = typeIs(ObjectType.INTERNAL);
     LetExpression.compile = selfCompile;
     LetExpression.eval = function(env) {
         var frame = new Frame(env, null);
@@ -880,7 +879,7 @@ var SLUR = (function () {
 
             var definition = func.cdr,
                 parameters = definition.car;
-            if (isCons(parameters.isCons)) {
+            if (!isCons(parameters)) {
                 throw evalException("Parameter list expected.", env);
             }
             if (isNull(definition.cdr)) {
@@ -905,7 +904,7 @@ var SLUR = (function () {
     }
 
     function labelsInvoke(env, args) {
-        var labels = processLabels(env, arguments, false);
+        var labels = processLabels(env, args, false);
         return labels.eval(env);
     }
 
@@ -975,12 +974,12 @@ var SLUR = (function () {
         bind("cond", condInvoke, condCompile);
         bind("lambda", lambdaInvoke, lambdaCompile);
         bind("let", letInvoke(false), letCompile(false));
-        bind("let*", letInvoke(true), letComplie(true));
-        bind("labels", labelsInvoke, lablesCompile);
+        bind("let*", letInvoke(true), letCompile(true));
+        bind("labels", labelsInvoke, labelsCompile);
         bind("define", defineInvoke, defineCompile);
     }
 
-    function Builtin(invoke, name) {
+    function Builtin(name, invoke) {
         this.name = name;
         this.invoke = invoke;
     }
@@ -997,11 +996,11 @@ var SLUR = (function () {
 
     function installList(root) {
         define(root, "cons", ["car", "cdr"], null, function (env) {
-            return new Cons(env.lookupName("car"), env.lookupName("cdr"));
+            return new Cons(env.nameLookup("car"), env.nameLookup("cdr"));
         });
 
         define(root, "car", ["cons"], null, function (env) {
-            var cons = env.lookupName("cons");
+            var cons = env.nameLookup("cons");
             if (isCons(cons)) {
                 return cons.car;
             }
@@ -1009,7 +1008,7 @@ var SLUR = (function () {
         });
 
         define(root, "cdr", ["cons"], null, function (env) {
-            var cons = env.lookupName("cons");
+            var cons = env.nameLookup("cons");
             if (isCons(cons)) {
                 return cons.cdr;
             }
@@ -1017,7 +1016,7 @@ var SLUR = (function () {
         });
 
         define(root, "isList?", ["l"], null, function (env) {
-            var list = env.lookupName("l");
+            var list = env.nameLookup("l");
             if (isNull(list)) {
                 return TRUE;
             }
@@ -1032,13 +1031,13 @@ var SLUR = (function () {
             return NULL;
         });
 
-        define(root, "list", [], "rest", function (env) { return env.lookupName("rest"); });
+        define(root, "list", [], "rest", function (env) { return env.nameLookup("rest"); });
     }
 
     function installType(root) {
         function addTypeCheck(name, type) {
             define(root, name, ["entity"], null, function(env) {
-                return env.lookupName("entity").type() === type ? TRUE : NULL;
+                return env.nameLookup("entity").type() === type ? TRUE : NULL;
             });
         }
         addTypeCheck("isCons?",   ObjectType.CONS);
@@ -1054,8 +1053,8 @@ var SLUR = (function () {
     }
 
     function installNumeric(root) {
-        env.bind("PI", new Real(Math.PI));
-        env.bind("E", new Real(Math.E));
+        root.bind("PI", new Real(Math.PI));
+        root.bind("E", new Real(Math.E));
 
         var INT = ObjectType.FIX_NUM,
             REAL = ObjectType.REAL,
@@ -1064,7 +1063,7 @@ var SLUR = (function () {
         function unary(name, type, operator) {
             var args = ["a"];
             define(root, name, args, null, function(env) {
-                var a = env.lookupName(args[0]),
+                var a = env.nameLookup(args[0]),
                     aType = a.type(),
                     result = operator(aType == INT || aType == REAL ? a.value : a);
                 if (type === BOOL) {
@@ -1093,8 +1092,8 @@ var SLUR = (function () {
         function binary(name, type, operator) {
             var args = ["a", "b"];
             define(root, name, args, null, function(env) {
-                var a = env.lookupName(args[0]),
-                    b = env.lookupName(args[1]),
+                var a = env.nameLookup(args[0]),
+                    b = env.nameLookup(args[1]),
                     result = operator(a.value, b.value);
                 if (type === BOOL) {
                     return result ? TRUE : NULL;
@@ -1130,7 +1129,7 @@ var SLUR = (function () {
     function Parser(code) {
         this.offset = 0;
         this.inEscape = false;
-        this.code = null;
+        this.code = code;
         this.truth = TRUE.toString();
     }
 
@@ -1150,8 +1149,7 @@ var SLUR = (function () {
         return this.offset >= this.code.length;
     };
 
-    Parser.prototype.isDigit = function(c) {
-        var code = c.charCodeAt(0);
+    Parser.prototype.isDigit = function(code) {
         return "0".charCodeAt(0) <= code && code <= "9".charCodeAt(0);
     };
 
@@ -1164,19 +1162,10 @@ var SLUR = (function () {
     Parser.prototype.atOpen  = function () { return this.next() === "("; };
     Parser.prototype.atClose = function () { return this.next() === ")"; };
     Parser.prototype.atComment = function () { return this.next() === ";"; };
-
-    Parser.prototype.atLineBreak = function () {
-        var c = this.next();
-        return c === "\n" || c == "\r";
-    };
-
-    Parser.prototype.atWhitespace = function () {
-        if (this.atLineBreak()) {
-            return true;
-        }
-        var c = this.next();
-        return c === " " || c == "\t";
-    };
+    Parser.prototype.isLineBreak = function (c) { return c === "\n" || c === "\r"; };
+    Parser.prototype.atLineBreak = function () { return this.isLineBreak(this.next()); };
+    Parser.prototype.isWhitespace = function (c) { return c === " " || c === "\t" || this.isLineBreak(c); };
+    Parser.prototype.atWhitespace = function () { return this.isWhitespace(this.next()); };
 
     Parser.prototype.atTerminator = function () {
         return this.atEnd() || this.atWhitespace() || this.atOpen() || this.atClose();
@@ -1185,7 +1174,7 @@ var SLUR = (function () {
     Parser.prototype.isAlphaNum = function(code) {
         return ("a".charCodeAt(0) <= code && code <= "z".charCodeAt(0)) ||
                ("A".charCodeAt(0) <= code && code <= "Z".charCodeAt(0)) ||
-               this.isDigit(c);
+               this.isDigit(code);
     };
 
     Parser.prototype.isSymbolChar = function(c) {
@@ -1203,8 +1192,8 @@ var SLUR = (function () {
     };
 
     Parser.prototype.skipCommentsAndWhitespace = function () {
-        while (!this.atEnd() && (this.atComment() || this.asWhitespace())) {
-            if (this.atCommentStart()) {
+        while (!this.atEnd() && (this.atComment() || this.atWhitespace())) {
+            if (this.atComment()) {
                 while (!this.atEnd() && !this.atLineBreak()) {
                     this.advance(1);
                 }
@@ -1220,7 +1209,7 @@ var SLUR = (function () {
         }
         this.skipCommentsAndWhitespace();
 
-        if (!this.atEnd()) {
+        if (this.atEnd()) {
             throw parseException("Missing ')'");
         }
         if (this.atClose()) {
@@ -1230,11 +1219,12 @@ var SLUR = (function () {
             this.advance(1);
             return NULL;
         }
-        if (atDot()) {
+        if (this.atDot()) {
             if (this.atEnd()) {
                 throw new ParseException("Missing ')'");
             }
-            if (this.atWhitespace()) {
+            var peek = this.offset + 1;
+            if (peek < this.code.length && this.isWhitespace(this.code[peek])) {
                 this.advance(1);
                 if (atStart) {
                     return new Cons(NULL, parseCons(false, true));
@@ -1242,17 +1232,17 @@ var SLUR = (function () {
                 if (justCdr) {
                     throw parseException("Multiple '.' in list");
                 }
-                return parseCons(false, true);
+                return this.parseCons(false, true);
             }
             // probably a floating point number,
             // will get handled by recursive parse below.
         } else if (justCdr) {
-            var cdr = parse();
+            var cdr = this.parse();
             this.skipCommentsAndWhitespace();
             if (!this.atClose()) {
                 throw parseException("List with '.' had multiple cdr items.");
             }
-            advance(1);
+            this.advance(1);
             return cdr;
         }
         var car = this.parse();
@@ -1288,30 +1278,29 @@ var SLUR = (function () {
         return new StringValue(result);
     };
 
-    Parser.prototype.isNumber = function () {
+    Parser.prototype.atNumber = function () {
         if (this.atMinus()) {
             var peek = this.offset + 1;
-            if (peak < this.code.length) {
-                return this.itDigit(this.code[peek].charCodeAt(0)) || this.isDot(this.code[peek]);
+            if (peek < this.code.length) {
+                return this.isDigit(this.code[peek].charCodeAt(0)) || this.isDot(this.code[peek]);
             }
             return false;
         }
         return this.atDot() || this.atDigit();
     };
+    
+    Parser.prototype.consumeDigits = function () {
+        while (!this.atEnd() && this.atDigit()) {
+            this.advance(1);
+        }
+        return this.offset;
+    };
 
     Parser.prototype.parseNumber = function () {
-        var self = this,
-            start = this.offset;
+        var start = this.offset;
 
         if (this.atMinus()) {
             this.advance(1);
-        }
-
-        function consumeDigits() {
-            while (!self.atEnd() && self.isDigit(self.next())) {
-                self.advance(1);
-            }
-            return self.offset;
         }
 
         var wholeStart = this.offset,
@@ -1341,7 +1330,7 @@ var SLUR = (function () {
             }
         }
         var value = this.codeFrom(start);
-        if (!isReal) {
+        if (isReal) {
             return new Real(parseFloat(value));
         }
         if (wholeStart === wholeEnd) {
@@ -1375,7 +1364,7 @@ var SLUR = (function () {
         if (this.atDoubleQuote()) {
             return this.parseString();
         }
-        if (atNumber()) {
+        if (this.atNumber()) {
             var number = this.parseNumber();
             if (!this.atTerminator()){
                 throw parseException("Unexpected character after number");
@@ -1520,13 +1509,9 @@ public class Interpreter {
         function fail() { throw "Assertion Failure"; }
         function assertTrue(value) { if (!value) { fail(); } }
         function assertFalse(value) { if (value) { fail(); } }
+        function assertNull(value) { if (value !== null) { fail(); } }
         function assertEquals(a, b) { assertTrue(a === b); }
         function assertSame(a, b) { assertTrue(a == b); }
-        function assertNull(value) { assertEquals(a, null); }
-
-        function isInt(n) { return n.type() === ObjectType.FIX_NUM; }
-        function isReal(n) { return n.type() === ObjectType.REAL; }
-        function isString(s) { return n.type() === ObjectType.STRING; }
 
         var parseTests = [
         	function testEmpty() {
@@ -1605,12 +1590,12 @@ public class Interpreter {
             },
             function testSymbol() {
                 var symbol = parse("symbol");
-                assertTrue(isSymbol(symbol.isSymbol));
+                assertTrue(isSymbol(symbol));
                 assertEquals(symbol.name, "symbol");
             },
             function testTrue() {
                 var truth = parse("#t");
-                assertSame(truth, True.TRUE);
+                assertSame(truth, TRUE);
             },
             function testCons() {
                 var cons = parse("()");
@@ -1700,7 +1685,7 @@ public class Interpreter {
             },
             function testString() {
                 var env = new Frame(),
-                    string = new StringObj("a");
+                    string = new StringValue("a");
                 assertSame(string, string.eval(env));
             },
             function testSymbol() {
@@ -1720,7 +1705,7 @@ public class Interpreter {
             },
             function testSpecial() {
                 var env = new Frame(),
-                    obj = new If(),
+                    obj = new SpecialForm(ifInvoke, ifCompile),
                     result = obj.eval(env);
                 assertSame(obj, result);
             },
@@ -1737,7 +1722,7 @@ public class Interpreter {
             },
             function testRemove() {
                 var env = baseEnvironment();
-                Parser.parse("(define (remove l pred) (cond ((isNull? l) l) ((pred (car l)) (remove (cdr l) pred)) (#t (cons (car l) (remove (cdr l) pred)))))").eval(env);
+                parse("(define (remove l pred) (cond ((isNull? l) l) ((pred (car l)) (remove (cdr l) pred)) (#t (cons (car l) (remove (cdr l) pred)))))").eval(env);
                 assertEquals(parse("(remove (list 1 2 3 4) (lambda (x) (= x 2)))").eval(env).toString(), "(1 3 4)");
             },
             function testLambda() {
@@ -1760,7 +1745,7 @@ public class Interpreter {
             }
         }
 
-        runTests("Parse", parserTests);
+        runTests("Parse", parseTests);
         runTests("Eval", evalTests);
     }
 
