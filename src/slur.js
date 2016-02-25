@@ -12,21 +12,23 @@ var SLUR = (function () {
     };
 
     SlurException.prototype.context = function () {
-        var c = this.environment.context();
         var description = "";
-        if ( c.length > 0 ) {
-            description.append( " - In functions " );
-            var first = true;
-            for (var s = 0; s < c.length; ++c) {
-                if (!first) {
-                    description += ", ";
-                } else {
-                    first = false;
-                }
-                description += c[s];
+        if (this.environment) {
+            var c = this.environment.context();
+            if ( c.length > 0 ) {
+                description.append( " - In functions " );
+                var first = true;
+                for (var s = 0; s < c.length; ++c) {
+                    if (!first) {
+                        description += ", ";
+                    } else {
+                        first = false;
+                    }
+                    description += c[s];
 
+                }
+                description += ":\n";
             }
-            description += ":\n";
         }
         return description;
     };
@@ -129,13 +131,13 @@ var SLUR = (function () {
     Real.prototype.compile = selfCompile;
     Real.prototype.toString = function () { return this.value.toString(); };
 
-    function String(value) {
+    function StringValue(value) {
         this.value = value;
     }
-    String.prototype.type = typeIs(ObjectType.STRING);
-    String.prototype.eval = selfEval;
-    String.prototype.compile = selfCompile;
-    String.prototype.toString = function () { return '"' + this.value + '"'; };
+    StringValue.prototype.type = typeIs(ObjectType.STRING);
+    StringValue.prototype.eval = selfEval;
+    StringValue.prototype.compile = selfCompile;
+    StringValue.prototype.toString = function () { return '"' + this.value + '"'; };
 
     function Symbol(name) {
         this.name = name;
@@ -1119,296 +1121,291 @@ var SLUR = (function () {
         binary("pow",null, function (a, b) { return Math.pow(a, b); });
         binary("atan2",REAL, function (a, b) { return Math.atan2(b, a); });
     }
-/*
 
-public class Parser {
-    public static class ParseException extends RuntimeException {
-        private static final long serialVersionUID = 5694742982275844142L;
 
-        public ParseException( String message ) {
-            super( message );
+    function parseException(message) {
+        return new SlurException("ParseException", message);
+    }
+
+    function Parser(code) {
+        this.offset = 0;
+        this.inEscape = false;
+        this.code = null;
+        this.truth = TRUE.toString();
+    }
+
+    Parser.prototype.advance = function (distance) {
+        this.offset += distance;
+    };
+
+    Parser.prototype.next = function () {
+        return this.code[this.offset];
+    };
+
+    Parser.prototype.codeFrom = function (start) {
+        return this.code.substring(start, this.offset);
+    };
+
+    Parser.prototype.atEnd = function() {
+        return this.offset >= this.code.length;
+    };
+
+    Parser.prototype.isDigit = function(c) {
+        var code = c.charCodeAt(0);
+        return "0".charCodeAt(0) <= code && code <= "9".charCodeAt(0);
+    };
+
+    Parser.prototype.atDigit = function () { return this.isDigit(this.next().charCodeAt(0)); };
+    Parser.prototype.isDot = function(c) { return c === "."; };
+    Parser.prototype.atDot = function () { return this.next() === "."; };
+    Parser.prototype.atMinus = function () { return this.next() === "-"; };
+    Parser.prototype.atQuote = function () { return this.next() === "'"; };
+    Parser.prototype.atDoubleQuote = function () { return this.next() === '"'; };
+    Parser.prototype.atOpen  = function () { return this.next() === "("; };
+    Parser.prototype.atClose = function () { return this.next() === ")"; };
+    Parser.prototype.atComment = function () { return this.next() === ";"; };
+
+    Parser.prototype.atLineBreak = function () {
+        var c = this.next();
+        return c === "\n" || c == "\r";
+    };
+
+    Parser.prototype.atWhitespace = function () {
+        if (this.atLineBreak()) {
+            return true;
         }
-    }
+        var c = this.next();
+        return c === " " || c == "\t";
+    };
 
-    int mOffset = 0;
-    boolean mIsEscape = false;
-    String mString = null;
+    Parser.prototype.atTerminator = function () {
+        return this.atEnd() || this.atWhitespace() || this.atOpen() || this.atClose();
+    };
 
-    public Parser() {
-    }
+    Parser.prototype.isAlphaNum = function(code) {
+        return ( "a".charCodeAt(0) <= code && code <= "z".charCodeAt(0) ) ||
+               ( "A".charCodeAt(0) <= code && code <= "Z".charCodeAt(0) ) ||
+               this.isDigit(c);
+    };
 
-    public Parser( String string ) {
-        mOffset = 0;
-        mString = string;
-    }
+    Parser.prototype.isSymbolChar = function(c) {
+        var code = c.charCodeAt(0);
+        if(this.isAlphaNum(code)) {
+            return true;
+        }
+        var valid = "_+-/*<>|&^%$@=?";
+        for (var i = 0; i < valid.length; ++i) {
+            if (code === valid.charCodeAt(i)) {
+                return true;
+            }
+        }
+        return false;
+    };
 
-    public static Obj parse( String string ) {
-        Parser parser = new Parser( string );
-        Obj result = parser.parse();
-        return result;
-    }
+    Parser.prototype.skipCommentsAndWhitespace = function () {
+        while (!this.atEnd() && (this.atComment() || this.asWhitespace())) {
+            if (this.atCommentStart() ) {
+                while (!this.atEnd() && !this.atLineBreak() ) {
+                    this.advance(1);
+                }
+            } else {
+                this.advance(1);
+            }
+        }
+    };
 
-    public Obj parse() {
-        skipCommentsAndWhitespace();
-        if( !charsLeft() ) {
+    Parser.prototype.parseCons = function (atStart, justCdr) {
+        if (atStart) { // Skip open parenthesis
+            this.advance(1);
+        }
+        this.skipCommentsAndWhitespace();
+
+        if (!this.atEnd()) {
+            throw parseException("Missing ')'");
+        }
+        if (this.atClose()) {
+            if (justCdr) {
+                throw parseException("Cannot follow '.' with ')'");
+            }
+            this.advance(1);
+            return NULL;
+        }
+        if (atDot()) {
+            this.advance(1);
+            if (this.atEnd()) {
+                throw new ParseException( "Missing ')'" );
+            }
+            if (this.atWhitespace()) {
+                if (atStart) {
+                    return new Cons(NULL, parseCons(false, true));
+                } else {
+                    if (justCdr) {
+                        throw parseException( "Multiple '.' in list" );
+                    }
+                    return parseCons(false, true);
+                }
+            } else {
+                // TODO: Investigate this, it seems like something is off.
+                this.advance(1);
+            }
+        } else if (justCdr) {
+            var cdr = parse();
+            this.skipCommentsAndWhitespace();
+            if (!this.atClose()) {
+                throw parseException("List with '.' had multiple cdr items.");
+            }
+            advance(1);
+            return cdr;
+        }
+        var car = this.parse();
+        return new Cons(car, this.parseCons(false, false));
+    };
+
+    Parser.prototype.atStringEnd = function () {
+        if (this.inEscape ) {
+            this.inEscape = false;
+            return false;
+        }
+        if (this.next() === "\\") {
+            this.inEscape = true;
+            return false;
+        }
+        return this.atDoubleQuote();
+    };
+
+    Parser.prototype.parseString = function () {
+        this.inEscape = false;
+        this.advance(1); // Skip opening quote.
+        var result = "";
+        while (!this.atEnd() && !this.atStringEnd() ) {
+            if (!this.inEscape) {
+                result += this.next();
+            }
+            this.advance(1);
+        }
+        if (this.atEnd()) {
+            throw new ParseException( "Could not find end of string." );
+        }
+        this.advance(1); // Skip closing quote.
+        return new StringValue(result);
+    };
+
+    Parser.prototype.isNumber = function () {
+        if (this.atMinus()) {
+            var peek = this.offset + 1;
+            if (peak < this.code.length) {
+                return this.itDigit(this.code[peek].charCodeAt(0)) || this.isDot(this.code[peek]);
+            }
+            return false;
+        }
+        return this.atDot() || this.atDigit();
+    };
+
+    Parser.prototype.parseNumber = function () {
+        var self = this,
+            start = this.offset;
+
+        if (this.atMinus()) {
+            this.advance(1);
+        }
+
+        function consumeDigits() {
+            while (!self.atEnd() && self.isDigit(self.next())) {
+                self.advance(1);
+            }
+            return self.offset;
+        }
+
+        var wholeStart = this.offset,
+            wholeEnd = this.consumeDigits(),
+            isReal = false;
+        if (!this.atEnd()) {
+            isReal = this.atDot();
+            if (isReal) {
+                this.advance(1);
+                var decimalStart = this.offset,
+                    decimalEnd = this.consumeDigits();
+                if (wholeStart === wholeEnd && decimalStart === decimalEnd) {
+                    throw parseException("Number expected, not found:" + this.codeFrom(start));
+                }
+            }
+            if (this.next() === "e") {
+                isReal = true;
+                this.advance(1);
+                if (this.atMinus()) {
+                    this.advance(1);
+                }
+                var exponentStart = this.offset,
+                    exponentEnd = this.consumeDigits();
+                if (exponentStart === this.offset) {
+                    throw new ParseException("Number expected, not found:" + this.codeFrom(start));
+                }
+            }
+        }
+        var value = this.codeFrom(start);
+        if (!isReal) {
+            return new Real(parseFloat(value));
+        }
+        if (wholeStart === wholeEnd) {
+            throw parseException("Number expected, not found:" + value);
+        }
+        return new FixNum(parseInt(value));
+    };
+
+    Parser.prototype.parseSymbol = function () {
+        var start = this.offset;
+        while (!this.atEnd() && this.isSymbolChar(this.next())) {
+            this.advance(1);
+        }
+        if (!this.atTerminator()) {
+            throw parseException("Unexpected end of symbol.");
+        }
+        if (start === this.offset ) {
             return null;
         }
-        if( isOpen() ) {
-            return parseCons( true, false );
+        return new Symbol(this.codeFrom(start));
+    };
+
+    Parser.prototype.parse = function () {
+        this.skipCommentsAndWhitespace();
+        if (this.atEnd()) {
+            return null;
         }
-        if( isDoubleQuote() ) {
-            return parseString();
+        if (this.atOpen()) {
+            return this.parseCons(true, false);
         }
-        if( isNumber() ) {
-            Obj number = parseNumber();
-            if( charsLeft() && !( isWhitespace() ||
-                                  isOpen() ||
-                                  isClose() ) )
-            {
-                throw new ParseException( "Unexpected character after number" );
+        if (this.atDoubleQuote()) {
+            return this.parseString();
+        }
+        if (atNumber()) {
+            var number = this.parseNumber();
+            if (!this.atTerminator()){
+                throw parseException( "Unexpected character after number" );
             }
             return number;
         }
-        if( mString.startsWith( "#t", mOffset ) ) {
-            mOffset += 2;
-            return True.TRUE;
+        if (this.code.substring(this.offset, this.offset + this.truth.length) === this.truth) {
+            this.advance(this.truth.length);
+            return TRUE;
         }
-        if( isQuote() ) {
-            ++mOffset;
-            return new Cons( new Symbol("quote"), new Cons( parse(), Null.NULL ) );
+        if (this.atQuote()) {
+            this.offset += 1;
+            return makeList([new Symbol("quote"), this.parse()]);
         }
-        Obj symbol = parseSymbol();
-        if( symbol != null ) {
-            return symbol;
+        var symbol = this.parseSymbol();
+        if (symbol === null) {
+            throw parseException("Invalid expression.");
         }
-        throw new ParseException("Invalid expression.");
+        return symbol;
+    };
+
+    function parse(code) {
+        var parser = new Parser(code),
+            result = parser.parse();
+        return result;
     }
 
-    private Obj parseSymbol() {
-        int start = mOffset;
-        while( charsLeft() && isSymbolChar( mString.charAt( mOffset ) ) ) {
-            ++mOffset;
-        }
-        if( charsLeft() && !( isWhitespace() || isParen() ) ) {
-            throw new ParseException( "Unexpected end of symbol." );
-        }
-        if( start == mOffset ) {
-            return null;
-        }
-        return new Symbol( mString.substring( start, mOffset ) );
-    }
-
-    private Obj parseString() {
-        mIsEscape = false;
-        ++mOffset;
-        StringBuffer result = new StringBuffer();
-        while( charsLeft() && !endOfString() ) {
-            if( !mIsEscape ) {
-                result.append( mString.charAt( mOffset ) );
-            }
-            ++mOffset;
-        }
-        if( !charsLeft() ) {
-            throw new ParseException( "Could not find end of string." );
-        }
-        ++mOffset;
-        return new StringObj( result.toString() );
-    }
-
-    private boolean endOfString() {
-        if( mIsEscape ) {
-            mIsEscape = false;
-            return false;
-        }
-        if( mString.charAt( mOffset ) == '\\' ) {
-            mIsEscape = true;
-            return false;
-        }
-        return mString.charAt( mOffset ) == '"';
-    }
-
-    private Obj parseNumber() {
-        int numberStart = mOffset;
-        boolean negative = isMinus();
-        if( negative ) ++mOffset;
-
-        int wholeStart = mOffset;
-        while( charsLeft() && isDigit( mString.charAt(mOffset) ) ) {
-            ++mOffset;
-        }
-        int wholeEnd = mOffset;
-        boolean isReal = false;
-        if( charsLeft() ) {
-            isReal = isDot();
-            if( isReal ) {
-                ++mOffset;
-                int decimalStart = mOffset;
-                while( charsLeft() && isDigit( mString.charAt(mOffset) ) ) {
-                    ++mOffset;
-                }
-                int decimalEnd = mOffset;
-                if( wholeStart == wholeEnd && decimalStart == decimalEnd ) {
-                    throw new ParseException( "Number expected, not found:" + mString.substring(numberStart,mOffset) );
-                }
-            }
-            if( mString.startsWith("e",mOffset) ) {
-                isReal = true;
-                ++mOffset;
-                if( isMinus() ) ++mOffset;
-                int exponentStart = mOffset;
-                while( charsLeft() && isDigit( mString.charAt(mOffset) ) ) {
-                    ++mOffset;
-                }
-                int exponentEnd = mOffset;
-                if( exponentStart == exponentEnd ) {
-                    throw new ParseException( "Number expected, not found:" + mString.substring(numberStart,mOffset) );
-                }
-            }
-        }
-        if( !isReal )
-        {
-            if( wholeStart == wholeEnd ) {
-                throw new ParseException( "Number expected, not found:" + mString.substring(numberStart,mOffset));
-            }
-            return new FixNum( Integer.valueOf( mString.substring( numberStart, mOffset )));
-        }
-        return new Real( Double.valueOf( mString.substring( numberStart, mOffset )));
-    }
-
-    private Obj parseCons( boolean areStart, boolean justCdr ) {
-        if( areStart ) {
-            ++mOffset;
-        }
-        skipCommentsAndWhitespace();
-
-        if( !charsLeft() ) {
-            throw new ParseException( "Missing ')'" );
-        }
-        if( isClose() ) {
-            if( justCdr ) {
-                throw new ParseException( "Cannot follow '.' with ')'" );
-            }
-            ++mOffset;
-            return Null.NULL;
-        }
-        if( isDot() ) {
-            ++mOffset;
-            if( !charsLeft() ) {
-                throw new ParseException( "Missing ')'" );
-            }
-            if( isWhitespace() ) {
-                if( areStart ) {
-                    return new Cons( Null.NULL, parseCons( false, true ) );
-                } else {
-                    if( justCdr ) {
-                        throw new ParseException( "Multiple '.' in list" );
-                    }
-                    return parseCons( false, true );
-                }
-            } else {
-                --mOffset;
-            }
-        } else if( justCdr ) {
-            Obj cdr = parse();
-            skipCommentsAndWhitespace();
-            if( !isClose() ) {
-                throw new ParseException( "List with '.' had multiple cdr items." );
-            }
-            ++mOffset;
-            return cdr;
-        }
-        Obj car = parse();
-        Obj cdr = parseCons( false, false );
-        return new Cons( car, cdr );
-    }
-
-    private boolean charsLeft() {
-        return mOffset < mString.length();
-    }
-
-    private boolean isNumber() {
-        if( isMinus() ) {
-            ++mOffset;
-            boolean result = charsLeft() && ( isDigit() || isDot() );
-            --mOffset;
-            return result;
-        }
-        return isDot() || isDigit();
-    }
-
-    private boolean isMinus() {
-        return mString.charAt( mOffset ) == '-';
-    }
-
-    private boolean isDigit(char c) {
-        return '0' <= c && c <= '9';
-    }
-
-    private boolean isDigit() {
-        return isDigit( mString.charAt(mOffset) );
-    }
-
-    private boolean isDot() {
-        return mString.startsWith( ".", mOffset );
-    }
-
-    private boolean isSymbolChar( char c ) {
-        return isAlphaNum( c ) || ( "_+-/*<>|&^%$@=?".indexOf( c ) != -1 );
-    }
-
-    private boolean isAlphaNum(char c) {
-        return ( 'a' <= c && c <= 'z' ) ||
-               ( 'A' <= c && c <= 'Z' ) ||
-               ( '0' <= c && c <= '9' );
-    }
-
-    private boolean isQuote() {
-        return mString.charAt( mOffset ) == '\'';
-    }
-
-    private boolean isDoubleQuote() {
-        return mString.charAt( mOffset ) == '"';
-    }
-
-    private boolean isOpen() {
-        return mString.charAt( mOffset ) == '(';
-    }
-
-    private boolean isClose() {
-        return mString.startsWith(")",mOffset );
-    }
-
-    private boolean isParen() {
-        return isOpen() || isClose();
-    }
-
-    private boolean isWhitespace() {
-        String whitespace = " \t\n\r";
-        return whitespace.indexOf( mString.charAt(mOffset) ) != -1;
-    }
-
-    private boolean isLineBreak() {
-        Character nextChar = mString.charAt(mOffset);
-        return nextChar == '\n' || nextChar == '\r';
-    }
-
-    private boolean isCommentStart() {
-        return mString.charAt(mOffset) == ';';
-    }
-
-    private void skipCommentsAndWhitespace() {
-        while( charsLeft() && ( isCommentStart() || isWhitespace() ) ) {
-            if( isCommentStart() ) {
-                while( charsLeft() && !isLineBreak() ) {
-                    ++mOffset;
-                }
-            } else {
-                ++mOffset;
-            }
-        }
-    }
-}
-
+/*
 public class Initialize {
     public static Environment init() {
         Environment env = new Frame();
