@@ -252,153 +252,110 @@ public interface Type {
     Maybe.prototype.toString = function () {
         return "Maybe[" + this.maybeType.toString() + "]";
     };
-
-/*
-
-public class FunctionType implements Type, Serializable {
-    private static final long serialVersionUID = 4143055832998725038L;
-    Type mReturn;
-    Type[] mArguments;
-
-    public FunctionType(Type retType, Type[] argTypes) {
-        set(retType, argTypes);
+    
+    function FunctionType(returnType, argumentTypes) {
+        if (!returnType || !Array.isArray(argumentTypes)) {
+            throw "Expected return and argument types";
+        }
+        this.returnType = returnType;
+        this.argumentTypes = argumentTypes;
     }
-
-    private void set(Type retType, Type[] argTypes) {
-        assert(retType != null);
-        assert(argTypes != null);
-        mReturn = retType;
-        mArguments = argTypes;
-    }
-
-    public Type returnType() {
-        return mReturn;
-    }
-
-    public Type[] argumentTypes() {
-        return mArguments;
-    }
-
-    public Match match(Type other) {
-        if (other instanceof FunctionType) {
-            FunctionType otherType = (FunctionType)other;
-            if (otherType.mArguments.length != mArguments.length) {
-                return Match.NO_MATCH;
+    
+    FunctionType.prototype.match = function (other) {
+        if (other.returnType) {
+            if (other.argumentTypes.length != this.argumentTypes.length) {
+                return NO_MATCH;
             }
-            Match result = mReturn.match(otherType.mReturn);
-            if (!result.matches()) {
-                return Match.NO_MATCH;
+            var match = this.returnType.match(other.returnType);
+            if (!match.matches()) {
+                return NO_MATCH;
             }
-            return result.combine(matchArguments(otherType));
+            for (var a = 0; a < this.argumentTypes.length; ++a) {
+                match.combine(this.argumentTypes[a].match(other.argumentTypes[a]));
+                if (!match.matches()) {
+                    return NO_MATCH;
+                }
+            }
+            return match;
         }
-        return Match.NO_MATCH;
-    }
-
-    public boolean equals(Object other) {
-        if (other instanceof FunctionType) {
-            FunctionType otherType = (FunctionType)other;
-            return mArguments.length == otherType.mArguments.length
-                && mReturn.equals(otherType.mReturn)
-                && sameArguments(otherType);
+        return NO_MATCH;
+    };
+    
+    FunctionType.prototype.equals = function (other) {
+        if (!this.returnType.equals(other.returnType))  {
+            return false;
         }
-        return false;
-    }
-
-    public int hashCode() {
-        int code = 32768 + mReturn.hashCode();
-        for (Type arg : mArguments) {
-            code += arg.hashCode();
+        if (this.argumentTypes.length != other.argumentTypes.length) {
+            return false;
         }
-        return code;
-    }
-
-    private boolean sameArguments(FunctionType other) {
-        assert(mArguments.length == other.mArguments.length);
-        for (int i = 0; i < mArguments.length; ++i) {
-            if (!mArguments[i].equals(other.mArguments[i])) {
+        for (var a = 0; a < this.argumentTypes.length; ++a) {
+            if (!this.argumentTypes[a].equals(other.argumentTypes[a])) {
                 return false;
             }
         }
         return true;
-    }
-
-    private Match matchArguments(FunctionType other) {
-        assert(mArguments.length == other.mArguments.length);
-        Match result = Match.MATCHED;
-        for (int i = 0; i < mArguments.length; ++i) {
-            result = result.combine(mArguments[i].match(other.mArguments[i]));
-            if (!result.matches()) {
-                break;
-            }
-        }
-        return result;
-    }
-
-    public boolean involves(Parameter parameter) {
-        if (mReturn.involves(parameter)) {
+    };
+    
+    FunctionType.prototype.involves = function(parameter) {
+        if (this.returnType.involves(parameter)) {
             return true;
         }
-        for (Type arg : mArguments) {
-            if (arg.involves(parameter)) {
+        for (var a = 0; a < this.argumentTypes.length; ++a) {
+            if (this.argumentTypes[a].involves(parameter)) {
                 return true;
             }
         }
         return false;
-    }
-
-    public boolean isParameterized() {
-        if (mReturn.isParameterized()) {
+    };
+    
+    FunctionType.prototype.isParameterized = function() {
+        if (this.returnType.isParameterized()) {
             return true;
         }
-        for (Type arg : mArguments) {
-            if (arg.isParameterized()) {
+        for (var a = 0; a < this.argumentTypes.length; ++a) {
+            if (this.argumentTypes[a].isParameterized()) {
                 return true;
             }
         }
         return false;
-    }
-
-    public FunctionType substitute(List<ParameterMapping> mappings) {
-        Type newReturn = mReturn.substitute(mappings);
-        Type[] arguments = new Type[ mArguments.length ];
-        boolean useNew = false;
-        for (int i = 0; i < mArguments.length; ++i) {
-            arguments[i] = mArguments[i].substitute(mappings);
-            if (!useNew && arguments[i] != mArguments[i]) {
+    };
+    
+    FunctionType.prototype.substitute = function(mappings) {
+        var newReturn = this.returnType.substitute(mappings),
+            argTypes = [],
+            changed = !newReturn.equals(this.returnType);
+        for (var a = 0; a < this.argumentTypes.length; ++a) {
+            argTypes.push(this.argumentTypes[a].substitute(mappings));
+            if (!useNew && !argTypes[i].equals(this.argumentTypes[a])) {
                 useNew = true;
             }
         }
-        if (newReturn == mReturn && !useNew) {
+        if (!changed) {
             return this;
         }
-        return new FunctionType(newReturn, arguments);
-    }
-
-    public void findParameters(Set<Parameter> result) {
-        mReturn.findParameters(result);
-        for (Type arg : mArguments) {
-            arg.findParameters(result);
+        return new FunctionType(newReturn, argTypes);
+    };
+    
+    FunctionType.prototype.findParameters = function(result) {
+        this.returnType.findParameters(result);
+        for (var a = 0; a < this.argumentTypes.length; ++a) {
+            this.argumentTypes[a].findParameters(result);
         }
-    }
-
-    public String toString() {
-        return "F[" + argumentsString() + "]->[" + mReturn.toString() + "]";
-    }
-
-    private String argumentsString() {
-        StringBuilder builder = new StringBuilder();
-        boolean comma = false;
-        for (Type arg : mArguments) {
-            if (comma) {
-                builder.append(", ");
+        return false;
+    };
+    
+    FunctionType.prototype.toString = function() {
+        var result = "F[";
+        for (var a = 0; a < this.argumentTypes.length; ++a) {
+            if (a > 0) {
+                result += ", ";
             }
-            comma = true;
-            builder.append(arg.toString());
+            result += this.argumentTypes[a].toString();
         }
-        return builder.toString();
-    }
-}
+        return result + "]->[" + this.returnType.toString() + "]";
+    };
 
+/*
 public class Match {
     private boolean mMatched = true;
     private List<ParameterMapping> mMappings = new ArrayList<ParameterMapping>();
