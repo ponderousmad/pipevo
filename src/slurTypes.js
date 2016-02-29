@@ -108,6 +108,9 @@ public interface Type {
     };
     
     function ConsType(carType, cdrType) {
+        if (!carType || !cdrType) {
+            throw "Expected car and cdr types";
+        }
         this.carType = carType;
         this.cdrType = cdrType;
     }
@@ -128,7 +131,7 @@ public interface Type {
     };
     
     ConsType.prototype.equals = function (other) {
-        return other.carType == this.carType && other.cdrType == this.cdrType;
+        return other.carType && this.carType.equals(other.carType) && this.cdrType.equals(other.cdrType);
     };
     
     ConsType.prototype.involves = function (parameter) {
@@ -156,119 +159,101 @@ public interface Type {
     ConsType.prototype.toString = function () {
         return "Cons[" + this.car.toString() + ", " + this.cdr.toString() + "]";
     };
+    
+    function ListType(elementType) {
+        if (!elementType) {
+            throw "Expected list element type";
+        }
+        this.elementType = elementType;
+    }
+    
+    ListType.prototype.match = function (other) {
+        if (other.elementType) {
+            return this.elementType.match(other.elementType);
+        }
+        return NO_MATCH;
+    };
+    
+    ListType.prototype.equals = function (other) {
+        return other.elementType && this.elementType.equals(other.elementType);
+    };
+    
+    ListType.prototype.involves = function (parameter) {
+        return this.elementType.involves(parameter);
+    };
+    
+    ListType.prototype.isParameterized = function () {
+        return this.elementType.isParameterized();
+    };
+    
+    ListType.prototype.substitute = function (mappings) {
+        var elementType = this.elementType.substitute(mappings);
+        if (this.elementType.equals(elementType)) {
+            return this;
+        }
+        return new ListType(elementType);
+    };
+    
+    ListType.prototype.findParameters = function (result) {
+        return this.elementType.findParameters(result);
+    };
+    
+    ListType.prototype.toString = function () {
+        return "List[" + this.elementType.toString() + "]";
+    };
+    
+    function Maybe(maybeType) {
+        if (!maybeType) {
+            throw "Expected list element type";
+        }
+        if (maybeType.type === SLUR.ObjectType.NULL) {
+            throw "Can't use NULL as maybe type.";
+        }
+        if (maybeType.maybeType) {
+            maybeType = maybeType.maybeType;
+        }
+        this.maybeType = maybeType;
+    }
+    
+    Maybe.prototype.match = function (other) {
+        if (other.maybeType) {
+            return this.maybeType.match(other.maybeType);
+        }
+        if (other.type == SLUR.ObjectType.NULL) {
+            return MATCH;
+        }
+        return NO_MATCH;
+    };
+    
+    Maybe.prototype.equals = function (other) {
+        return other.maybeType && this.maybeType.equals(other.maybeType);
+    };
+    
+    Maybe.prototype.involves = function (parameter) {
+        return this.maybeType.involves(parameter);
+    };
+    
+    Maybe.prototype.isParameterized = function () {
+        return this.maybeType.isParameterized();
+    };
+    
+    Maybe.prototype.substitute = function (mappings) {
+        var maybeType = this.maybeType.substitute(mappings);
+        if (this.maybeType.equals(maybeType)) {
+            return this;
+        }
+        return new Maybe(maybeType);
+    };
+    
+    Maybe.prototype.findParameters = function (result) {
+        return this.maybeType.findParameters(result);
+    };
+    
+    Maybe.prototype.toString = function () {
+        return "Maybe[" + this.maybeType.toString() + "]";
+    };
 
 /*
-public class ListType implements Type, Serializable {
-    private static final long serialVersionUID = -4195417514494815280L;
-    Type mElement;
-
-    public ListType(Type elementType) {
-        mElement = elementType;
-    }
-
-    public Type elementType() {
-        return mElement;
-    }
-
-    public Match match(Type other) {
-        if (other instanceof ListType) {
-            return mElement.match(((ListType)other).mElement);
-        }
-        return Match.NO_MATCH;
-    }
-
-    public boolean equals(Object other) {
-        return other instanceof ListType && mElement.equals(((ListType)other).mElement);
-    }
-
-    public int hashCode() {
-        return 262144 + mElement.hashCode();
-    }
-
-    public boolean involves(Parameter parameter) {
-        return mElement.involves(parameter);
-    }
-
-    public boolean isParameterized() {
-        return mElement.isParameterized();
-    }
-
-    public ListType substitute(List<ParameterMapping> mappings) {
-        Type newElement = mElement.substitute(mappings);
-        if (newElement == mElement) {
-            return this;
-        }
-        return new ListType(newElement);
-    }
-
-    public void findParameters(Set<Parameter> result) {
-        mElement.findParameters(result);
-    }
-
-    public String toString() {
-        return "List[" + mElement.toString() + "]";
-    }
-}
-
-public class Maybe implements Type, Serializable {
-    private static final long serialVersionUID = 3375232221561512097L;
-    Type mType;
-
-    public Maybe(Type type) {
-        assert(type != null);
-        assert(!(type.equals(BaseType.NULL)));
-        if (type instanceof Maybe) {
-            type = ((Maybe)type).mType;
-        }
-        mType = type;
-    }
-
-    public Type type() {
-        return mType;
-    }
-
-    public Match match(Type other) {
-        if (other instanceof Maybe) {
-            return mType.match(((Maybe)other).mType);
-        }
-        if (other.equals(BaseType.NULL)) {
-            return Match.MATCHED;
-        }
-        return mType.match(other);
-    }
-
-    public boolean equals(Object other) {
-        return other instanceof Maybe && mType.equals(((Maybe)other).mType);
-    }
-
-    public int hashCode() {
-        return 1024 + mType.hashCode();
-    }
-
-    public boolean involves(Parameter parameter) {
-        return mType.involves(parameter);
-    }
-
-    public boolean isParameterized() {
-        return mType.isParameterized();
-    }
-
-    public Maybe substitute(List<ParameterMapping> mappings) {
-        Type newType = mType.substitute(mappings);
-        if (newType == mType) {
-            return this;
-        }
-        return new Maybe(newType);
-    }
-
-    public void findParameters(Set<Parameter> result) {
-        mType.findParameters(result);
-    }
-
-    public String toString() {
-        return "Maybe[" + mType.toString() + "]";
-    }
-}
 
 public class FunctionType implements Type, Serializable {
     private static final long serialVersionUID = 4143055832998725038L;
