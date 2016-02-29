@@ -69,136 +69,95 @@ public interface Type {
         return this.parameter.id == other.parameter.id && this.type.equals(other.type);
     };
 
-/*
-
-public class BaseType implements Type, Serializable {
-    private static final long serialVersionUID = 9078691212359745187L;
-
-    private String mType;
-
-    public static final BaseType FIXNUM = new BaseType(FixNum.class);
-    public static final BaseType REAL = new BaseType(Real.class);
-    public static final BaseType SYMBOL = new BaseType(Symbol.class);
-    public static final BaseType STRING = new BaseType(StringObj.class);
-    public static final BaseType TRUE = new BaseType(True.class);
-    public static final BaseType NULL = new BaseType(Null.class);
-    public static final Type     BOOL = new Maybe(TRUE);
-
-    public static final Type[] values = new Type[] { FIXNUM, REAL, SYMBOL, STRING, TRUE, NULL, BOOL };
-
-    public BaseType(Class<?> type) {
-        assert(type != null);
-        mType = type.getCanonicalName();
-    }
-
-    public Match match(Type other) {
-        if (other instanceof BaseType) {
-            return Match.result(mType.equals(((BaseType)other).mType));
+    
+    function BaseType(type) {
+        if (!type) {
+            throw "Type expected";
         }
-        return Match.NO_MATCH;
+        this.type = type;
     }
-
-    public boolean equals(Object other) {
-        return other instanceof BaseType && ((BaseType)other).mType.equals(mType);
-    }
-
-    public int hashCode() {
-        return mType.hashCode() % 1024;
-    }
-
-    public boolean involves(Parameter parameter) {
+    
+    BaseType.prototype.match = function (other) {
+        if (this.equals(other)) {
+            return  MATCH;
+        }
+        return NO_MATCH;
+    };
+    
+    BaseType.prototype.equals = function (other) {
+        return other.type && other.type === this.type;
+    };
+    
+    BaseType.prototype.involves = function (other) {
         return false;
-    }
-
-    public boolean isParameterized() {
+    };
+    
+    BaseType.prototype.isParameterized = function () {
         return false;
-    }
-
-    public BaseType substitute(List<ParameterMapping> mappings) {
+    };
+    
+    BaseType.prototype.substitute = function (mappings) {
         return this;
+    };
+    
+    BaseType.prototype.findParameters = function (result) {
+    };
+    
+    BaseType.prototype.toString = function () {
+        return "BaseType" + this.type;
+    };
+    
+    function ConsType(carType, cdrType) {
+        this.carType = carType;
+        this.cdrType = cdrType;
     }
-
-    public void findParameters(Set<Parameter> result) {
-    }
-
-    public String toString() {
-        return mType;
-    }
-}
-
-public class ConsType implements Type, Serializable {
-    private static final long serialVersionUID = -7906385904240937058L;
-    private Type mCar;
-    private Type mCdr;
-
-    public ConsType(Type carType, Type cdrType) {
-        mCar = carType;
-        mCdr = cdrType;
-    }
-
-    public Type carType() {
-        return mCar;
-    }
-
-    public Type cdrType() {
-        return mCdr;
-    }
-
-    public boolean equals(Object other) {
-        if (other instanceof ConsType) {
-            ConsType cons = (ConsType)other;
-            return mCar.equals(cons.mCar) && mCdr.equals(cons.mCdr);
-        }
-        return false;
-    }
-
-    public int hashCode() {
-        return 4096 + mCar.hashCode() + mCdr.hashCode();
-    }
-
-    public Match match(Type other) {
-        if (other instanceof ConsType) {
-            ConsType cons = (ConsType)other;
-            Match match = mCar.match(cons.mCar);
+    
+    ConsType.prototype.match = function (other) {
+        if (other.carType) {
+            var match = this.car.match(other.car);
             if (!match.matches()) {
                 return match;
             }
-            Match cdrMatch = mCdr.match(cons.mCdr);
+            var cdrMatch = this.cdr.match(other.cdr);
             if (!cdrMatch.matches()) {
                 return cdrMatch;
             }
             return match.combine(cdrMatch);
         }
-        return Match.NO_MATCH;
-    }
+        return NO_MATCH;
+    };
+    
+    ConsType.prototype.equals = function (other) {
+        return other.carType == this.carType && other.cdrType == this.cdrType;
+    };
+    
+    ConsType.prototype.involves = function (parameter) {
+        return this.car.involves(parameter) || this.cdr.involves(parameter);
+    };
 
-    public boolean involves(Parameter parameter) {
-        return mCar.involves(parameter) || mCdr.involves(parameter);
-    }
+    ConsType.prototype.isParameterized = function () {
+        return this.car.isParameterized() || this.cdr.isParameterized();
+    };
 
-    public boolean isParameterized() {
-        return mCar.isParameterized() || mCdr.isParameterized();
-    }
-
-    public ConsType substitute(List<ParameterMapping> mappings) {
-        Type newCar = mCar.substitute(mappings);
-        Type newCdr = mCdr.substitute(mappings);
-        if (newCar == mCar && newCdr == mCdr) {
+    ConsType.prototype.substitute = function (mappings) {
+        var newCar = this.car.substitute(mappings);
+            newCdr = this.cdr.substitute(mappings);
+        if (newCar.equals(this.car) && newCdr.equals(this.cdr)) {
             return this;
         }
         return new ConsType(newCar, newCdr);
-    }
+    };
 
-    public void findParameters(Set<Parameter> result) {
-        mCar.findParameters(result);
-        mCdr.findParameters(result);
-    }
+    ConsType.prototype.findParameters = function (result) {
+        this.car.findParameters(result);
+        this.cdr.findParameters(result);
+    };
 
-    public String toString() {
-        return "Cons[" + mCar.toString() + ", " + mCdr.toString() + "]";
-    }
-}
+    ConsType.prototype.toString = function () {
+        return "Cons[" + this.car.toString() + ", " + this.cdr.toString() + "]";
+    };
 
+/*
 public class ListType implements Type, Serializable {
     private static final long serialVersionUID = -4195417514494815280L;
     Type mElement;
