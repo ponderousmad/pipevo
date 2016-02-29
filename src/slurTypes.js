@@ -326,8 +326,8 @@ public interface Type {
             changed = !newReturn.equals(this.returnType);
         for (var a = 0; a < this.argumentTypes.length; ++a) {
             argTypes.push(this.argumentTypes[a].substitute(mappings));
-            if (!useNew && !argTypes[i].equals(this.argumentTypes[a])) {
-                useNew = true;
+            if (!changed && !argTypes[i].equals(this.argumentTypes[a])) {
+                changed = true;
             }
         }
         if (!changed) {
