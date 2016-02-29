@@ -9,80 +9,67 @@ public interface Type {
     public void findParameters(Set<Parameter> result);
     public Type substitute(List<ParameterMapping> mappings);
 }
+*/
 
-public class Parameter implements Type, Serializable {
-    private static final long serialVersionUID = -5538960852049349267L;
-
-    public Match match(Type other) {
+    var parameterID = 2001,
+        MATCH = null,
+        NO_MATCH = null;
+    
+    function Parameter() {
+        this.id = parameterID;
+        parameterID += 1;
+    }
+    
+    Parameter.prototype.match = function (other) {
         if (other == this) {
-            return Match.MATCHED;
+            return MATCH;
         }
         return new Match(this, other);
-    }
-
-    public boolean involves(Parameter parameter) {
-        return this == parameter;
-    }
-
-    public boolean isParameterized() {
-        return true;
-    }
-
-    public Type substitute(List<ParameterMapping> mappings) {
-        for (ParameterMapping map : mappings) {
-            if (map.parameter() == this) {
-                return map.type();
+    };
+    
+    Parameter.prototype.involves = function (parameter) {
+        return this.id === parameter.id;
+    };
+    
+    Parameter.prototype.substitute = function (mappings) {
+        for (var m = 0; m < mappings.length; ++m) {
+            var map = mappings[m];
+            if (this.involves(this.parameter)) {
+                return map.type;
             }
         }
         return this;
-    }
-
-    public void findParameters(Set<Parameter> result) {
+    };
+    
+    Parameter.prototype.findParameters = function (result) {
         result.add(this);
+    };
+    
+    Parameter.prototype.toString = function () {
+        return "P[" + this.parameterID + "]";
+    };
+
+    function ParameterMapping(parameter, type) {
+        if (!parameter || !type) {
+            throw "Null arguments";
+        }
+        this.parameter = parameter;
+        this.type = type;
     }
-
-    public String toString() {
-        return "P[" + this.hashCode() + "]";
-    }
-}
-
-public class ParameterMapping {
-    private Parameter mParameter;
-    private Type mType;
-
-    ParameterMapping(Parameter parameter, Type type) {
-        assert(parameter != null);
-        assert(type != null);
-
-        mParameter = parameter;
-        mType = type;
-    }
-
-    public Parameter parameter() {
-        return mParameter;
-    }
-
-    Type type() {
-        return mType;
-    }
-
-    boolean substitute(ParameterMapping other) {
-        if (other.mType.involves(mParameter)) {
+    
+    ParameterMapping.prototype.substitute = function (other) {
+        if (other.type.involves(this.parameter)) {
             return false;
         }
-        List<ParameterMapping> mappings = new ArrayList<ParameterMapping>();
-        mappings.add(other);
-        mType = mType.substitute(mappings);
-        return true;
-    }
+        var mappings = [other];
+        this.type = this.type.substitute(mappings);
+    };
+    
+    ParameterMapping.prototype.equals = function (other) {
+        return this.parameter.id == other.parameter.id && this.type.equals(other.type);
+    };
 
-    boolean equals(ParameterMapping other) {
-        if (mParameter == other.parameter() && mType.equals(other.type())) {
-            return true;
-        }
-        return false;
-    }
-}
+/*
 
 public class BaseType implements Type, Serializable {
     private static final long serialVersionUID = 9078691212359745187L;
