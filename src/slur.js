@@ -1506,116 +1506,109 @@ public class Interpreter {
 */
 
     function testSuite() {
-        function fail() { throw "Assertion Failure"; }
-        function assertTrue(value) { if (!value) { fail(); } }
-        function assertFalse(value) { if (value) { fail(); } }
-        function assertNull(value) { if (value !== null) { fail(); } }
-        function assertEquals(a, b) { assertTrue(a === b); }
-        function assertSame(a, b) { assertTrue(a == b); }
-
         var parseTests = [
         	function testEmpty() {
-                assertNull(parse(""));
+                TEST.isNull(parse(""));
             },
             function testFixNum() {
                 var number = parse("1");
-                assertTrue(isInt(number));
-                assertEquals(number.value, 1);
+                TEST.isTrue(isInt(number));
+                TEST.equals(number.value, 1);
 
                 number = parse("10");
-                assertTrue(isInt(number));
-                assertEquals(number.value, 10);
+                TEST.isTrue(isInt(number));
+                TEST.equals(number.value, 10);
 
                 number = parse("-1");
-                assertTrue(isInt(number));
-                assertEquals(number.value, -1);
+                TEST.isTrue(isInt(number));
+                TEST.equals(number.value, -1);
 
                 number = parse("9");
-                assertTrue(isInt(number));
-                assertEquals(number.value, 9);
+                TEST.isTrue(isInt(number));
+                TEST.equals(number.value, 9);
 
                 number = parse("0");
-                assertTrue(isInt(number));
-                assertEquals(number.value, 0);
+                TEST.isTrue(isInt(number));
+                TEST.equals(number.value, 0);
 
                 number = parse("-2345");
-                assertTrue(isInt(number));
-                assertEquals(number.value, -2345);
+                TEST.isTrue(isInt(number));
+                TEST.equals(number.value, -2345);
             },
             function testReal() {
                 var number = parse(".1");
-                assertTrue(isReal(number));
-                assertEquals(number.value, 0.1);
+                TEST.isTrue(isReal(number));
+                TEST.equals(number.value, 0.1);
 
                 number = parse("-.1");
-                assertTrue(isReal(number));
-                assertEquals(number.value, -0.1);
+                TEST.isTrue(isReal(number));
+                TEST.equals(number.value, -0.1);
 
                 number = parse("1e5");
-                assertTrue(isReal(number));
-                assertEquals(number.value, 1e5);
+                TEST.isTrue(isReal(number));
+                TEST.equals(number.value, 1e5);
 
                 number = parse("1.");
-                assertTrue(isReal(number));
-                assertEquals(number.value, 1.0);
+                TEST.isTrue(isReal(number));
+                TEST.equals(number.value, 1.0);
 
                 number = parse("1.6");
-                assertTrue(isReal(number));
-                assertEquals(number.value, 1.6);
+                TEST.isTrue(isReal(number));
+                TEST.equals(number.value, 1.6);
 
                 number = parse("1.7e2");
-                assertTrue(isReal(number));
-                assertEquals(number.value, 1.7e2);
+                TEST.isTrue(isReal(number));
+                TEST.equals(number.value, 1.7e2);
 
                 number = parse("-1e4");
-                assertTrue(isReal(number));
-                assertEquals(number.value, -1e4);
+                TEST.isTrue(isReal(number));
+                TEST.equals(number.value, -1e4);
 
                 number = parse("-1.8e5");
-                assertTrue(isReal(number));
-                assertEquals(number.value, -1.8e5);
+                TEST.isTrue(isReal(number));
+                TEST.equals(number.value, -1.8e5);
             },
             function testString() {
                 var string = parse("\"Hello\"");
-                assertTrue(isString(string));
-                assertEquals(string.value, "Hello");
+                TEST.isTrue(isString(string));
+                TEST.equals(string.value, "Hello");
 
                 string = parse("\"\"");
-                assertTrue(isString(string));
-                assertEquals(string.value, "");
+                TEST.isTrue(isString(string));
+                TEST.equals(string.value, "");
 
                 string = parse("\"\\\"\"");
-                assertTrue(isString(string));
-                assertEquals(string.value, "\"");
+                TEST.isTrue(isString(string));
+                TEST.equals(string.value, "\"");
             },
             function testSymbol() {
                 var symbol = parse("symbol");
-                assertTrue(isSymbol(symbol));
-                assertEquals(symbol.name, "symbol");
+                TEST.isTrue(isSymbol(symbol));
+                TEST.equals(symbol.name, "symbol");
             },
             function testTrue() {
                 var truth = parse("#t");
-                assertSame(truth, TRUE);
+                TEST.same(truth, TRUE);
             },
             function testCons() {
                 var cons = parse("()");
-                assertTrue(isNull(cons));
+                TEST.isTrue(isNull(cons));
 
                 cons = parse("(1)");
-                assertTrue(isCons(cons));
-                assertTrue(isInt(cons.car));
-                assertTrue(isNull(cons.cdr));
+                TEST.isTrue(isCons(cons));
+                TEST.isTrue(isInt(cons.car));
+                TEST.isTrue(isNull(cons.cdr));
 
                 cons = parse("(1 2)");
-                assertTrue(isCons(cons));
-                assertTrue(isInt(cons.car));
-                assertTrue(isCons(cons.cdr));
-                assertTrue(isNull(cons.cdr.cdr));
+                TEST.isTrue(isCons(cons));
+                TEST.isTrue(isInt(cons.car));
+                TEST.isTrue(isCons(cons.cdr));
+                TEST.isTrue(isNull(cons.cdr.cdr));
 
                 cons = parse("(1 . 2)");
-                assertTrue(isCons(cons));
-                assertFalse(isCons(cons.car));
-                assertFalse(isCons(cons.cdr));
+                TEST.isTrue(isCons(cons));
+                TEST.isFalse(isCons(cons.car));
+                TEST.isFalse(isCons(cons.cdr));
             },
             function testBadCons() {
                 try {
@@ -1626,45 +1619,45 @@ public class Interpreter {
             },
             function testNestedCons() {
                 var cons = parse("((1) (2))");
-                assertTrue(isCons(cons));
-                assertTrue(isCons(cons.car));
-                assertTrue(isCons(cons.cdr));
-                assertTrue(isInt(cons.car.car));
-                assertTrue(isNull(cons.car.cdr));
+                TEST.isTrue(isCons(cons));
+                TEST.isTrue(isCons(cons.car));
+                TEST.isTrue(isCons(cons.cdr));
+                TEST.isTrue(isInt(cons.car.car));
+                TEST.isTrue(isNull(cons.car.cdr));
                 cons = cons.cdr;
-                assertTrue(isCons(cons.car));
-                assertTrue(isInt(cons.car.car));
-                assertTrue(isNull(cons.car.cdr));
-                assertTrue(isNull(cons.cdr));
+                TEST.isTrue(isCons(cons.car));
+                TEST.isTrue(isInt(cons.car.car));
+                TEST.isTrue(isNull(cons.car.cdr));
+                TEST.isTrue(isNull(cons.cdr));
             },
             function testDeepCons() {
                 var obj = parse("((((5 4) (1 2 3 4) ((-1) . 2)) \"Hello\" (goodbye)))");
-                assertEquals(obj.toString(), "((((5 4) (1 2 3 4) ((-1) . 2)) \"Hello\" (goodbye)))");
+                TEST.equals(obj.toString(), "((((5 4) (1 2 3 4) ((-1) . 2)) \"Hello\" (goodbye)))");
 
                 obj = parse("(define (map fn list) (if (isNull? list) () (cons (fn (car list)) (map fn (cdr list)))))");
-                assertEquals(obj.toString(), "(define (map fn list) (if (isNull? list) () (cons (fn (car list)) (map fn (cdr list)))))");
+                TEST.equals(obj.toString(), "(define (map fn list) (if (isNull? list) () (cons (fn (car list)) (map fn (cdr list)))))");
             },
             function testParseNestedConsDot() {
                 var obj = parse("((lambda (a . b) b) 1 2 3)");
-                assertEquals(obj.toString(), "((lambda (a . b) b) 1 2 3)");
+                TEST.equals(obj.toString(), "((lambda (a . b) b) 1 2 3)");
             },
             function testParseSkipComments() {
                 var obj = parse(";Nothing to see here\n(foo)");
-                assertEquals(obj.toString(), "(foo)");
+                TEST.equals(obj.toString(), "(foo)");
                 obj = parse("(foo);Nothing to see here");
-                assertEquals(obj.toString(), "(foo)");
+                TEST.equals(obj.toString(), "(foo)");
                 obj = parse("(foo ;Nothing to see here \n)");
-                assertEquals(obj.toString(), "(foo)");
+                TEST.equals(obj.toString(), "(foo)");
                 obj = parse("(;Nothing to see here \n foo)");
-                assertEquals(obj.toString(), "(foo)");
+                TEST.equals(obj.toString(), "(foo)");
                 obj = parse("(foo . ;Nothing to see here \r bar)");
-                assertEquals(obj.toString(), "(foo . bar)");
+                TEST.equals(obj.toString(), "(foo . bar)");
             },
             function testParseMultiple() {
                 var parser = new Parser("(+ 1 2) (- 3 4)");
-                assertEquals(parser.parse().toString(), "(+ 1 2)");
-                assertEquals(parser.parse().toString(), "(- 3 4)");
-                assertNull(parser.parse());
+                TEST.equals(parser.parse().toString(), "(+ 1 2)");
+                TEST.equals(parser.parse().toString(), "(- 3 4)");
+                TEST.isNull(parser.parse());
             }
         ];
 
@@ -1673,84 +1666,74 @@ public class Interpreter {
                 var env = new Frame(),
                     num = new FixNum(1),
                     result = num.eval(env);
-                assertSame(num, result);
-                assertEquals(result.value, 1);
+                TEST.same(num, result);
+                TEST.equals(result.value, 1);
             },
             function testReal() {
                 var env = new Frame(),
                     num = new Real(1.0),
                     result = num.eval(env);
-                assertSame(num, result);
-                assertEquals(result.value, 1.0);
+                TEST.same(num, result);
+                TEST.equals(result.value, 1.0);
             },
             function testString() {
                 var env = new Frame(),
                     string = new StringValue("a");
-                assertSame(string, string.eval(env));
+                TEST.same(string, string.eval(env));
             },
             function testSymbol() {
                 var env = new Frame(),
                     num = new FixNum(1),
                     symbol = new Symbol("a");
                 env.bind("a", num);
-                assertSame(num, symbol.eval(env));
+                TEST.same(num, symbol.eval(env));
             },
             function testNull() {
                 var env = new Frame();
-                assertSame(NULL.eval(env), NULL);
+                TEST.same(NULL.eval(env), NULL);
             },
             function testTrue() {
                 var env = new Frame();
-                assertSame(TRUE.eval(env), TRUE);
+                TEST.same(TRUE.eval(env), TRUE);
             },
             function testSpecial() {
                 var env = new Frame(),
                     obj = new SpecialForm(ifInvoke, ifCompile),
                     result = obj.eval(env);
-                assertSame(obj, result);
+                TEST.same(obj, result);
             },
             function testRecurse() {
                 var env = baseEnvironment();
                 parse("(define (square x) (* x x))").eval(env);
                 parse("(define (map fn list) (if (isNull? list) () (cons (fn (car list)) (map fn (cdr list)))))").eval(env);
-                assertEquals(parse("(map square '(1 2 3))").eval(env).toString(), "(1 4 9)");
+                TEST.equals(parse("(map square '(1 2 3))").eval(env).toString(), "(1 4 9)");
             },
             function testReverse() {
                 var env = baseEnvironment();
                 parse("(define (reverse list) (labels ((revAcc (list acc) (if (isNull? list) acc (revAcc (cdr list) (cons (car list) acc))))) (revAcc list ())))").eval(env);
-                assertEquals(parse("(reverse '(1 2 3))").eval(env).toString(), "(3 2 1)");
+                TEST.equals(parse("(reverse '(1 2 3))").eval(env).toString(), "(3 2 1)");
             },
             function testRemove() {
                 var env = baseEnvironment();
                 parse("(define (remove l pred) (cond ((isNull? l) l) ((pred (car l)) (remove (cdr l) pred)) (#t (cons (car l) (remove (cdr l) pred)))))").eval(env);
-                assertEquals(parse("(remove (list 1 2 3 4) (lambda (x) (= x 2)))").eval(env).toString(), "(1 3 4)");
+                TEST.equals(parse("(remove (list 1 2 3 4) (lambda (x) (= x 2)))").eval(env).toString(), "(1 3 4)");
             },
             function testLambda() {
                 var env = baseEnvironment();
                 parse("(define (bar x) (lambda (y) (+ x y)))").eval(env);
-                assertEquals(parse("((bar 6) 5)").eval(env).toString(), "11");
+                TEST.equals(parse("((bar 6) 5)").eval(env).toString(), "11");
             }
         ];
 
-        function runTests(name, tests) {
-            console.log("Running " + name + " Tests");
-            for (var t = 0; t < tests.length; ++t) {
-                var test = tests[t]();
-                try {
-                    tests[t]();
-                } catch(e) {
-                    console.log("Failed test" + test.name + ":");
-                    console.log(e.toString());
-                }
-            }
-        }
-
-        runTests("Parse", parseTests);
-        runTests("Eval", evalTests);
+        TEST.run("Parse", parseTests);
+        TEST.run("Eval", evalTests);
     }
 
     testSuite();
 
     return {
+        ObjectType: ObjectType,
+        baseEnvironment: baseEnvironment,
+        defaultEnvironment: defaultEnvironment
     };
 }());
