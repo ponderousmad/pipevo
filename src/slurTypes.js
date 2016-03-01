@@ -470,7 +470,7 @@ var SLUR_TYPES = (function (SLUR) {
         return result;
     }
 
-    function makeParmatersUnique(type) {
+    function makeParametersUnique(type) {
         var parameters = findParameters(type);
         if (parameters.length === 0) {
             return type;
@@ -491,9 +491,84 @@ var SLUR_TYPES = (function (SLUR) {
                 Primitives[type] = new BaseType(SLUR.ObjectType[type], type);
             }
         }
+        Primitives.BOOL = new Maybe(Primitives.BOOLEAN);
     }());
     
     function testSuite() {
+        var parameterTests = [
+        	function testParameter() {
+                var p = new Parameter(),
+                    q = new Parameter();
+
+                TEST.isTrue(p.isParameterized());
+                TEST.isTrue(q.isParameterized());
+
+                TEST.isTrue(p.involves(p));
+                TEST.isTrue(q.involves(q));
+                TEST.isFalse(p.involves(q));
+                TEST.isFalse(q.involves(p));
+
+                TEST.inList(findParameters(p), p);
+                TEST.equals(findParameters(p).length, 1);
+                TEST.inList(findParameters(q), q);
+                TEST.equals(findParameters(q).length, 1);
+            },
+            function testEquals() {
+                var p = new Parameter(),
+                    q = new Parameter();
+
+                TEST.isTrue(p.equals(p));
+                TEST.isFalse(p.equals(q));
+                TEST.isFalse(q.equals(p));
+            },
+            function testMatch() {
+                var p = new Parameter(),
+                    q = new Parameter(),
+                    match = p.match(Primitives.NULL);
+                TEST.isTrue(match.matches);
+                TEST.isTrue(match.mappings[0].parameter.equals(p));
+                TEST.isTrue(match.mappings[0].type.equals(Primitives.NULL));
+
+                match = p.match(new ListType(p));
+                TEST.isFalse(match.matches);
+
+                match = p.match(new ListType(q));
+                TEST.isTrue(match.matches);
+                TEST.isTrue(match.mappings[0].parameter.equals(p));
+                TEST.isTrue(match.mappings[0].type.equals(new ListType(q)));
+            },
+            function testSubstitute() {
+                var p = new Parameter(),
+                    match = p.match(Primitives.STRING),
+                    result = p.substitute(match.mappings);
+                TEST.isTrue(result.equals(Primitives.STRING));
+
+                var q = new Parameter();
+                
+                result = q.substitute(match.mappings);
+                TEST.isTrue(result.equals(q));
+            },
+            function testToString() {
+                var p = new Parameter();
+                TEST.equals(p.toString(), "P[" + p.id + "]");
+            },
+            function testEquals() {
+                var p = new Parameter(),
+                    q = new Parameter(),
+                    m1 = new ParameterMapping(p, Primitives.STRING),
+                    m2 = new ParameterMapping(q, Primitives.FIX_NUM);
+                TEST.isFalse(m1.equals(m2));
+                TEST.isFalse(m2.equals(m1));
+
+                m2 = new ParameterMapping(p, Primitives.FIX_NUM);
+                TEST.isFalse(m1.equals(m2));
+                TEST.isFalse(m2.equals(m1));
+
+                m2 = new ParameterMapping(p, Primitives.STRING);
+                TEST.isTrue(m1.equals(m2));
+            }
+        ];
+        
         var baseTypeTests = [
             function testParameter () {
                 TEST.isFalse(Primitives.NULL.isParameterized());
@@ -586,8 +661,448 @@ var SLUR_TYPES = (function (SLUR) {
             }
         ];
         
+        var listTypeTests = [
+        	function testParameter() {
+                var list = new ListType(Primitives.STRING);
+                TEST.isFalse(list.isParameterized());
+                TEST.isFalse(list.involves(new Parameter()));
+                TEST.isEmpty(findParameters(list));
+
+                var p = new Parameter(),
+                    listP = new ListType(p);
+                TEST.isTrue(listP.isParameterized());
+                TEST.isTrue(listP.involves(p));
+                TEST.inList(findParameters(listP), p);
+            },
+            function testEquals() {
+                var list = new ListType(Primitives.STRING);
+                TEST.isFalse(list.equals(Primitives.STRING));
+                TEST.isTrue(list.equals(new ListType(Primitives.STRING)));
+
+                var p = new Parameter(),
+                    listP = new ListType(p);
+
+                TEST.isFalse(list.equals(listP));
+                TEST.isTrue(listP.equals(new ListType(p)));
+            },
+            function testMatch() {
+                var list = new ListType(Primitives.STRING);
+                TEST.isFalse(list.match(Primitives.STRING).matches);
+                TEST.isTrue(list.match(new ListType(Primitives.STRING)).matches);
+
+                var p = new Parameter(),
+                    listP = new ListType(p);
+                TEST.isFalse(listP.match(Primitives.STRING).matches);
+
+                var match = listP.match(list);
+                TEST.isTrue(match.matches);
+                TEST.isTrue(match.mappings[0].parameter.equals(p));
+                TEST.isTrue(match.mappings[0].type.equals(Primitives.STRING));
+            },
+            function testSubstitute() {
+                var p = new Parameter(),
+                    list = new ListType(p),
+                    target = new ListType(Primitives.STRING);
+                    match = list.match(target);
+                    result = list.substitute(match.mappings);
+                TEST.isTrue(result.equals(target));
+
+                list = new ListType(new Parameter());
+                result = list.substitute(match.mappings);
+                TEST.isTrue(list.equals(result));
+            },
+            function testToString() {
+                TEST.equals(new ListType(Primitives.NULL).toString(), "List[NULL]");
+            }
+        ];
+        
+        var maybeTests = [
+        	function testParameter() {
+                var maybe = new Maybe(Primitives.FIX_NUM);
+                TEST.isFalse(maybe.isParameterized());
+                TEST.isFalse(maybe.involves(new Parameter()));
+                TEST.isTrue(findParameters(maybe).isEmpty());
+
+                var p = new Parameter();
+                maybe = new Maybe(p);
+
+                TEST.isTrue(maybe.isParameterized());
+                TEST.isTrue(maybe.involves(p));
+                TEST.isTrue(findParameters(maybe).contains(p));
+            },
+            function testEquals() {
+                var maybe = new Maybe(Primitives.REAL);
+
+                TEST.isFalse(maybe.equals(Primitives.REAL));
+                TEST.isTrue(maybe.equals(new Maybe(Primitives.REAL)));
+
+                var p = new Parameter(),
+                    maybeP = new Maybe(p);
+                TEST.isFalse(maybe.equals(maybeP));
+                TEST.isTrue(maybeP.equals(new Maybe(p)));
+            },
+            function testMatch() {
+                var maybe = new Maybe(Primitives.STRING);
+
+                TEST.isTrue(maybe.match(Primitives.NULL).matches);
+                TEST.isTrue(maybe.match(Primitives.STRING).matches);
+                TEST.isTrue(maybe.match(new Maybe(Primitives.STRING)).matches);
+                TEST.isFalse(maybe.match(Primitives.FIX_NUM).matches);
+
+                var p = new Parameter(),
+                    maybeP = new Maybe(p),
+                    match = maybeP.match(maybe);
+
+                TEST.isTrue(match.matches);
+                TEST.isTrue(match.mappings[0].parameter.equals(p));
+                TEST.isTrue(match.mappings[0].type.equals(Primitives.STRING));
+            },
+            function testSubstitute() {
+                var p = new Parameter(),
+                    maybe = new Maybe(p),
+                    target = new Maybe(Primitives.SYMBOL),
+                    match = maybe.match(target),
+                    result = maybe.substitute(match.mappings);
+                TEST.isTrue(result.equals(target));
+            },
+            function testToString() {
+                TEST.equals(new Maybe(Primitives.SYMBOL).toString(), "Maybe[SYMBOL]");
+            }
+        ];
+        
+        var functionTypeTests = [
+        	function testParameter() {
+                var func = new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]);
+                TEST.isFalse(func.isParameterized());
+                TEST.isFalse(func.involves(new Parameter()));
+                TEST.isEmpty(findParameters(func));
+
+                var p = new Parameter(),
+                    q = new Parameter(),
+                    funcP = new FunctionType(p, [p,q]);
+                TEST.isTrue(funcP.isParameterized());
+                TEST.isTrue(funcP.involves(p));
+                TEST.isTrue(funcP.involves(q));
+                TEST.isFalse(funcP.involves(new Parameter()));
+                
+                var parameters = findParameters(funcP);
+                TEST.inList(parameters, q);
+                TEST.inList(parameters, p);
+                TEST.equals(parameters.length, 2);
+
+                var r = new Parameter(),
+                    funcR = new FunctionType(r, [Primitives.FIX_NUM]);
+                TEST.isTrue(funcR.isParameterized());
+                TEST.isTrue(funcR.involves(r));
+                TEST.isFalse(funcR.involves(p));
+                TEST.inList(findParameters(funcR), r);
+            },
+            function testEquals() {
+                var func = new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]),
+                    again= new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]);
+                TEST.isTrue(func.equals(again));
+                TEST.isFalse(func.equals(Primitives.FIX_NUM));
+
+                var p = new Parameter(),
+                    q = new Parameter(),
+                    funcP = new FunctionType(p, [p]);
+                TEST.isFalse(func.equals(funcP));
+
+                var funcQ = new FunctionType(q, [q]);
+                TEST.isFalse(funcP.equals(funcQ));
+
+                var func2  = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]),
+                    again2 = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]);
+                var notFunc= new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.SYMBOL]);
+                TEST.isTrue(func2.equals(again2));
+                TEST.isFalse(func2.equals(notFunc));
+            },
+            function testMatch() {
+                var func = new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]),
+                    again= new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]);
+                TEST.isTrue(func.match(again).matches);
+                TEST.isFalse(func.match(Primitives.FIX_NUM).matches);
+
+                var p = new Parameter(),
+                    q = new Parameter(),
+                    funcP = new FunctionType(p, [p]);
+                TEST.isFalse(func.match(funcP).matches);
+
+                var match = funcP.match(func);
+                TEST.isTrue(match.matches);
+                TEST.isTrue(match.mappings[0].parameter.equals(p));
+                TEST.isTrue(match.mappings[0].type.equals(Primitives.FIX_NUM));
+
+                var funcQ = new FunctionType(q, [q]);
+                match = funcP.match(funcQ);
+                TEST.isTrue(match.matches);
+                TEST.isTrue(match.mappings[0].parameter.equals(p));
+                TEST.isTrue(match.mappings[0].type.equals(q));
+
+                var func2  = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]),
+                    again2 = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]);
+                    notfunc= new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.SYMBOL]);
+                TEST.isTrue(func2.match(again2).matches);
+                TEST.isFalse(func2.match(notfunc).matches);
+                TEST.isFalse(func2.match(funcP).matches);
+            },
+            function testSubstitute() {
+                var p = new Parameter(),
+                    q = new Parameter(),
+                    r = new Parameter(),
+                    func = new FunctionType(p, [q]),
+                    target = new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]),
+                    match = func.match(target),
+                    result = func.substitute(match.mappings);
+                TEST.isTrue(result.equals(target));
+
+                TEST.same(target.substitute(match.mappings), target);
+
+                func = new FunctionType(p, [q, r]);
+                target = new FunctionType(Primitives.BOOL, [Primitives.REAL, Primitives.STRING]);
+                match = func.match(target);
+                result = func.substitute(match.mappings);
+                TEST.isTrue(result.equals(target));
+
+                TEST.same(target.substitute(match.mappings), target);
+            },
+            function testToString() {
+                var funcVoid = new FunctionType(Primitives.FIX_NUM, []);
+                TEST.equals(funcVoid.toString(),"F[]->[FIX_NUM]");
+
+                var func = new FunctionType(Primitives.FIX_NUM, [Primitives.REAL]);
+                TEST.equals(func.toString(),"F[REAL]->[FIX_NUM]");
+
+                var func2 = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]);
+                TEST.equals(func2.toString(),"F[STRING, STRING]->[Maybe[BOOLEAN]]");
+            }
+        ];
+        
+        var matchTests = [
+        	function testResult() {
+                TEST.isTrue(MATCH.matches);
+                TEST.isEmpty(MATCH.mappings);
+                
+                TEST.isFalse(NO_MATCH.matches);
+                TEST.isEmpty(NO_MATCH.mappings);
+            },
+            function testConstruct() {
+                var p = new Parameter(),
+                    q = new Parameter(),
+                    match = new Match(p, Primitives.FIX_NUM);
+                TEST.isTrue(match.matches);
+                TEST.equals(match.mappings.length, 1);
+                TEST.same(match.mappings[0].parameter, p);
+                TEST.isTrue(match.mappings[0].type.equals(Primitives.FIX_NUM));
+
+                match.map(q, Primitives.STRING);
+                TEST.isTrue(match.matches);
+                TEST.equals(match.mappings.length, 2);
+                TEST.same(match.mappings[1].parameter, q);
+            },
+            function testCombinePassFail() {
+                TEST.isTrue(MATCH.combine(MATCH).matches);
+                TEST.isFalse(MATCH.combine(NO_MATCH).matches);
+                TEST.isFalse(NO_MATCH.combine(MATCH).matches);
+                TEST.isFalse(NO_MATCH.combine(NO_MATCH).matches);
+            },
+            function testCombineMatchPassFail() {
+                var p = new Parameter(),
+                    match = new Match(p, Primitives.FIX_NUM);
+
+                TEST.isFalse(match.combine(NO_MATCH).matches);
+                TEST.isFalse(NO_MATCH.combine(match).matches);
+                TEST.isTrue(match.combine(MATCH).matches);
+                TEST.isTrue(MATCH.combine(match).matches);
+                TEST.equals(match.combine(MATCH).mappings, match.mappings);
+                TEST.equals(MATCH.combine(match).mappings, match.mappings);
+            },
+            function testCombine() {
+                var p = new Parameter(),
+                    q = new Parameter(),
+                    match = new Match(p, Primitives.FIX_NUM),
+                    other = new Match(q, Primitives.REAL),
+                    combined = match.combine(other);
+                    
+                TEST.isTrue(combined.matches);
+                TEST.equals(combined.mappings.length, 2);
+
+                var mappings = combined.mappings;
+                    m1 = mappings[0];
+                    m2 = mappings[1];
+                TEST.equals(mappings.length, 2);
+                if(m1.parameter.equals(q)) {
+                    var temp = m1;
+                    m1 = m2;
+                    m2 = temp;
+                }
+                TEST.isTrue(m1.parameter.equals(p));
+                TEST.isTrue(m1.type.equals(Primitives.FIX_NUM));
+                TEST.isTrue(m2.parameter.equals(q));
+                TEST.isTrue(m2.type.equals(Primitives.REAL));
+            },
+            function testCombineIncompatible() {
+                var p = new Parameter(),
+                    match = new Match(p, Primitives.FIX_NUM),
+                    other = new Match(p, Primitives.REAL);
+
+                TEST.isFalse(match.combine(other).matches);
+            },
+            function testCombineNested() {
+                for (var i = 0; i < 2; ++i) {
+                    var p = new Parameter(),
+                        q = new Parameter(),
+                        match = new Match(p, i === 0 ? new ListType(q) : new ListType(Primitives.STRING)),
+                        other = new Match(p, i !== 0 ? new ListType(q) : new ListType(Primitives.STRING)),
+                        combined = match.combine(other);
+                        
+                    TEST.isTrue(combined.matches);
+
+                    var mappings = combined.mappings;
+                        m1 = mappings[0];
+                        m2 = mappings[1];
+                    TEST.equals(mappings.length, 2);
+                    if(m1.parameter.equals(q)) {
+                        var temp = m1;
+                        m1 = m2;
+                        m2 = temp;
+                    }
+                    TEST.isTrue(m1.parameter.equals(p));
+                    TEST.isTrue(m1.type.equals(new ListType(Primitives.STRING)));
+                    TEST.isTrue(m2.parameter.equals(q));
+                    TEST.isTrue(m2.type.equals(Primitives.STRING));
+                }
+            }
+        ];
+        
+        var uniqueTests = [
+            function testUniqueFunction() {
+                var func = new FunctionType(Primitives.FIX_NUM, [Primitives.STRING]);
+                TEST.isTrue(makeParametersUnique(func).equals(func));
+
+                var p = new Parameter();
+                func = new FunctionType(p,[Primitives.STRING, Primitives.STRING]);
+                TEST.isFalse(makeParametersUnique(func).equals(func));
+                TEST.isTrue(makeParametersUnique(func).match(func).matches);
+
+                func = new FunctionType(Primitives.STRING, [p, new Parameter()]);
+                TEST.isFalse(makeParametersUnique(func).equals(func));
+                TEST.isTrue(makeParametersUnique(func).match(func).matches);
+
+                func = new FunctionType(p, [new Parameter(), p]);
+                TEST.isFalse(makeParametersUnique(func).equals(func));
+                TEST.isTrue(makeParametersUnique(func).match(func).matches);
+            },
+            function testUniqueBaseType() {
+                TEST.isTrue(makeParametersUnique(Primitives.FIX_NUM).equals(Primitives.FIX_NUM));
+                TEST.isTrue(makeParametersUnique(Primitives.STRING).equals(Primitives.STRING));
+            },
+            function testUniqueMaybe() {
+                TEST.isTrue(makeParametersUnique(new Maybe(Primitives.REAL)).equals(new Maybe(Primitives.REAL)));
+
+                var p = new Parameter();
+                TEST.isTrue(makeParametersUnique(new Maybe(p)).match(new Maybe(p)).matches);
+
+                var maybe = new Maybe(p);
+                TEST.isNotSame(makeParametersUnique(maybe), maybe);
+                TEST.isFalse(makeParametersUnique(maybe).equals(maybe));
+            },
+            function testUniqueList() {
+                TEST.isTrue(makeParametersUnique(new ListType(Primitives.REAL)).equals(new ListType(Primitives.REAL)));
+
+                var p = new Parameter();
+                TEST.isTrue(makeParametersUnique(new ListType(p)).match(new ListType(p)).matches);
+
+                var list = new ListType(p);
+                TEST.isNotSame(makeParametersUnique(list), list);
+                TEST.isFalse(makeParametersUnique(list).equals(list));
+            },
+            function testUniqueParameter() {
+                var p = new Parameter();
+                TEST.isNotSame(makeParametersUnique(p),p);
+                TEST.isFalse(makeParametersUnique(p).equals(p));
+            }
+        ];
+        
+        function testCompareAreEqual(a, b) { TEST.isTrue (typesEqualModuloParamaters(a, b)); }
+        function testCompareNotEqual(a, b) { TEST.isFalse(typesEqualModuloParamaters(a, b)); }
+        
+        var compareTests = [
+            function testBaseTypes() {
+                testCompareAreEqual(Primitives.STRING, Primitives.STRING);
+                testCompareNotEqual(Primitives.FIX_NUM, Primitives.REAL);
+            },
+            function testMaybe() {
+                testCompareAreEqual(new Maybe(Primitives.STRING), new Maybe(Primitives.STRING));
+                testCompareNotEqual(new Maybe(Primitives.FIX_NUM), new Maybe(Primitives.REAL));
+                testCompareNotEqual(new Maybe(Primitives.FIX_NUM), Primitives.FIX_NUM);
+            },
+            function testCons() {
+                testCompareAreEqual(new ConsType(Primitives.STRING,Primitives.NULL),
+                                    new ConsType(Primitives.STRING,Primitives.NULL));
+                testCompareNotEqual(new ConsType(Primitives.REAL,Primitives.NULL),
+                                    new ConsType(Primitives.FIX_NUM,Primitives.NULL));
+                testCompareNotEqual(new ConsType(Primitives.REAL,Primitives.NULL),
+                                    new Maybe(Primitives.REAL));
+                testCompareAreEqual(new ConsType(Primitives.STRING, new ConsType(Primitives.BOOL,Primitives.NULL)),
+                                    new ConsType(Primitives.STRING, new ConsType(Primitives.BOOL,Primitives.NULL)));
+            },
+            function testList() {
+                testCompareAreEqual(new ListType(Primitives.STRING), new ListType(Primitives.STRING));
+                testCompareNotEqual(new ListType(Primitives.FIX_NUM), new ListType(Primitives.REAL));
+                testCompareNotEqual(new ListType(Primitives.FIX_NUM), new ConsType(Primitives.FIX_NUM, Primitives.NULL));
+                testCompareAreEqual(new ListType(new ListType(Primitives.REAL)), new ListType(new ListType(Primitives.REAL)));
+            },
+            function testFunction() {
+                testCompareAreEqual(new FunctionType(new ListType(Primitives.STRING),
+                                        [new ConsType(Primitives.FIX_NUM, Primitives.FIX_NUM), Primitives.BOOL]),
+                                    new FunctionType(new ListType(Primitives.STRING),
+                                        [new ConsType(Primitives.FIX_NUM, Primitives.FIX_NUM), Primitives.BOOL]));
+                testCompareNotEqual(new FunctionType(new ListType(Primitives.STRING),
+                                        [new ConsType(Primitives.FIX_NUM, Primitives.FIX_NUM), Primitives.BOOL]),
+                                    new FunctionType(new ListType(Primitives.STRING),
+                                        [new ConsType(Primitives.REAL, Primitives.FIX_NUM), Primitives.BOOL]));
+                testCompareNotEqual(new FunctionType(new ListType(Primitives.STRING),
+                                        [new ConsType(Primitives.FIX_NUM, Primitives.FIX_NUM), Primitives.BOOL]),
+                                    new FunctionType(new ListType(Primitives.SYMBOL),
+                                        [new ConsType(Primitives.FIX_NUM, Primitives.FIX_NUM), Primitives.BOOL]));
+                testCompareNotEqual(new FunctionType(new ListType(Primitives.STRING),
+                                        [new ConsType(Primitives.FIX_NUM, Primitives.FIX_NUM), Primitives.BOOL]),
+                                    new FunctionType(new ListType(Primitives.STRING),
+                                        [new ConsType(Primitives.FIX_NUM, Primitives.FIX_NUM)]));
+                testCompareNotEqual(new FunctionType(new ListType(Primitives.STRING),
+                                        [new ConsType(Primitives.FIX_NUM,Primitives.FIX_NUM), Primitives.BOOL]),
+                                    new ListType(Primitives.STRING));
+            },
+            function testParameter() {
+                var p = new Parameter(),
+                    q = new Parameter();
+                testCompareAreEqual(p, p);
+                testCompareAreEqual(p, q);
+                testCompareNotEqual(p, Primitives.TRUE);
+                testCompareAreEqual(new Maybe(p), new Maybe(p));
+                testCompareAreEqual(new ListType(p), new ListType(q));
+            },
+            function testMultiParameter() {
+                var p = new Parameter(),
+                    q = new Parameter(),
+                    r = new Parameter();
+                testCompareAreEqual(new ConsType(p,p), new ConsType(q,q));
+                testCompareNotEqual(new ConsType(p,p), new ConsType(q,r));
+                testCompareAreEqual(new FunctionType(p, [p]), new FunctionType(q, [q]));
+                testCompareAreEqual(new FunctionType(p, [p, q]), new FunctionType(r, [r, q]));
+            }
+        ];        
+        
+        TEST.run("Parameter", parameterTests);
         TEST.run("BaseType", baseTypeTests);
         TEST.run("ConsType", consTypeTests);
+        TEST.run("ListType", listTypeTests);
+        TEST.run("Maybe", maybeTests);
+        TEST.run("FunctionType", functionTypeTests);
+        TEST.run("Match", matchTests);
+        TEST.run("Unique", uniqueTests);
+        TEST.run("Compare", compareTests);
     }
 
     testSuite();
@@ -600,6 +1115,6 @@ var SLUR_TYPES = (function (SLUR) {
         Maybe: Maybe,
         Match: Match,
         typesEqualModuloParamaters: typesEqualModuloParamaters,
-        makeParmatersUnique: makeParmatersUnique
+        makeParametersUnique: makeParametersUnique
     };
 }(SLUR));

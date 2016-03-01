@@ -81,7 +81,7 @@ var SLUR = (function () {
             SYMBOL: 32,
             CONS: 64,
             NULL: 128,
-            BOOLEAN: 256
+            BOOLEAN: 256 // Just for TRUE, NULL is false.
         },
         isFunction = makeIsType(ObjectType.FUNCTION),
         isSpecialForm = makeIsType(ObjectType.SPECIAL_FORM),

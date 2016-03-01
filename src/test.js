@@ -3,6 +3,15 @@ var TEST = (function () {
     
     var TEST = {};
     
+    TEST.contains = function (list, item) {
+        for (var i = 0; i < list.length; ++i) {
+            if (list[i] == item) {
+                return true;
+            }
+        }
+        return false;
+    };
+    
     function fail() { throw "Assertion Failure"; }
     TEST.fail = fail;
     TEST.isTrue = function (value) { if (!value) { fail(); } };
@@ -11,6 +20,7 @@ var TEST = (function () {
     TEST.equals = function (a, b) { TEST.isTrue(a === b); };
     TEST.same = function (a, b) { TEST.isTrue(a == b); };
     TEST.isEmpty = function (list) { TEST.equals(list.length, 0); };
+    TEST.inList = function (list, item) { return TEST.isTrue(TEST.contains(list, item)); };
     
     TEST.run  = function (name, tests) {
         console.log("Running " + name + " Tests");
