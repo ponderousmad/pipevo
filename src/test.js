@@ -1,4 +1,6 @@
 var TEST = (function () {
+    "use strict";
+    
     var TEST = {};
     
     function fail() { throw "Assertion Failure"; }
@@ -8,6 +10,7 @@ var TEST = (function () {
     TEST.isNull = function (value) { if (value !== null) { fail(); } };
     TEST.equals = function (a, b) { TEST.isTrue(a === b); };
     TEST.same = function (a, b) { TEST.isTrue(a == b); };
+    TEST.isEmpty = function (list) { TEST.equals(list.length, 0); };
     
     TEST.run  = function (name, tests) {
         console.log("Running " + name + " Tests");
@@ -23,7 +26,7 @@ var TEST = (function () {
                 console.log(e.toString());
             }
         }
-    }
+    };
     
     return TEST;
 }());

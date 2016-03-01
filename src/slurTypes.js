@@ -3,7 +3,8 @@ var SLUR_TYPES = (function (SLUR) {
 
     var parameterID = 2001,
         MATCHED = null,
-        NO_MATCH = null;
+        NO_MATCH = null,
+        Primitives = {};
 
     function Parameter() {
         this.id = parameterID;
@@ -21,6 +22,10 @@ var SLUR_TYPES = (function (SLUR) {
         return this.equals(parameter);
     };
 
+    Parameter.prototype.isParameterized = function () {
+        return true;
+    };
+
     Parameter.prototype.equals = function (other) {
         return other.id === this.id;
     };
@@ -28,7 +33,7 @@ var SLUR_TYPES = (function (SLUR) {
     Parameter.prototype.substitute = function (mappings) {
         for (var m = 0; m < mappings.length; ++m) {
             var map = mappings[m];
-            if (this.involves(this.parameter)) {
+            if (this.involves(map.parameter)) {
                 return map.type;
             }
         }
@@ -36,7 +41,7 @@ var SLUR_TYPES = (function (SLUR) {
     };
 
     Parameter.prototype.findParameters = function (result) {
-        result.add(this);
+        result.push(this);
     };
 
     Parameter.prototype.toString = function () {
@@ -57,17 +62,19 @@ var SLUR_TYPES = (function (SLUR) {
         }
         var mappings = [other];
         this.type = this.type.substitute(mappings);
+        return true;
     };
 
     ParameterMapping.prototype.equals = function (other) {
         return this.parameter.id == other.parameter.id && this.type.equals(other.type);
     };
 
-    function BaseType(type) {
+    function BaseType(type, name) {
         if (!type) {
             throw "Type expected";
         }
         this.type = type;
+        this.name = name;
     }
 
     BaseType.prototype.match = function (other) {
@@ -97,7 +104,7 @@ var SLUR_TYPES = (function (SLUR) {
     };
 
     BaseType.prototype.toString = function () {
-        return "BaseType" + this.type;
+        return this.name ? this.name : "BaseType" + this.type;
     };
 
     function ConsType(carType, cdrType) {
@@ -110,11 +117,11 @@ var SLUR_TYPES = (function (SLUR) {
 
     ConsType.prototype.match = function (other) {
         if (other.carType) {
-            var match = this.car.match(other.car);
+            var match = this.carType.match(other.carType);
             if (!match.matches) {
                 return match;
             }
-            var cdrMatch = this.cdr.match(other.cdr);
+            var cdrMatch = this.cdrType.match(other.cdrType);
             if (!cdrMatch.matches) {
                 return cdrMatch;
             }
@@ -128,29 +135,29 @@ var SLUR_TYPES = (function (SLUR) {
     };
 
     ConsType.prototype.involves = function (parameter) {
-        return this.car.involves(parameter) || this.cdr.involves(parameter);
+        return this.carType.involves(parameter) || this.cdrType.involves(parameter);
     };
 
     ConsType.prototype.isParameterized = function () {
-        return this.car.isParameterized() || this.cdr.isParameterized();
+        return this.carType.isParameterized() || this.cdrType.isParameterized();
     };
 
     ConsType.prototype.substitute = function (mappings) {
-        var newCar = this.car.substitute(mappings);
-            newCdr = this.cdr.substitute(mappings);
-        if (newCar.equals(this.car) && newCdr.equals(this.cdr)) {
+        var newCar = this.carType.substitute(mappings),
+            newCdr = this.cdrType.substitute(mappings);
+        if (newCar.equals(this.carType) && newCdr.equals(this.cdrType)) {
             return this;
         }
         return new ConsType(newCar, newCdr);
     };
 
     ConsType.prototype.findParameters = function (result) {
-        this.car.findParameters(result);
-        this.cdr.findParameters(result);
+        this.carType.findParameters(result);
+        this.cdrType.findParameters(result);
     };
 
     ConsType.prototype.toString = function () {
-        return "Cons[" + this.car.toString() + ", " + this.cdr.toString() + "]";
+        return "Cons[" + this.carType.toString() + ", " + this.cdrType.toString() + "]";
     };
 
     function ListType(elementType) {
@@ -353,11 +360,11 @@ var SLUR_TYPES = (function (SLUR) {
         this.matches = true;
         this.mappings = [];
         if (!parameter) {
-            this.matched = false;
+            this.matches = false;
         } else if (Array.isArray(parameter)) {
             this.mappings = parameter.slice();
         } else {
-            this.map(parameter, type);
+            this.add(new ParameterMapping(parameter, type));
         }
     }
 
@@ -373,14 +380,14 @@ var SLUR_TYPES = (function (SLUR) {
         for (var m = 0; m < this.mappings; ++m) {
             var mapping = this.mappings[m];
             if (mapping.parameter.equals(parameter)) {
-                return map;
+                return mapping;
             }
         }
         return null;
     };
 
     Match.prototype.add = function (mapping) {
-        var same = find(mapping.parameter());
+        var same = this.find(mapping.parameter);
         if (same === null) {
             return this.addAndSubstitute(mapping);
         }
@@ -414,7 +421,7 @@ var SLUR_TYPES = (function (SLUR) {
                 return false;
             }
         }
-        this.mappings.push(toAdd);
+        this.mappings.push(mapping);
         return true;
     };
 
@@ -428,7 +435,7 @@ var SLUR_TYPES = (function (SLUR) {
         if (this.mappings.length === 0) {
             return other;
         }
-        if (other.mappigns.length === 0) {
+        if (other.mappings.length === 0) {
             return this;
         }
 
@@ -474,10 +481,117 @@ var SLUR_TYPES = (function (SLUR) {
         }
         return type.substitute(mappings);
     }
+ 
+    (function () {
+        MATCHED = new Match([]);
+        NO_MATCH = new Match();
+    
+        for (var type in SLUR.ObjectType) {
+            if (SLUR.ObjectType.hasOwnProperty(type) && SLUR.ObjectType[type]) {
+                Primitives[type] = new BaseType(SLUR.ObjectType[type], type);
+            }
+        }
+    }());
+    
+    function testSuite() {
+        var baseTypeTests = [
+            function testParameter () {
+                TEST.isFalse(Primitives.NULL.isParameterized());
+                TEST.isFalse(Primitives.FIX_NUM.involves(new Parameter()));
+                TEST.isEmpty(findParameters(Primitives.FIX_NUM));
+            },
+            function testEquals () {
+                TEST.equals(Primitives.NULL.type, SLUR.ObjectType.NULL);
+                TEST.isFalse(Primitives.FIX_NUM.equals(Primitives.REAL));
+            },
+            function testMatch () {
+                TEST.isTrue(Primitives.STRING.match(Primitives.STRING).matches);
+                TEST.isFalse(Primitives.SYMBOL.match(Primitives.NULL).matches);
+            },
+            function testSubstitute () {
+                TEST.equals(Primitives.STRING.substitute([]), Primitives.STRING);
+            },
+            function testToString () {
+                TEST.equals(Primitives.NULL.toString(), "NULL");
+                TEST.equals(Primitives.SYMBOL.toString(), "SYMBOL");
+            }
+        ];
+        
+        var cons = new ConsType(Primitives.REAL, Primitives.STRING),
+            pcar = new ConsType(new Parameter(), Primitives.STRING),
+            pcdr = new ConsType(Primitives.REAL, new Parameter());
 
-    MATCHED = new Match([]);
-    NO_MATCH = new Match();
+        var consTypeTests = [
+        	function testParameter() {                  
+                TEST.isFalse(cons.isParameterized());
+                TEST.isFalse(cons.involves(new Parameter()));
 
+                TEST.isTrue(pcar.isParameterized());
+                TEST.isTrue(pcdr.isParameterized());
+                TEST.isTrue(pcar.involves(pcar.carType));
+                TEST.isTrue(pcdr.involves(pcdr.cdrType));
+
+                TEST.isEmpty(findParameters(cons));
+                TEST.equals(findParameters(pcar).length, 1);
+                TEST.equals(findParameters(pcdr).length, 1);
+            },
+            function testEquals() {
+                TEST.isTrue(cons.equals(cons));
+                TEST.isTrue(cons.equals(new ConsType(Primitives.REAL, Primitives.STRING)));
+                TEST.isFalse(cons.equals(pcar));
+                TEST.isFalse(pcar.equals(pcdr));
+            },
+            function testMatch() {
+                var match = pcar.match(cons);
+
+                TEST.isTrue(cons.match(cons).matches);
+                TEST.isFalse(cons.match(pcar).matches);
+                TEST.isFalse(cons.match(pcdr).matches);
+                TEST.isFalse(pcar.match(pcdr).matches);
+                TEST.isFalse(pcdr.match(pcar).matches);
+
+                TEST.isTrue(match.matches);
+                TEST.equals(match.mappings.length, 1);
+                TEST.equals(match.mappings[0].parameter, pcar.carType);
+                TEST.equals(match.mappings[0].type, cons.carType);
+
+                match = pcdr.match(cons);
+                
+                TEST.isTrue(match.matches);
+                TEST.equals(match.mappings.length, 1);
+                TEST.equals(match.mappings[0].parameter, pcdr.cdrType);
+                TEST.equals(match.mappings[0].type, cons.cdrType);
+
+                TEST.isFalse(pcar.match(Primitives.REAL).matches);
+                TEST.isFalse(pcar.match(new ConsType(Primitives.REAL, Primitives.SYMBOL)).matches);
+            },
+            function testSubsitute() {
+                var p = new Parameter(),
+                    parameterized = new ConsType(p, Primitives.REAL),
+                    target = new ConsType(Primitives.STRING, Primitives.REAL),
+                    match = parameterized.match(target),
+                    result = parameterized.substitute(match.mappings);
+                    
+                TEST.isTrue(result.equals(target));
+
+                p = new Parameter();
+                parameterized = new ConsType(Primitives.SYMBOL, p);
+                target = new ConsType(Primitives.SYMBOL, Primitives.FIX_NUM);
+                match = parameterized.match(target);
+                result = parameterized.substitute(match.mappings);
+                TEST.isTrue(result.equals(target));
+            },
+            function testToString() {
+                TEST.equals(cons.toString(), "Cons[REAL, STRING]");
+            }
+        ];
+        
+        TEST.run("BaseType", baseTypeTests);
+        TEST.run("ConsType", consTypeTests);
+    }
+
+    testSuite();
+    
     return {
         Parameter: Parameter,
         BaseType: BaseType,
