@@ -1,40 +1,30 @@
-var SLUR_TYPES = (function () {
+var SLUR_TYPES = (function (SLUR) {
     "use strict";
 
-/*
-public interface Type {
-    public Match match(Type other);
-    public boolean involves(Parameter parameter);
-    public boolean isParameterized();
-    public void findParameters(Set<Parameter> result);
-    public Type substitute(List<ParameterMapping> mappings);
-}
-*/
-
     var parameterID = 2001,
-        MATCH = null,
+        MATCHED = null,
         NO_MATCH = null;
-    
+
     function Parameter() {
         this.id = parameterID;
         parameterID += 1;
     }
-    
+
     Parameter.prototype.match = function (other) {
         if (this.equals(other)) {
-            return MATCH;
+            return MATCHED;
         }
         return new Match(this, other);
     };
-    
+
     Parameter.prototype.involves = function (parameter) {
         return this.equals(parameter);
     };
-    
+
     Parameter.prototype.equals = function (other) {
         return other.id === this.id;
     };
-    
+
     Parameter.prototype.substitute = function (mappings) {
         for (var m = 0; m < mappings.length; ++m) {
             var map = mappings[m];
@@ -44,11 +34,11 @@ public interface Type {
         }
         return this;
     };
-    
+
     Parameter.prototype.findParameters = function (result) {
         result.add(this);
     };
-    
+
     Parameter.prototype.toString = function () {
         return "P[" + this.parameterID + "]";
     };
@@ -60,7 +50,7 @@ public interface Type {
         this.parameter = parameter;
         this.type = type;
     }
-    
+
     ParameterMapping.prototype.substitute = function (other) {
         if (other.type.involves(this.parameter)) {
             return false;
@@ -68,49 +58,48 @@ public interface Type {
         var mappings = [other];
         this.type = this.type.substitute(mappings);
     };
-    
+
     ParameterMapping.prototype.equals = function (other) {
         return this.parameter.id == other.parameter.id && this.type.equals(other.type);
     };
 
-    
     function BaseType(type) {
         if (!type) {
             throw "Type expected";
         }
         this.type = type;
     }
-    
+
     BaseType.prototype.match = function (other) {
         if (this.equals(other)) {
-            return  MATCH;
+            return MATCHED;
         }
         return NO_MATCH;
     };
-    
+
     BaseType.prototype.equals = function (other) {
         return other.type && other.type === this.type;
     };
-    
+
     BaseType.prototype.involves = function (other) {
         return false;
     };
-    
+
     BaseType.prototype.isParameterized = function () {
         return false;
     };
-    
+
     BaseType.prototype.substitute = function (mappings) {
         return this;
     };
-    
+
     BaseType.prototype.findParameters = function (result) {
     };
-    
+
     BaseType.prototype.toString = function () {
         return "BaseType" + this.type;
     };
-    
+
     function ConsType(carType, cdrType) {
         if (!carType || !cdrType) {
             throw "Expected car and cdr types";
@@ -118,7 +107,7 @@ public interface Type {
         this.carType = carType;
         this.cdrType = cdrType;
     }
-    
+
     ConsType.prototype.match = function (other) {
         if (other.carType) {
             var match = this.car.match(other.car);
@@ -133,11 +122,11 @@ public interface Type {
         }
         return NO_MATCH;
     };
-    
+
     ConsType.prototype.equals = function (other) {
         return other.carType && this.carType.equals(other.carType) && this.cdrType.equals(other.cdrType);
     };
-    
+
     ConsType.prototype.involves = function (parameter) {
         return this.car.involves(parameter) || this.cdr.involves(parameter);
     };
@@ -163,33 +152,33 @@ public interface Type {
     ConsType.prototype.toString = function () {
         return "Cons[" + this.car.toString() + ", " + this.cdr.toString() + "]";
     };
-    
+
     function ListType(elementType) {
         if (!elementType) {
             throw "Expected list element type";
         }
         this.elementType = elementType;
     }
-    
+
     ListType.prototype.match = function (other) {
         if (other.elementType) {
             return this.elementType.match(other.elementType);
         }
         return NO_MATCH;
     };
-    
+
     ListType.prototype.equals = function (other) {
         return other.elementType && this.elementType.equals(other.elementType);
     };
-    
+
     ListType.prototype.involves = function (parameter) {
         return this.elementType.involves(parameter);
     };
-    
+
     ListType.prototype.isParameterized = function () {
         return this.elementType.isParameterized();
     };
-    
+
     ListType.prototype.substitute = function (mappings) {
         var elementType = this.elementType.substitute(mappings);
         if (this.elementType.equals(elementType)) {
@@ -197,15 +186,15 @@ public interface Type {
         }
         return new ListType(elementType);
     };
-    
+
     ListType.prototype.findParameters = function (result) {
         return this.elementType.findParameters(result);
     };
-    
+
     ListType.prototype.toString = function () {
         return "List[" + this.elementType.toString() + "]";
     };
-    
+
     function Maybe(maybeType) {
         if (!maybeType) {
             throw "Expected list element type";
@@ -218,29 +207,29 @@ public interface Type {
         }
         this.maybeType = maybeType;
     }
-    
+
     Maybe.prototype.match = function (other) {
         if (other.maybeType) {
             return this.maybeType.match(other.maybeType);
         }
         if (other.type == SLUR.ObjectType.NULL) {
-            return MATCH;
+            return MATCHED;
         }
         return NO_MATCH;
     };
-    
+
     Maybe.prototype.equals = function (other) {
         return other.maybeType && this.maybeType.equals(other.maybeType);
     };
-    
+
     Maybe.prototype.involves = function (parameter) {
         return this.maybeType.involves(parameter);
     };
-    
+
     Maybe.prototype.isParameterized = function () {
         return this.maybeType.isParameterized();
     };
-    
+
     Maybe.prototype.substitute = function (mappings) {
         var maybeType = this.maybeType.substitute(mappings);
         if (this.maybeType.equals(maybeType)) {
@@ -248,15 +237,15 @@ public interface Type {
         }
         return new Maybe(maybeType);
     };
-    
+
     Maybe.prototype.findParameters = function (result) {
         return this.maybeType.findParameters(result);
     };
-    
+
     Maybe.prototype.toString = function () {
         return "Maybe[" + this.maybeType.toString() + "]";
     };
-    
+
     function FunctionType(returnType, argumentTypes) {
         if (!returnType || !Array.isArray(argumentTypes)) {
             throw "Expected return and argument types";
@@ -264,7 +253,7 @@ public interface Type {
         this.returnType = returnType;
         this.argumentTypes = argumentTypes;
     }
-    
+
     FunctionType.prototype.match = function (other) {
         if (other.returnType) {
             if (other.argumentTypes.length != this.argumentTypes.length) {
@@ -284,7 +273,7 @@ public interface Type {
         }
         return NO_MATCH;
     };
-    
+
     FunctionType.prototype.equals = function (other) {
         if (!this.returnType.equals(other.returnType))  {
             return false;
@@ -299,7 +288,7 @@ public interface Type {
         }
         return true;
     };
-    
+
     FunctionType.prototype.involves = function(parameter) {
         if (this.returnType.involves(parameter)) {
             return true;
@@ -311,7 +300,7 @@ public interface Type {
         }
         return false;
     };
-    
+
     FunctionType.prototype.isParameterized = function() {
         if (this.returnType.isParameterized()) {
             return true;
@@ -323,7 +312,7 @@ public interface Type {
         }
         return false;
     };
-    
+
     FunctionType.prototype.substitute = function(mappings) {
         var newReturn = this.returnType.substitute(mappings),
             argTypes = [],
@@ -339,7 +328,7 @@ public interface Type {
         }
         return new FunctionType(newReturn, argTypes);
     };
-    
+
     FunctionType.prototype.findParameters = function(result) {
         this.returnType.findParameters(result);
         for (var a = 0; a < this.argumentTypes.length; ++a) {
@@ -347,7 +336,7 @@ public interface Type {
         }
         return false;
     };
-    
+
     FunctionType.prototype.toString = function() {
         var result = "F[";
         for (var a = 0; a < this.argumentTypes.length; ++a) {
@@ -359,7 +348,7 @@ public interface Type {
         return result + "]->[" + this.returnType.toString() + "]";
     };
 
-    
+
     function Match(parameter, type) {
         this.matches = true;
         this.mappings = [];
@@ -371,7 +360,7 @@ public interface Type {
             this.map(parameter, type);
         }
     }
-    
+
     Match.prototype.match = function (parameter, type) {
         if (type.involves(parameter)) {
             this.matches = false;
@@ -379,7 +368,7 @@ public interface Type {
             this.matches = false;
         }
     };
-    
+
     Match.prototype.find = function (parameter) {
         for (var m = 0; m < this.mappings; ++m) {
             var mapping = this.mappings[m];
@@ -389,7 +378,7 @@ public interface Type {
         }
         return null;
     };
-    
+
     Match.prototype.add = function (mapping) {
         var same = find(mapping.parameter());
         if (same === null) {
@@ -413,7 +402,7 @@ public interface Type {
         }
         return true;
     };
-    
+
     Match.prototype.addAndSubstitute = function (mapping) {
         var addType = mapping.type.substitute(this.mappings);
         if (addType.involves(mapping.parameter)) {
@@ -428,7 +417,7 @@ public interface Type {
         this.mappings.push(toAdd);
         return true;
     };
-    
+
     Match.prototype.combine = function (other) {
         if (!other) {
             throw "Expected match";
@@ -442,7 +431,7 @@ public interface Type {
         if (other.mappigns.length === 0) {
             return this;
         }
-        
+
         var combined = new Match(other.mappings);
         for (var m = 0; m < this.mappings.length; ++m) {
             if (!combined.add(this.mappings[m])) {
@@ -451,47 +440,52 @@ public interface Type {
         }
         return combined;
     };
-    
-/*
-public class CompareTypes {
-    public static boolean equalModuloParameters(Type first, Type second) {
+
+    function typesEqualModuloParamaters(first, second) {
         if (first.isParameterized() && second.isParameterized()) {
-            Match match = first.match(second);
-            if (!match.matches()) {
+            var match = first.match(second);
+            if (!match.matches) {
                 return false;
             }
-            for (ParameterMapping mapping : match.mappings()) {
-                if (!(mapping.type() instanceof Parameter)) {
+            for (var m = 0; m < match.mappings.length; ++m) {
+                if (!match.mappings[m].type.id) {
                     return false;
                 }
             }
-            first = first.substitute(match.mappings());
+            first = first.substitute(match.mappings);
         }
         return first.equals(second);
     }
-}
 
-
-public class ParameterUtils {
-    public static Set<Parameter> findParameters(Type type) {
-        Set<Parameter> result = new HashSet<Parameter>();
+    function findParameters(type) {
+        var result = [];
         type.findParameters(result);
         return result;
     }
 
-    public static Type uniqueParameters(Type type) {
-        Set<Parameter> parameters = findParameters(type);
-        if (parameters.isEmpty()) {
+    function makeParmatersUnique(type) {
+        var parameters = findParameters(type);
+        if (parameters.length === 0) {
             return type;
         }
-        List<ParameterMapping> mappings = new java.util.ArrayList<ParameterMapping>();
-        for (Parameter p : parameters) {
-            mappings.add(new ParameterMapping(p, new Parameter()));
+        var mappings = [];
+        for (var p = 0; p < parameters.length; ++p) {
+            mappings.push(new ParameterMapping(parameters[p], new Parameter()));
         }
         return type.substitute(mappings);
     }
-}
-*/
+
+    MATCHED = new Match([]);
+    NO_MATCH = new Match();
+
     return {
+        Parameter: Parameter,
+        BaseType: BaseType,
+        ConsType: ConsType,
+        ListType: ListType,
+        Maybe: Maybe,
+        Match: Match,
+        typesEqualModuloParamaters: typesEqualModuloParamaters,
+        makeParmatersUnique: makeParmatersUnique
     };
-}());
+}(SLUR));
