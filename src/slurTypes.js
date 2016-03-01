@@ -21,14 +21,18 @@ public interface Type {
     }
     
     Parameter.prototype.match = function (other) {
-        if (other == this) {
+        if (this.equals(other)) {
             return MATCH;
         }
         return new Match(this, other);
     };
     
     Parameter.prototype.involves = function (parameter) {
-        return this.id === parameter.id;
+        return this.equals(parameter);
+    };
+    
+    Parameter.prototype.equals = function (other) {
+        return other.id === this.id;
     };
     
     Parameter.prototype.substitute = function (mappings) {
@@ -118,11 +122,11 @@ public interface Type {
     ConsType.prototype.match = function (other) {
         if (other.carType) {
             var match = this.car.match(other.car);
-            if (!match.matches()) {
+            if (!match.matches) {
                 return match;
             }
             var cdrMatch = this.cdr.match(other.cdr);
-            if (!cdrMatch.matches()) {
+            if (!cdrMatch.matches) {
                 return cdrMatch;
             }
             return match.combine(cdrMatch);
@@ -267,12 +271,12 @@ public interface Type {
                 return NO_MATCH;
             }
             var match = this.returnType.match(other.returnType);
-            if (!match.matches()) {
+            if (!match.matches) {
                 return NO_MATCH;
             }
             for (var a = 0; a < this.argumentTypes.length; ++a) {
                 match.combine(this.argumentTypes[a].match(other.argumentTypes[a]));
-                if (!match.matches()) {
+                if (!match.matches) {
                     return NO_MATCH;
                 }
             }
@@ -355,122 +359,100 @@ public interface Type {
         return result + "]->[" + this.returnType.toString() + "]";
     };
 
-/*
-public class Match {
-    private boolean mMatched = true;
-    private List<ParameterMapping> mMappings = new ArrayList<ParameterMapping>();
-
-    private Match(boolean matched) {
-        mMatched = matched;
-    }
-
-    public Match(Parameter parameter, Type type) {
-        map(parameter, type);
-    }
-
-    protected Match(List<ParameterMapping> mappings) {
-        mMappings.addAll(mappings);
-    }
-
-    public boolean matches() {
-        return mMatched;
-    }
-
-    public List<ParameterMapping> mappings() {
-        return mMappings;
-    }
-
-    public void map(Parameter parameter, Type type) {
-        if (type.involves(parameter)) {
-            mMatched = false;
+    
+    function Match(parameter, type) {
+        this.matches = true;
+        this.mappings = [];
+        if (!parameter) {
+            this.matched = false;
+        } else if (Array.isArray(parameter)) {
+            this.mappings = parameter.slice();
         } else {
-            boolean added = add(parameter, type);
-            if (!added) {
-                mMatched = false;
-            }
+            this.map(parameter, type);
         }
     }
-
-    private boolean add(Parameter parameter, Type type) {
-        return add(new ParameterMapping(parameter, type));
-    }
-
-    private ParameterMapping find(Parameter parameter) {
-        for (ParameterMapping map : mMappings) {
-            if (parameter == map.parameter()) {
+    
+    Match.prototype.match = function (parameter, type) {
+        if (type.involves(parameter)) {
+            this.matches = false;
+        } else if(!this.add(new ParameterMapping(parameter, type))) {
+            this.matches = false;
+        }
+    };
+    
+    Match.prototype.find = function (parameter) {
+        for (var m = 0; m < this.mappings; ++m) {
+            var mapping = this.mappings[m];
+            if (mapping.parameter.equals(parameter)) {
                 return map;
             }
         }
         return null;
-    }
-
-    private boolean add(ParameterMapping toAdd) {
-        ParameterMapping same = find(toAdd.parameter());
-        if (same == null) {
-            return addAndSubstitute(toAdd);
+    };
+    
+    Match.prototype.add = function (mapping) {
+        var same = find(mapping.parameter());
+        if (same === null) {
+            return this.addAndSubstitute(mapping);
         }
-        if (toAdd.equals(same)) {
+        if (mapping.equals(same)) {
             return true;
         }
 
-        Match match = same.type().match(toAdd.type());
-        if (!match.matches()) {
-            match = toAdd.type().match(same.type());
-            if (!match.matches()) {
+        var match = same.type.match(mapping.type);
+        if (!match.matches) {
+            match = mapping.type.match(same.type);
+            if (!match.matches) {
                 return false;
             }
         }
-        for (ParameterMapping newMap : match.mappings()) {
-            if (!add(newMap)) {
+        for (var m = 0; m < match.mappings.length; ++m) {
+            if (!this.add(match.mappings[m])) {
                 return false;
             }
         }
         return true;
-    }
-
-    private boolean addAndSubstitute(ParameterMapping toAdd) {
-        Type addType = toAdd.type().substitute(mMappings);
-        if (addType.involves(toAdd.parameter())) {
+    };
+    
+    Match.prototype.addAndSubstitute = function (mapping) {
+        var addType = mapping.type.substitute(this.mappings);
+        if (addType.involves(mapping.parameter)) {
             // Cyclic dependencies are not allowed.
             return false;
         }
-        for (ParameterMapping map : mMappings) {
-            if (!map.substitute(toAdd)) {
+        for (var m = 0; m < this.mappings.length; ++m) {
+            if (!this.mappings[m].substitute(mapping)) {
                 return false;
             }
         }
-        mMappings.add(toAdd);
+        this.mappings.push(toAdd);
         return true;
-    }
-
-    public Match combine(Match other) {
-        assert(other != null);
-        if (!mMatched || !other.mMatched) {
+    };
+    
+    Match.prototype.combine = function (other) {
+        if (!other) {
+            throw "Expected match";
+        }
+        if (!this.matches || !other.matches) {
             return NO_MATCH;
         }
-        if (mMappings.isEmpty()) {
+        if (this.mappings.length === 0) {
             return other;
         }
-        if (other.mMappings.isEmpty()) {
+        if (other.mappigns.length === 0) {
             return this;
         }
-        Match combined = new Match(other.mMappings);
-        for (ParameterMapping map : mMappings) {
-            if (!combined.add(map)) {
+        
+        var combined = new Match(other.mappings);
+        for (var m = 0; m < this.mappings.length; ++m) {
+            if (!combined.add(this.mappings[m])) {
                 return NO_MATCH;
             }
         }
         return combined;
-    }
-
-    public static Match result(boolean matched) {
-        return matched ? MATCHED : NO_MATCH;
-    }
-
-    public static final Match MATCHED = new Match(true);
-    public static final Match NO_MATCH = new Match(false);
-}
-
+    };
+    
+/*
 public class CompareTypes {
     public static boolean equalModuloParameters(Type first, Type second) {
         if (first.isParameterized() && second.isParameterized()) {
