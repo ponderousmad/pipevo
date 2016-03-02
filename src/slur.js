@@ -1,4 +1,4 @@
-var SLUR = (function () {
+var SLUR = (function (TEST) {
     "use strict";
 
     function SlurException(name, message, environment) {
@@ -368,7 +368,7 @@ var SLUR = (function () {
     };
 
     Statements.prototype.toString = function () {
-        return body.toString();
+        return this.body.toString();
     };
 
     function SpecialForm(name, invoke, compile) {
@@ -511,7 +511,7 @@ var SLUR = (function () {
 
     function quoteInvoke(env, args) {
         if (!isCons(args)) {
-            throw new EvalException("Cons expected.", env);
+            throw evalException("Cons expected.", env);
         }
         return args.car;
     }
@@ -656,7 +656,7 @@ var SLUR = (function () {
         return result + ")";
     };
 
-    CondClauses.prototype.compileClauses = function () {
+    CondClauses.prototype.compileClauses = function (env) {
         for (var c = 0; c < this.clauses.length; ++c) {
             var clause = this.clauses[c];
             clause.predicate = clause.predicate.compile(env);
@@ -734,7 +734,7 @@ var SLUR = (function () {
 
     function lambdaCompile(env, args) {
         if (!isCons(args)) {
-            throw evalExpression("Malformed lambda.", env);
+            throw evalException("Malformed lambda.", env);
         }
         var func = buildFunction(env, null, args.car, args.cdr);
         func.compileBody(env);
@@ -775,7 +775,7 @@ var SLUR = (function () {
     };
 
     function processLet(env, args, sequential, compile) {
-        var result = new LetExpression(sequential);
+        var result = new LetExpression(sequential),
             frame = new Frame(env, null);
 
         if (isCons(args)) {
@@ -919,7 +919,7 @@ var SLUR = (function () {
         return buildFunction(env, spec.car.name, spec.cdr, body);
     }
 
-    function defineCheckTarget(target) {
+    function defineCheckTarget(env, target) {
         if (!isCons(target)) {
             throw evalException("Malformed define", env);
         }
@@ -936,7 +936,7 @@ var SLUR = (function () {
             var func = processDefine(args.car, args.cdr, env);
             return env.bindFunction(func);
         } else if (isSymbol(args.car)) {
-            defineCheckTarget(args.cdr);
+            defineCheckTarget(env, args.cdr);
             return env.bind(args.car.name, args.cdr.car.eval(env));
         } else {
             throw evalException("Malformed define", env);
@@ -1221,13 +1221,13 @@ var SLUR = (function () {
         }
         if (this.atDot()) {
             if (this.atEnd()) {
-                throw new ParseException("Missing ')'");
+                throw parseException("Missing ')'");
             }
             var peek = this.offset + 1;
             if (peek < this.code.length && this.isWhitespace(this.code[peek])) {
                 this.advance(1);
                 if (atStart) {
-                    return new Cons(NULL, parseCons(false, true));
+                    return new Cons(NULL, this.parseCons(false, true));
                 }
                 if (justCdr) {
                     throw parseException("Multiple '.' in list");
@@ -1272,7 +1272,7 @@ var SLUR = (function () {
             this.advance(1);
         }
         if (this.atEnd()) {
-            throw new ParseException("Could not find end of string.");
+            throw parseException("Could not find end of string.");
         }
         this.advance(1); // Skip closing quote.
         return new StringValue(result);
@@ -1325,7 +1325,7 @@ var SLUR = (function () {
                 var exponentStart = this.offset,
                     exponentEnd = this.consumeDigits();
                 if (exponentStart === this.offset) {
-                    throw new ParseException("Number expected, not found:" + this.codeFrom(start));
+                    throw parseException("Number expected, not found:" + this.codeFrom(start));
                 }
             }
         }
@@ -1613,7 +1613,7 @@ public class Interpreter {
             function testBadCons() {
                 try {
                     parse(")");
-                    fail("Exception expected");
+                    TEST.fail("Exception expected");
                 } catch(e) {
                 }
             },
@@ -1736,4 +1736,4 @@ public class Interpreter {
         baseEnvironment: baseEnvironment,
         defaultEnvironment: defaultEnvironment
     };
-}());
+}(TEST));
