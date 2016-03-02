@@ -41,11 +41,16 @@ var SLUR_TYPES = (function (SLUR) {
     };
 
     Parameter.prototype.findParameters = function (result) {
+        for (var i = 0; i < result.length; ++i) {
+            if(result[i].equals(this)) {
+                return;
+            }
+        }
         result.push(this);
     };
 
     Parameter.prototype.toString = function () {
-        return "P[" + this.parameterID + "]";
+        return "P[" + this.id + "]";
     };
 
     function ParameterMapping(parameter, type) {
@@ -219,10 +224,10 @@ var SLUR_TYPES = (function (SLUR) {
         if (other.maybeType) {
             return this.maybeType.match(other.maybeType);
         }
-        if (other.type == SLUR.ObjectType.NULL) {
+        if (other.type === SLUR.ObjectType.NULL) {
             return MATCHED;
         }
-        return NO_MATCH;
+        return this.maybeType.match(other);
     };
 
     Maybe.prototype.equals = function (other) {
@@ -271,7 +276,7 @@ var SLUR_TYPES = (function (SLUR) {
                 return NO_MATCH;
             }
             for (var a = 0; a < this.argumentTypes.length; ++a) {
-                match.combine(this.argumentTypes[a].match(other.argumentTypes[a]));
+                match = match.combine(this.argumentTypes[a].match(other.argumentTypes[a]));
                 if (!match.matches) {
                     return NO_MATCH;
                 }
@@ -282,7 +287,10 @@ var SLUR_TYPES = (function (SLUR) {
     };
 
     FunctionType.prototype.equals = function (other) {
-        if (!this.returnType.equals(other.returnType))  {
+        if (!other.returnType) {
+            return false;
+        }
+        if (!this.returnType.equals(other.returnType)) {
             return false;
         }
         if (this.argumentTypes.length != other.argumentTypes.length) {
@@ -326,7 +334,7 @@ var SLUR_TYPES = (function (SLUR) {
             changed = !newReturn.equals(this.returnType);
         for (var a = 0; a < this.argumentTypes.length; ++a) {
             argTypes.push(this.argumentTypes[a].substitute(mappings));
-            if (!changed && !argTypes[i].equals(this.argumentTypes[a])) {
+            if (!changed && !argTypes[a].equals(this.argumentTypes[a])) {
                 changed = true;
             }
         }
@@ -363,8 +371,8 @@ var SLUR_TYPES = (function (SLUR) {
             this.matches = false;
         } else if (Array.isArray(parameter)) {
             this.mappings = parameter.slice();
-        } else {
-            this.add(new ParameterMapping(parameter, type));
+        } else if(!this.add(new ParameterMapping(parameter, type))) {
+            this.matches = false;
         }
     }
 
@@ -377,7 +385,7 @@ var SLUR_TYPES = (function (SLUR) {
     };
 
     Match.prototype.find = function (parameter) {
-        for (var m = 0; m < this.mappings; ++m) {
+        for (var m = 0; m < this.mappings.length; ++m) {
             var mapping = this.mappings[m];
             if (mapping.parameter.equals(parameter)) {
                 return mapping;
@@ -702,8 +710,8 @@ var SLUR_TYPES = (function (SLUR) {
             function testSubstitute() {
                 var p = new Parameter(),
                     list = new ListType(p),
-                    target = new ListType(Primitives.STRING);
-                    match = list.match(target);
+                    target = new ListType(Primitives.STRING),
+                    match = list.match(target),
                     result = list.substitute(match.mappings);
                 TEST.isTrue(result.equals(target));
 
@@ -721,14 +729,14 @@ var SLUR_TYPES = (function (SLUR) {
                 var maybe = new Maybe(Primitives.FIX_NUM);
                 TEST.isFalse(maybe.isParameterized());
                 TEST.isFalse(maybe.involves(new Parameter()));
-                TEST.isTrue(findParameters(maybe).isEmpty());
+                TEST.isEmpty(findParameters(maybe));
 
                 var p = new Parameter();
                 maybe = new Maybe(p);
 
                 TEST.isTrue(maybe.isParameterized());
                 TEST.isTrue(maybe.involves(p));
-                TEST.isTrue(findParameters(maybe).contains(p));
+                TEST.inList(findParameters(maybe), p);
             },
             function testEquals() {
                 var maybe = new Maybe(Primitives.REAL);
@@ -813,9 +821,9 @@ var SLUR_TYPES = (function (SLUR) {
 
                 var func2  = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]),
                     again2 = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]);
-                var notFunc= new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.SYMBOL]);
+                var unfunc2= new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.SYMBOL]);
                 TEST.isTrue(func2.equals(again2));
-                TEST.isFalse(func2.equals(notFunc));
+                TEST.isFalse(func2.equals(unfunc2));
             },
             function testMatch() {
                 var func = new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]),
@@ -840,10 +848,10 @@ var SLUR_TYPES = (function (SLUR) {
                 TEST.isTrue(match.mappings[0].type.equals(q));
 
                 var func2  = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]),
-                    again2 = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]);
-                    notfunc= new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.SYMBOL]);
+                    again2 = new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.STRING]),
+                    unfunc2= new FunctionType(Primitives.BOOL, [Primitives.STRING,Primitives.SYMBOL]);
                 TEST.isTrue(func2.match(again2).matches);
-                TEST.isFalse(func2.match(notfunc).matches);
+                TEST.isFalse(func2.match(unfunc2).matches);
                 TEST.isFalse(func2.match(funcP).matches);
             },
             function testSubstitute() {
@@ -880,8 +888,8 @@ var SLUR_TYPES = (function (SLUR) {
         
         var matchTests = [
         	function testResult() {
-                TEST.isTrue(MATCH.matches);
-                TEST.isEmpty(MATCH.mappings);
+                TEST.isTrue(MATCHED.matches);
+                TEST.isEmpty(MATCHED.mappings);
                 
                 TEST.isFalse(NO_MATCH.matches);
                 TEST.isEmpty(NO_MATCH.mappings);
@@ -895,15 +903,15 @@ var SLUR_TYPES = (function (SLUR) {
                 TEST.same(match.mappings[0].parameter, p);
                 TEST.isTrue(match.mappings[0].type.equals(Primitives.FIX_NUM));
 
-                match.map(q, Primitives.STRING);
+                TEST.isTrue(match.add(new ParameterMapping(q, Primitives.STRING)));
                 TEST.isTrue(match.matches);
                 TEST.equals(match.mappings.length, 2);
                 TEST.same(match.mappings[1].parameter, q);
             },
             function testCombinePassFail() {
-                TEST.isTrue(MATCH.combine(MATCH).matches);
-                TEST.isFalse(MATCH.combine(NO_MATCH).matches);
-                TEST.isFalse(NO_MATCH.combine(MATCH).matches);
+                TEST.isTrue(MATCHED.combine(MATCHED).matches);
+                TEST.isFalse(MATCHED.combine(NO_MATCH).matches);
+                TEST.isFalse(NO_MATCH.combine(MATCHED).matches);
                 TEST.isFalse(NO_MATCH.combine(NO_MATCH).matches);
             },
             function testCombineMatchPassFail() {
@@ -912,10 +920,10 @@ var SLUR_TYPES = (function (SLUR) {
 
                 TEST.isFalse(match.combine(NO_MATCH).matches);
                 TEST.isFalse(NO_MATCH.combine(match).matches);
-                TEST.isTrue(match.combine(MATCH).matches);
-                TEST.isTrue(MATCH.combine(match).matches);
-                TEST.equals(match.combine(MATCH).mappings, match.mappings);
-                TEST.equals(MATCH.combine(match).mappings, match.mappings);
+                TEST.isTrue(match.combine(MATCHED).matches);
+                TEST.isTrue(MATCHED.combine(match).matches);
+                TEST.equals(match.combine(MATCHED).mappings, match.mappings);
+                TEST.equals(MATCHED.combine(match).mappings, match.mappings);
             },
             function testCombine() {
                 var p = new Parameter(),
@@ -927,11 +935,11 @@ var SLUR_TYPES = (function (SLUR) {
                 TEST.isTrue(combined.matches);
                 TEST.equals(combined.mappings.length, 2);
 
-                var mappings = combined.mappings;
-                    m1 = mappings[0];
+                var mappings = combined.mappings,
+                    m1 = mappings[0],
                     m2 = mappings[1];
                 TEST.equals(mappings.length, 2);
-                if(m1.parameter.equals(q)) {
+                if (m1.parameter.equals(q)) {
                     var temp = m1;
                     m1 = m2;
                     m2 = temp;
@@ -958,11 +966,11 @@ var SLUR_TYPES = (function (SLUR) {
                         
                     TEST.isTrue(combined.matches);
 
-                    var mappings = combined.mappings;
-                        m1 = mappings[0];
+                    var mappings = combined.mappings,
+                        m1 = mappings[0],
                         m2 = mappings[1];
                     TEST.equals(mappings.length, 2);
-                    if(m1.parameter.equals(q)) {
+                    if (m1.parameter.equals(q)) {
                         var temp = m1;
                         m1 = m2;
                         m2 = temp;
@@ -1004,7 +1012,7 @@ var SLUR_TYPES = (function (SLUR) {
                 TEST.isTrue(makeParametersUnique(new Maybe(p)).match(new Maybe(p)).matches);
 
                 var maybe = new Maybe(p);
-                TEST.isNotSame(makeParametersUnique(maybe), maybe);
+                TEST.notSame(makeParametersUnique(maybe), maybe);
                 TEST.isFalse(makeParametersUnique(maybe).equals(maybe));
             },
             function testUniqueList() {
@@ -1014,12 +1022,12 @@ var SLUR_TYPES = (function (SLUR) {
                 TEST.isTrue(makeParametersUnique(new ListType(p)).match(new ListType(p)).matches);
 
                 var list = new ListType(p);
-                TEST.isNotSame(makeParametersUnique(list), list);
+                TEST.notSame(makeParametersUnique(list), list);
                 TEST.isFalse(makeParametersUnique(list).equals(list));
             },
             function testUniqueParameter() {
                 var p = new Parameter();
-                TEST.isNotSame(makeParametersUnique(p),p);
+                TEST.notSame(makeParametersUnique(p), p);
                 TEST.isFalse(makeParametersUnique(p).equals(p));
             }
         ];
@@ -1079,7 +1087,7 @@ var SLUR_TYPES = (function (SLUR) {
                     q = new Parameter();
                 testCompareAreEqual(p, p);
                 testCompareAreEqual(p, q);
-                testCompareNotEqual(p, Primitives.TRUE);
+                testCompareNotEqual(p, Primitives.FIX_NUM);
                 testCompareAreEqual(new Maybe(p), new Maybe(p));
                 testCompareAreEqual(new ListType(p), new ListType(q));
             },
