@@ -181,7 +181,7 @@ var PIPES = (function () {
     Piece.prototype.getFarSide = function (side) {
         if (this.type.isSingle()) {
             return this.type.getFarSide(side);
-        } else if(this.type.isDual()) {
+        } else if (this.type.isDual()) {
             var firstFar = this.type.first.getFarSide(side);
             if (firstFar !== null) {
                 return firstFar;
@@ -194,9 +194,9 @@ var PIPES = (function () {
     Piece.prototype.isPipeAt = function (side) {
         if (this.type.isSingle()) {
             return this.type.start === side || this.type.end === side;
-        } else if(this.type.isDual()) {
+        } else if (this.type.isDual()) {
             return side !== null; // We've got sides everywhere.
-        } else if(this.type.isSource()) {
+        } else if (this.type.isSource()) {
             return this.type.outflow === side;
         }
     };
@@ -207,7 +207,7 @@ var PIPES = (function () {
                 this.full[0] = true;
                 return true;
             }
-        } else if(this.type.isDual()) {
+        } else if (this.type.isDual()) {
             if (this.type.first.start === side || this.type.first.end === side) {
                 this.full[0] = true;
                 return true;
@@ -216,8 +216,8 @@ var PIPES = (function () {
                 this.full[1] = true;
                 return true;
             }
-        } else if(this.type.isSource()) {
-            if (this.side !== null) {
+        } else if (this.type.isSource()) {
+            if (side !== null) {
                 this.full[0] = true;
                 return true;
             }
@@ -230,14 +230,14 @@ var PIPES = (function () {
             if (this.isPipeAt(side)) {
                 return this.full[0];
             }
-        } else if(this.type.isDual()) {
+        } else if (this.type.isDual()) {
             if (this.type.first.start === side || this.type.first.end === side) {
                 return this.full[0];
             }
             if (this.type.second.start === side || this.type.second.end === side) {
                 return this.full[1];
             }
-        } else if(this.type.isSource()) {
+        } else if (this.type.isSource()) {
             return this.full[0];
         }
         return false;
@@ -246,10 +246,10 @@ var PIPES = (function () {
     Piece.prototype.accept = function (visitor) {
         if (this.type.isSingle()) {
             visitor.pipe(this.type, this.full[0]);
-        } else if(this.type.isDual()) {
+        } else if (this.type.isDual()) {
             visitor.pipe(this.type.first, this.full[0]);
             visitor.pipe(this.type.second, this.full[1]);
-        } else if(this.type.isSource()) {
+        } else if (this.type.isSource()) {
             visitor.source(this.type.outflow, this.full[0]);
         }
     };
@@ -670,6 +670,204 @@ var PIPES = (function () {
     function createDefault(entropy) {
         return new Gameplay(12, 12, 5, 15, entropy);
     }
+    
+    function testSuite() {
+        function testSimple(type) {
+            var piece = new Piece(type);
+            
+            TEST.isFalse(piece.isFull(type.start));
+            TEST.isFalse(piece.isFull(type.end));
+            TEST.isFalse(piece.isFull(null));
+            piece.fill(type.start);
+            TEST.isTrue(piece.isFull(type.start));
+            TEST.isTrue(piece.isFull(type.end));
+            TEST.isFalse(piece.isFull(null));
+            
+            TEST.equals(piece.getFarSide(type.start), type.end);
+            TEST.equals(piece.getFarSide(type.end), type.start);
+            
+            for (var s = 0; s < OPPOSITES.length; ++s) {
+                var side = OPPOSITES[s];
+                if (side !== type.start && side !== type.end) {
+                    TEST.isNull(piece.getFarSide(side));
+                    TEST.isFalse(piece.isPipeAt(side));                    
+                }
+            }
+        }
+        
+        var simplePieceTests = [
+            function testHorizontal()  { testSimple(PieceTypes.HORIZONTAL); },
+            function testVertical()    { testSimple(PieceTypes.VERTICAL); },
+            function testTopLeft()     { testSimple(PieceTypes.TOP_LEFT); },
+            function testTopRight()    { testSimple(PieceTypes.TOP_RIGHT); },
+            function testBottomLeft()  { testSimple(PieceTypes.BOTTOM_LEFT); },
+            function testBottomRight() { testSimple(PieceTypes.BOTTOM_RIGHT); }
+        ];
+        
+        function fullnessTest(piece, type) {
+            TEST.isFalse(piece.isFull(null));
+            TEST.isFalse(piece.isFull(Side.TOP));
+            TEST.isFalse(piece.isFull(Side.BOTTOM));
+            TEST.isFalse(piece.isFull(Side.LEFT));
+            TEST.isFalse(piece.isFull(Side.RIGHT));
+
+            var filled = piece.fill(null);
+            TEST.isFalse(filled);
+            TEST.isFalse(piece.isFull(null));
+
+            filled = piece.fill(type.first.start);
+            TEST.isTrue(filled);
+
+            TEST.isFalse(piece.isFull(null));
+            TEST.isTrue(piece.isFull(type.first.start));
+            TEST.isTrue(piece.isFull(type.first.end));
+            TEST.isFalse(piece.isFull(type.second.start));
+            TEST.isFalse(piece.isFull(type.second.end));
+
+            filled = piece.fill(type.second.end);
+            TEST.isTrue(filled);
+
+            TEST.isFalse(piece.isFull(null));
+            TEST.isTrue(piece.isFull(Side.TOP));
+            TEST.isTrue(piece.isFull(Side.BOTTOM));
+            TEST.isTrue(piece.isFull(Side.LEFT));
+            TEST.isTrue(piece.isFull(Side.RIGHT));
+        }
+        
+        function dualSidesTest(piece, type) {
+            TEST.isTrue(piece.isPipeAt(type.start));
+            TEST.isTrue(piece.isPipeAt(type.end));
+            TEST.equals(piece.getFarSide(type.start), type.end);
+            TEST.equals(piece.getFarSide(type.end), type.start);
+        }
+
+        function testDual(type) {
+            var piece = new Piece(type);
+            fullnessTest(piece, type);
+            dualSidesTest(piece, type.first);
+            dualSidesTest(piece, type.second);
+        }
+        
+        var dualPieceTests = [
+            function testCross() { testDual(PieceTypes.CROSS); },
+            function testDualTopLeft() { testDual(PieceTypes.DUAL_TOP_LEFT); },
+            function testDualTopRight() { testDual(PieceTypes.DUAL_TOP_RIGHT); }
+        ];
+        
+        function testSource(type) {
+            var piece = new Piece(type);
+
+            TEST.isFalse(piece.isFull(null));
+            TEST.isFalse(piece.isFull(Side.TOP));
+
+            var filled = piece.fill(null);
+            TEST.isFalse(filled);
+
+            TEST.isFalse(piece.isFull(null));
+            TEST.isFalse(piece.isFull(Side.BOTTOM));
+
+            filled = piece.fill(Side.BOTTOM);
+            TEST.isTrue(filled);
+
+            TEST.isTrue(piece.isFull(null));
+            TEST.isTrue(piece.isFull(Side.LEFT));
+
+            for (var s = 0; s < OPPOSITES.length; ++s) {
+                var side = OPPOSITES[s];
+                if (type.outflow === side) {
+                    TEST.isTrue(piece.isPipeAt(side));
+                } else {
+                    TEST.isFalse(piece.isPipeAt(side));
+                }
+                TEST.isNull(piece.getFarSide(side));
+            }
+        }
+        
+        var sourcePieceTests = [
+            function testSourceTop() { testSource(PieceTypes.SOURCE_TOP); },
+            function testSourceBottom() { testSource(PieceTypes.SOURCE_BOTTOM); },
+            function testSourceLeft() { testSource(PieceTypes.SOURCE_LEFT); },
+            function testSourceRight() { testSource(PieceTypes.SOURCE_RIGHT); }
+        ];
+        
+        var pieceQueueTests = [
+            function testPeek() {
+                var testSize = 3,
+                    queue = new PieceQueue(testSize, Math.random),
+                    pieces = queue.queue;
+                TEST.notNull(pieces);
+                TEST.equals(pieces.length, testSize);
+                for (var p = 0; p < pieces.length; ++p) {
+                    TEST.notNull(pieces[p]);
+                    if (p > 0) {
+                        TEST.notSame(pieces[p], pieces[p-1]);
+                    }
+                }
+            },
+            function testNextPiece() {
+                var testSize = 3,
+                    queue = new PieceQueue(testSize, Math.random),
+                    peekPieces = queue.queue.slice();
+
+                for (var p = 0; p < testSize; ++p) {
+                    var nextPiece = queue.nextPiece();
+                    TEST.notNull(nextPiece);
+                    TEST.same(nextPiece, peekPieces[p]);
+                }
+            },
+            function testSize() {
+                var size = 4,
+                    queue = new PieceQueue(size, Math.random);
+                TEST.equals(queue.size, size);
+            },
+        ];
+        
+        var substrateTests = [
+            function testPlace() {
+                var WIDTH = 3,
+                    HEIGHT = 4,
+                    size = new SubstrateSize(WIDTH, HEIGHT),
+                    substrate = new Substrate(size),
+
+                    // Remember, this is an array of 3 "columns".
+                    pieces =[
+                        [
+                            new Piece(PieceTypes.BOTTOM_RIGHT),
+                            new Piece(PieceTypes.TOP_RIGHT),
+                            new Piece(PieceTypes.HORIZONTAL),
+                            new Piece(PieceTypes.HORIZONTAL)
+                        ], [
+                            new Piece(PieceTypes.HORIZONTAL),
+                            new Piece(PieceTypes.BOTTOM_LEFT),
+                            new Piece(PieceTypes.DUAL_TOP_RIGHT),
+                            new Piece(PieceTypes.DUAL_CROSS)
+                        ], [
+                            new Piece(PieceTypes.BOTTOM_LEFT),
+                            new Piece(PieceTypes.VERTICAL),
+                            new Piece(PieceTypes.TOP_LEFT),
+                            new Piece(PieceTypes.VERTICAL)
+                    ]];
+
+                for (var i = 0; i < WIDTH; ++i) {
+                    for (var j = 0; j < HEIGHT; ++j) {
+                        var position = new Position(size, i, j);
+                        TEST.isTrue(substrate.isEmpty(position));
+                        substrate.place(position, pieces[i][j]);
+                        TEST.isFalse(substrate.isEmpty(position));
+                        TEST.same(substrate.at(position), pieces[i][j]);
+                    }
+                }
+            }
+        ];
+        
+        TEST.run("SimplePiece", simplePieceTests);
+        TEST.run("DualPiece", dualPieceTests);
+        TEST.run("SourcePiece", sourcePieceTests);
+        TEST.run("PieceQueue", pieceQueueTests);
+        TEST.run("Substrate", substrateTests);
+    }
+    
+    testSuite();
 
     return {
         Side: Side,

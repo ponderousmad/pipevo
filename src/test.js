@@ -26,6 +26,7 @@ var TEST = (function () {
     TEST.isTrue = function (value) { if (!value) { fail(); } };
     TEST.isFalse = function (value) { if (value) { fail(); } };
     TEST.isNull = function (value) { if (value !== null) { fail(); } };
+    TEST.notNull = function (value) { if (value === null) { fail(); } };
     TEST.equals = function (a, b) { TEST.isTrue(a === b); };
     TEST.same = function (a, b) { TEST.isTrue(a == b); };
     TEST.notSame = function (a, b) { TEST.isFalse(a == b); };
