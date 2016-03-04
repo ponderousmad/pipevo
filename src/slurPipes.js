@@ -1,439 +1,213 @@
 var SLUR_PIPES = (function() {
     "use strict";
+
+    var GameType = {
+        GAME: 2048,
+        PIPE: 4096,
+        PIECE: 8192,
+        BOARD: 16384,
+        POSITION: 32768
+    };
+    
+    function PieceObj(piece) {
+        this.piece = piece;
+    }
+    SLUR.makeType(PieceObj, GameType.PIECE);
+    PieceObj.prototype.toString = function () { return "PIECE"; };
+    
+    function Game(game) {
+        this.game = game;
+    }
+    SLUR.makeType(Game, GameType.GAME);
+    Game.prototype.toString = function () { return "GAME"; };
+    
+    function Board(game, board) {
+        this.game = game;
+        this.board = board;
+    }
+    SLUR.makeType(Board, GameType.BOARD);
+    Board.prototype.toString = function () { return "BOARD"; };
+    
+    function Pipe(pipe) {
+        this.pipe = pipe;
+    }
+    SLUR.makeType(Pipe, GameType.BOARD);
+    Pipe.prototype.toString = function () { return "PIPE"; };
+    
+    function getGame(env, name) { return env.nameLookup(name).game; }
+    function getPiece(env, name) { return env.nameLookup(name).piece; }
+    function getSide(env, name) { return env.nameLookup(name).value; }
+    function getPipe(env, name) { return env.nameLookup(name).pipe; }
+    function getPosition(env, game, name) {
+        var p = env.nameLookup(name);
+        if (SLUR.isCons(p) && SLUR.isInt(p.car) && SLUR.isInt(p.cdr)) {
+            return game.position(p.car.value, p.cdr.value);
+        }
+        throw SLUR.evalException("Position must be of the form '(i . j)' where i and j are integers.", env);
+    }
+    
+    function createPosition(i, j) {
+        if (typeof j !== 'undefined') {
+            return new SLUR.Cons(new SLUR.FixNum(i), new SLUR.FixNum(j));
+        }
+        var pos = i;
+        return createPosition(pos.i, pos.j);
+    }
+    
+    function installConstants(env) {
+        var typeLookup = {};
+        for (var pieceType in PIPES.PieceTypes) {
+            if (PIPES.PieceType.hasOwnProperty(pieceType)) {
+                typeLookup[PIPES.PieceTypes[pieceType]] = pieceType;
+                env.add("pt" + pieceType, new SLUR.StringValue(pieceType));
+            }
+        }
+        for (var side in PIPES.Side) {
+            if (PIPES.Side.hasOwnProperty(s)) {
+                env.add("side" + side, new SLUR.FixNum(PIPES.Side[side]));
+            }
+        }
+        return typeLookup;
+    }
+    
+    var T = SLUR.TRUE,
+        F = SLUR.NULL;
+        
+    
+    function installGame(env) {
+        define("isGame?", ["g"], null, function (env) { return env.nameLookup("g").type() === GameType.GAME ? T : F; });
+        define("isGameOver?", ["g"], null, function (env) { return getGame(env, "g").isGameOver() ? T : F; });
+        define("gameWidth", ["g"], null, function (env) { return new SLUR.FixNum(getGame(env, "g").width()); });
+        define("gameHeight", ["g"], null, function (env) { return new SLUR.FixNum(getGame(env, "g").height()); });
+
+        define("gamePlace", ["g", "pos"], null, function (env) {
+            var game = getGame(env, "g");
+            return game.placeNext(getPosition(env, game, "pos")) ? T : F;
+        });
+
+        define("gameIsValidPos?", ["g", "pos"], null, function (env) {
+            return getPosition(env, getGame(env, "g"), "pos").valid() ? T : F;
+        });
+
+        define("gameIsEmpty?", ["g", "pos"], null, function (env) {
+            var game = getGame(env, "g"),
+                pos = getPosition(env, game, "pos");
+            return game.substrate().isEmpty(pos) ? T : F;
+        });
+
+        define("gameSourceDirection", ["g"], null, function (env) {
+            return new SLUR.FixNum(getGame(env, "g").source.type.outflow);
+        });
+
+        define("gameSourcePosition", ["g"], null, function (env) {
+            return createPosition(getGame(env, "g").sourcePosition());
+        });
+
+        define("gamePieceAt", ["s", "pos"], null, function (env) {
+            var piece = getBoard(env, "s").at(getPosition(env, s.game(), "pos"));
+            if (piece === null) {
+                return SLUR.NULL;
+            }
+            return new PieceObj(piece);
+        });
+
+        define("gamePeekNext", ["g"], null, function (env) {
+            return new PieceObj(getGame(env, "g").peek()[0]);
+        });
+
+        define("gamePeek", ["g", "i"], null, function (env) {
+            var game = getGame(env, "g"),
+                index = env.nameLookup("i").value;
+            if (0 <= index && index < game.peek().length) {
+                return new PieceObj(game.peek()[index]);
+            }
+            throw SLUR.evalException("Peek index out of range.", env);
+        });
+
+        define("oppositeSide", ["s"], null, function (env) {
+            return new SLUR.FixNum(PIPES.OPPOSITES[getSide(env, "s")]);
+        });
+    }
+
+    function installPiece(env, typeLookup) {
+        define("isPiece?", ["p"], null, function (env) { return env.nameLookup("p").type() === GameType.PIECE ? T : F; });
+        define("pieceIsFull?", ["p", "side"], null, function (env) {
+            return getPiece(env, "p").isFull(getSide(env, "side")) ? T : F;
+        });
+
+        define("pieceType", ["p"], null, function (env) {
+            return new SLUR.StringValue(typeLookup[getPiece(env, "p").type]);
+        });
+
+        define("pieceIsSource?", ["p"], null, function (env) { return getPiece(env, "p").type.isSource() ? T : F; });
+        define("pieceIsSingle?", ["p"], null, function (env) { return getPiece(env, "p").type.isSingle() ? T : F; });
+        define("pieceIsDual?",   ["p"], null, function (env) { return getPiece(env, "p").type.isDual() ? T : F; });
+        define("pieceIsOpen?", ["p", "side"], null, function (env) {
+            return getPiece(env, "p").isPipeAt(getSide(env, "side")) ? T : F;
+        });
+
+        define("pieceFarSide", ["p", "side"], null, function (env) {
+            var farSide = getPiece(env, "p").getFarSide(getSide(env, "side"));
+            return farSide === null ? SLUR.NULL : new FixNum(farSide);
+        });
+    }
+
+    function installBoard(env) {
+        define("isBoard?", ["b"], null, function (env) { return env.nameLookup("b").type() === GameType.BOARD ? T : F; });
+        define("gameBoard", ["g"], null, function (env) {
+            var game = getGame(env, "g");
+            return new Board(game, game.substrate);
+        });
+
+        define("boardIsEmpty?", ["board", "pos"], null, function (env) {
+            var board = env.nameLookup("board"),
+                pos = getPosition(env, board.game, "pos");
+            return board.board.isEmpty(pos) ? T : F;
+        });
+
+        define("gameTryNth", ["board", "pos", "n"], null, function (env) {
+            var board = env.nameLookup("board"),
+                pos = getPosition(env, board.game, "pos"),
+                n = env.lookup("n").value;
+            if (n >= 0 && n < board.game.peek().length && position.valid()) {
+                return new Board(board.game, new PIPES.Acetate(board.board, board.game.peek()[n], position));
+            }
+            return SLUR.NULL;
+        });
+    }
+
+    function installPipe(env) {
+        define("followPipe", ["x"], null, function (env) {
+            var board = env.nameLookup("x");
+            return new Pipe(AI.followPipe(board.game, board.board));
+        });
+        define("isPipe?", ["p"], null, function (env) { return env.nameLookup("p").type() === GameType.PIPE ? T : F; });
+        define("pipeLength", ["p"], null, function (env) { return new FixNum(getPipe(env, "p").length); });
+        define("pipeFilled", ["p"], null, function (env) { return new FixNum(getPipe(env, "p").filled); });
+        define("pipeOutDirection", ["p"], null, function (env) { return new FixNum(getPipe(env, "p").outflow); });
+        define("pipeOutPosition", ["p"], null, function (env) { return createPosition(asPipe(env, "p").position); });
+        define("pipeOpenEnd", ["p"], null, function (env) { return getPipe(env, "p").openEnd ? T : F; });
+    }
+
+    function installDiscarder(env) {
+        define("borderDiscard", ["x"], null, function (env) {
+            var board = env.nameLookup("x"),
+                border = new AI.BorderDiscarder(board.game, board.board),
+                pos = border.discard;
+            return pos === null ? SLUR.NULL : createPosition(pos);
+        });
+    }
+    
+    function install(env) {
+        var typeLookup = installConstants(env);
+        installGame(env);
+        installPiece(env, typeLookup);
+        installBoard(env);
+        installPipe(env);
+        installDiscarder(env);
+    }
+
 /*
-public class PieceObj extends BaseObj {
-
-    private Piece mPiece;
-
-    public PieceObj( Piece piece ) {
-        mPiece = piece;
-    }
-
-    public Piece value() {
-        return mPiece;
-    }
-}
-
-public class Game extends BaseObj {
-    GamePlay mGame;
-
-    public Game( GamePlay game ) {
-        mGame = game;
-    }
-
-    public GamePlay value() {
-        return mGame;
-    }
-}
-
-public class StracetateObj extends BaseObj {
-
-    private GamePlay mGame;
-    private Stracetate mStracetate;
-
-    public StracetateObj( GamePlay game ) {
-        mGame = game;
-        mStracetate = new SubstrateWrapper( game.substrate() );
-    }
-
-    public StracetateObj( GamePlay game, Stracetate stracetate ) {
-        mGame = game;
-        mStracetate = stracetate;
-    }
-
-    public Stracetate stracetate() {
-        return mStracetate;
-    }
-
-    public GamePlay game() {
-        return mGame;
-    }
-}
-
-public class Pipe extends BaseObj {
-    public Pipe( PipeFollower follower ) {
-        mFollower = follower;
-    }
-
-    public PipeFollower value() {
-        return mFollower;
-    }
-
-    private PipeFollower mFollower;
-
-}
-
-
-public class GameFunctions {
-    public static class GameEvalException extends EvalException {
-        public GameEvalException(String message, Environment env) {
-            super(message, env);
-        }
-        private static final long serialVersionUID = 8759685968118972801L;
-    }
-
-    static GamePlay asGame( Environment env, String gSym ) {
-        Obj g = env.lookup( gSym );
-        if( g instanceof Game ) {
-            return ((Game)g).value();
-        }
-        throw new GameEvalException( "Value is not a game", env );
-    }
-
-    static int asInt( Environment env, String iSym ) {
-        Obj i = env.lookup( iSym );
-        if( i.isFixNum() ) {
-            return ((FixNum)i).value();
-        }
-        throw new GameEvalException( "Value is not an integer", env );
-    }
-
-    static Position asPosition(Environment env, GamePlay game, String pSym) {
-        Obj p = env.lookup( pSym );
-        if( p.isCons() ) {
-            Cons pair = (Cons)p;
-            if( pair.car().isFixNum() && pair.cdr().isFixNum() ) {
-                FixNum i = (FixNum)pair.car();
-                FixNum j = (FixNum)pair.cdr();
-                return game.position(i.value(), j.value());
-            }
-        }
-        throw new GameEvalException( "Position must be of the form '(i . j)' where i and j are integers.", env );
-    }
-
-    static Obj createPosition( int i, int j ) {
-        return new Cons( new FixNum(i), new FixNum(j) );
-    }
-
-    static Obj createPosition(Position pos) {
-        if( !pos.valid() ) {
-            return Null.NULL;
-        }
-        int[] coords = pos.coords();
-        Obj result = createPosition(coords[0],coords[1]) ;
-        return result;
-    }
-
-    static StracetateObj asStracetate( Environment env, String sSym ) {
-        Obj s = env.lookup( sSym );
-        if( s instanceof StracetateObj ) {
-            return (StracetateObj)s;
-        }
-        throw new GameEvalException( "Value is not a stracetate", env );
-    }
-
-    protected static Side asSide( Environment env, String sSym ) {
-        Obj s = env.lookup( sSym );
-        if( s.isFixNum() ) {
-            int ordinal = ((FixNum)s).value();
-            if( 0 <= ordinal && ordinal < Side.values().length ) {
-                return Side.values()[ordinal];
-            }
-        }
-        throw new GameEvalException( "Value is not a side.", env );
-    }
-
-    protected static Piece asPiece( Environment env, String pSym ) {
-        Obj p = env.lookup( pSym );
-        if( p instanceof PieceObj ) {
-            return ((PieceObj)p).value();
-        }
-        throw new GameEvalException( "Value is not a piece.", env );
-    }
-
-    protected static PipeFollower asPipe( Environment env, String pSym ) {
-        Obj p = env.lookup(  pSym );
-        if( p instanceof Pipe ) {
-            return ((Pipe)p).value();
-        }
-        throw new GameEvalException( "Value is not a pipe", env );
-    }
-
-    static final Obj T = True.TRUE;
-    static final Obj F = Null.NULL;
-
-    public static void install( Environment env ) {
-        installConstants( env );
-        installGame( env );
-        installPiece( env );
-        installStracetate( env );
-        installPipe( env );
-        installDiscarder( env );
-    }
-
-    static void installConstants( Environment env ) {
-        for( PieceType pieceType : PieceType.values() ) {
-            env.add( "pt" + pieceType.toString(), new FixNum( pieceType.ordinal() ) );
-        }
-        for( Side side : Side.values() ) {
-            env.add( "side" + side.toString(), new FixNum( side.ordinal() ) );
-        }
-    }
-
-    static void installGame( Environment env ) {
-        env.add( new Function( "isGame?", new String[] {"g"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                return env.lookup( "g" ) instanceof Game ? T : F;
-            }
-        }));
-
-        env.add( new Function( "isGameOver?", new String[] {"g"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                return asGame( env, "g" ).isGameOver() ? T : F;
-            }
-        }));
-
-        env.add( new Function( "gameWidth", new String[]{"g"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                GamePlay game = asGame( env, "g" );
-                return new FixNum( game.width() );
-            }
-        }));
-
-        env.add( new Function( "gameHeight", new String[]{"g"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                GamePlay game = asGame( env, "g" );
-                return new FixNum( game.height() );
-            }
-        }));
-
-        env.add( new Function( "gamePlace", new String[] {"g", "pos"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                GamePlay game = asGame( env, "g" );
-                if( game.placeNext( asPosition( env, game, "pos" ) ) ) {
-                    return T;
-                }
-                return F;
-            }
-        }));
-
-        env.add( new Function( "gameIsValidPos?", new String[] {"g", "pos"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                Position pos = asPosition( env, asGame( env, "g" ), "pos" );
-                return pos.valid() ? T : F;
-            }
-        }));
-
-        env.add( new Function( "gameIsEmpty?", new String[] {"g", "pos"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                GamePlay game = asGame( env, "g" );
-                Position pos = asPosition( env, game, "pos" );
-                return game.substrate().isEmpty( pos ) ? T : F;
-            }
-        }));
-
-        env.add( new Function( "gameSourceDirection", new String[] {"g"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                GamePlay game = asGame( env, "g" );
-                return new FixNum( game.sourceOut().ordinal() );
-            }
-        }));
-
-        env.add( new Function( "gameSourcePosition", new String[] {"g"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                GamePlay game = asGame( env, "g" );
-                return createPosition(game.sourcePosition());
-            }
-        }));
-
-        env.add( new Function( "gamePieceAt", new String[] {"s", "pos"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                StracetateObj s = asStracetate( env, "s");
-                Piece piece = s.stracetate().at( asPosition( env, s.game(), "pos"));
-                if( piece == null ) {
-                    return Null.NULL;
-                }
-                return new PieceObj( piece );
-            }
-        }));
-
-        env.add( new Function( "gamePeekNext", new String[] {"g"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                GamePlay game = asGame( env, "g" );
-                return new PieceObj( game.peek()[0] );
-            }
-        }));
-
-        env.add( new Function( "gamePeek", new String[] {"g", "i"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                GamePlay game = asGame( env, "g" );
-                int index = asInt( env, "i" );
-                if( 0 <= index && index < game.peek().length ) {
-                    return new PieceObj( game.peek()[index] );
-                }
-                throw new GameEvalException( "Peek index out of range.", env );
-            }
-        }));
-
-        env.add( new Function( "oppositeSide", new String[] {"s"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                Side side = asSide( env, "s" );
-                return new FixNum( side.opposite().ordinal() );
-            }
-        }));
-    }
-
-    static void installPiece( Environment env ) {
-        env.add( new Function( "isPiece?", new String[]{ "p" }, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                return env.lookup( "p" ) instanceof PieceObj ? T : F;
-            }
-        }));
-        env.add( new Function( "pieceIsFull?", new String[] {"p", "side"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                Piece piece = asPiece( env, "p" );
-                return piece.isFull(asSide( env, "side")) ? T : F;
-            }
-        }));
-
-        env.add( new Function( "pieceType", new String[] {"p"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                Piece piece = asPiece( env, "p" );
-                return new FixNum( piece.type().ordinal() );
-            }
-        }));
-
-        env.add( new Function( "pieceIsSource?", new String[] {"p"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                Piece piece = asPiece( env, "p" );
-                return piece.type().isSource() ? T : F;
-            }
-        }));
-
-        env.add( new Function( "pieceIsSingle?", new String[] {"p"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                Piece piece = asPiece( env, "p" );
-                return piece.type().isSingle() ? T : F;
-            }
-        }));
-
-        env.add( new Function( "pieceIsDual?", new String[] {"p"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                Piece piece = asPiece( env, "p" );
-                return piece.type().isDual() ? T : F;
-            }
-        }));
-
-        env.add( new Function( "pieceIsOpen?", new String[] {"p", "side"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                Piece piece = asPiece( env, "p" );
-                return piece.isPipeAt( asSide(env, "side") ) ? T : F;
-            }
-        }));
-
-        env.add( new Function( "pieceFarSide", new String[] {"p", "side"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                Piece piece = asPiece( env, "p" );
-                Side farSide = piece.getFarSide( asSide(env, "side") );
-                return farSide == null ? Null.NULL : new FixNum( farSide.ordinal() );
-            }
-        }));
-    }
-
-    static void installStracetate( Environment env ) {
-        env.add( new Function( "isStracetate?", new String[] {"s"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                return env.lookup( "s" ) instanceof StracetateObj ? T : F;
-            }
-        }));
-
-        env.add( new Function( "gameStracetate", new String[] {"g"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                return new StracetateObj( asGame( env, "g" ) );
-            }
-        }));
-
-        env.add( new Function( "stracetateIsEmpty?", new String[] {"s", "pos"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                StracetateObj s = asStracetate( env, "s" );
-                Position pos = asPosition( env, s.game(), "pos" );
-                return s.stracetate().isEmpty( pos ) ? T : F;
-            }
-        }));
-
-        env.add( new Function( "gameTryNth", new String[] {"stracetate", "pos", "n"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                StracetateObj s = asStracetate( env, "stracetate" );
-                Position position = asPosition( env, s.game(), "pos" );
-                int n = asInt( env, "n" );
-                if( n >= 0 && n < s.game().peek().length  && position.valid()) {
-                    return new StracetateObj( s.game(), new Acetate( s.stracetate(), s.game().peek()[n], position ) );
-                }
-                return Null.NULL;
-            }
-        }));
-    }
-
-    static void installPipe( Environment env ) {
-        env.add( new Function( "isPipe?", new String[] {"p"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                return env.lookup("p") instanceof Pipe ? T : F;
-            }
-        }));
-
-        env.add( new Function( "followPipe", new String[] {"x"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                PipeFollower follower = null;
-
-                if( env.lookup("x") instanceof Game ) {
-                    follower = new PipeFollower( asGame( env, "x" ) );
-                } else {
-                    StracetateObj s = asStracetate( env, "x" );
-                    follower = new PipeFollower( s.game(), s.stracetate() );
-                }
-                follower.follow();
-                return new Pipe( follower );
-            }
-        }));
-
-        env.add( new Function( "pipeLength", new String[] {"p"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                PipeFollower pipe = asPipe( env, "p" );
-                return new FixNum( pipe.length() );
-            }
-        }));
-
-        env.add( new Function( "pipeOutDirection", new String[] {"p"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                PipeFollower pipe = asPipe( env, "p" );
-                return new FixNum( pipe.outDirection().ordinal() );
-            }
-        }));
-
-        env.add( new Function( "pipeOutPosition", new String[] {"p"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                PipeFollower pipe = asPipe( env, "p" );
-                return createPosition(pipe.outPosition());
-            }
-        }));
-    }
-
-    private static void installDiscarder(Environment env) {
-        env.add( new Function( "borderDiscard", new String[] {"x"}, null, new Function.Body() {
-            public Obj invoke(Environment env) {
-                BorderDiscarder border = null;
-                Obj x = env.lookup("x");
-                if( x instanceof StracetateObj ) {
-                    StracetateObj s = (StracetateObj)x;
-                    border = new BorderDiscarder( s.game(), s.stracetate() );
-                } else {
-                    border = new BorderDiscarder( asGame( env, "x" ) );
-                }
-                Position pos = border.discard();
-                return pos == null ? Null.NULL : createPosition( pos );
-            }
-        }));
-    }
-}
-
-public class GameType {
-    public static final BaseType GAME = new BaseType( Game.class );
-    public static final BaseType PIPE = new BaseType( Pipe.class );
-    public static final BaseType PIECE = new BaseType( PieceObj.class );
-    public static final BaseType STRACETATE = new BaseType( StracetateObj.class );
-    public static final ConsType POSITION = new ConsType( BaseType.FIXNUM, BaseType.FIXNUM );
-}
-
 public class GameRegistrar {
     private ObjectRegistry mReg;
 
@@ -446,85 +220,85 @@ public class GameRegistrar {
         mReg = reg;
         registerGame();
         registerPiece();
-        registerStracetate();
-        if( allowFollow ) {
+        registerBoard();
+        if (allowFollow) {
             registerPipe();
         }
     }
 
-    void add( String name, Type type ) {
-        mReg.add( new Symbol(name), type );
+    void add(String name, Type type) {
+        mReg.add(new Symbol(name), type);
     }
 
-    void addFunction( String name, Type returnType ) {
-        mReg.add( new Symbol(name), new FunctionType(returnType, new Type[]{}) );
+    void addFunction(String name, Type returnType) {
+        mReg.add(new Symbol(name), new FuncType(returnType, new Type[]{}));
     }
 
-    void addFunction( String name, Type returnType, Type arg1Type ) {
-        mReg.add( new Symbol(name), new FunctionType(returnType, new Type[]{arg1Type}));
+    void addFunction(String name, Type returnType, Type arg1Type) {
+        mReg.add(new Symbol(name), new FuncType(returnType, new Type[]{arg1Type}));
     }
 
-    void addFunction( String name, Type returnType, Type arg1Type, Type arg2Type ) {
-        mReg.add( new Symbol(name), new FunctionType(returnType, new Type[]{arg1Type, arg2Type}));
+    void addFunction(String name, Type returnType, Type arg1Type, Type arg2Type) {
+        mReg.add(new Symbol(name), new FuncType(returnType, new Type[]{arg1Type, arg2Type}));
     }
 
-    void addFunction( String name, Type returnType, Type arg1Type, Type arg2Type, Type arg3Type ) {
-        mReg.add( new Symbol(name), new FunctionType(returnType, new Type[]{arg1Type, arg2Type, arg3Type}));
+    void addFunction(String name, Type returnType, Type arg1Type, Type arg2Type, Type arg3Type) {
+        mReg.add(new Symbol(name), new FuncType(returnType, new Type[]{arg1Type, arg2Type, arg3Type}));
     }
 
     void registerConstants() {
-        for( PieceType pieceType : PieceType.values() ) {
-            add( "pt" + pieceType.toString(), BaseType.FIXNUM );
+        for (PieceType pieceType : PieceType.values()) {
+            add("pt" + pieceType.toString(), BaseType.FIXNUM);
         }
-        for( Side side : Side.values() ) {
-            add( "side" + side.toString(), BaseType.FIXNUM );
+        for (Side side : Side.values()) {
+            add("side" + side.toString(), BaseType.FIXNUM);
         }
     }
 
     void registerGame() {
-        addFunction( "isGame?", BaseType.BOOL, new Parameter() );
-        addFunction( "isGameOver?", BaseType.BOOL, GameType.GAME );
-        addFunction( "gameWidth", BaseType.FIXNUM, GameType.GAME );
-        addFunction( "gameHeight", BaseType.FIXNUM, GameType.GAME );
-        addFunction( "gameIsValidPos?", BaseType.BOOL, GameType.GAME, GameType.POSITION );
-        addFunction( "gameIsEmpty?", BaseType.BOOL, GameType.GAME, GameType.POSITION );
-        addFunction( "gameSourceDirection", BaseType.FIXNUM, GameType.GAME );
-        addFunction( "gameSourcePosition", GameType.POSITION, GameType.GAME );
-        addFunction( "gamePieceAt", GameType.PIECE, GameType.STRACETATE, GameType.POSITION );
-        addFunction( "gamePeekNext", GameType.PIECE, GameType.GAME );
-        addFunction( "gamePeek", GameType.PIECE, GameType.GAME, BaseType.FIXNUM );
-        addFunction( "oppositeSide", BaseType.FIXNUM, BaseType.FIXNUM );
+        addFunction("isGame?", BaseType.BOOL, new Parameter());
+        addFunction("isGameOver?", BaseType.BOOL, GameType.GAME);
+        addFunction("gameWidth", BaseType.FIXNUM, GameType.GAME);
+        addFunction("gameHeight", BaseType.FIXNUM, GameType.GAME);
+        addFunction("gameIsValidPos?", BaseType.BOOL, GameType.GAME, GameType.POSITION);
+        addFunction("gameIsEmpty?", BaseType.BOOL, GameType.GAME, GameType.POSITION);
+        addFunction("gameSourceDirection", BaseType.FIXNUM, GameType.GAME);
+        addFunction("gameSourcePosition", GameType.POSITION, GameType.GAME);
+        addFunction("gamePieceAt", GameType.PIECE, GameType.STRACETATE, GameType.POSITION);
+        addFunction("gamePeekNext", GameType.PIECE, GameType.GAME);
+        addFunction("gamePeek", GameType.PIECE, GameType.GAME, BaseType.FIXNUM);
+        addFunction("oppositeSide", BaseType.FIXNUM, BaseType.FIXNUM);
     }
 
     void registerPiece() {
-        addFunction( "isPiece?", BaseType.BOOL, new Parameter() );
-        addFunction( "pieceIsFull?", BaseType.BOOL, GameType.PIECE, BaseType.FIXNUM );
-        addFunction( "pieceType", BaseType.FIXNUM, GameType.PIECE );
-        addFunction( "pieceIsSource?", BaseType.BOOL, GameType.PIECE );
-        addFunction( "pieceIsSingle?", BaseType.BOOL, GameType.PIECE );
-        addFunction( "pieceIsDual?", BaseType.BOOL, GameType.PIECE );
-        addFunction( "pieceIsOpen?", BaseType.BOOL, GameType.PIECE, BaseType.FIXNUM );
-        addFunction( "pieceFarSide", new Maybe(BaseType.FIXNUM), GameType.PIECE, BaseType.FIXNUM );
+        addFunction("isPiece?", BaseType.BOOL, new Parameter());
+        addFunction("pieceIsFull?", BaseType.BOOL, GameType.PIECE, BaseType.FIXNUM);
+        addFunction("pieceType", BaseType.FIXNUM, GameType.PIECE);
+        addFunction("pieceIsSource?", BaseType.BOOL, GameType.PIECE);
+        addFunction("pieceIsSingle?", BaseType.BOOL, GameType.PIECE);
+        addFunction("pieceIsDual?", BaseType.BOOL, GameType.PIECE);
+        addFunction("pieceIsOpen?", BaseType.BOOL, GameType.PIECE, BaseType.FIXNUM);
+        addFunction("pieceFarSide", new Maybe(BaseType.FIXNUM), GameType.PIECE, BaseType.FIXNUM);
     }
 
-    void registerStracetate() {
-        addFunction( "isStracetate?", BaseType.BOOL, new Parameter() );
-        addFunction( "gameStracetate", GameType.STRACETATE, GameType.GAME );
-        addFunction( "stracetateIsEmpty?", BaseType.BOOL, GameType.STRACETATE, GameType.POSITION );
-        addFunction( "gameTryNth", new Maybe(GameType.STRACETATE), GameType.STRACETATE, GameType.POSITION, BaseType.FIXNUM );
+    void registerBoard() {
+        addFunction("isBoard?", BaseType.BOOL, new Parameter());
+        addFunction("gameBoard", GameType.STRACETATE, GameType.GAME);
+        addFunction("stracetateIsEmpty?", BaseType.BOOL, GameType.STRACETATE, GameType.POSITION);
+        addFunction("gameTryNth", new Maybe(GameType.STRACETATE), GameType.STRACETATE, GameType.POSITION, BaseType.FIXNUM);
     }
 
     void registerPipe() {
-        addFunction( "isPipe?", BaseType.BOOL, new Parameter() );
-        addFunction( "followPipe", GameType.PIPE, GameType.GAME );
-        addFunction( "followPipe", GameType.PIPE, GameType.STRACETATE );
-        addFunction( "pipeLength", BaseType.FIXNUM, GameType.PIECE );
-        addFunction( "pipeOutDirection", BaseType.FIXNUM, GameType.PIPE );
-        addFunction( "pipeOutPosition", new Maybe(GameType.POSITION), GameType.PIPE );
+        addFunction("isPipe?", BaseType.BOOL, new Parameter());
+        addFunction("followPipe", GameType.PIPE, GameType.GAME);
+        addFunction("followPipe", GameType.PIPE, GameType.STRACETATE);
+        addFunction("pipeLength", BaseType.FIXNUM, GameType.PIECE);
+        addFunction("pipeOutDirection", BaseType.FIXNUM, GameType.PIPE);
+        addFunction("pipeOutPosition", new Maybe(GameType.POSITION), GameType.PIPE);
     }
 
     void registerModifiers() {
-        addFunction( "gamePlace", BaseType.BOOL, GameType.GAME, GameType.POSITION );
+        addFunction("gamePlace", BaseType.BOOL, GameType.GAME, GameType.POSITION);
     }
 }
 

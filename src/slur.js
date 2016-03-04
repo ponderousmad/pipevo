@@ -67,6 +67,12 @@ var SLUR = (function (TEST) {
         return this.name;
     }
 
+    function makeType(constructor, type) {
+        constructor.prototype.type = typeIs(type);
+        constructor.prototype.eval = selfEval;
+        constructor.prototype.compile = selfCompile;
+    }
+
     // Every object has a type and can be compiled or evaluated.
     // Evaluation calculates the value of the object given the environment.
     // Compilation creates an efficent version of this object based on the environment.
@@ -94,9 +100,7 @@ var SLUR = (function (TEST) {
 
         NULL = (function() {
             function Null() { this.value = false; }
-            Null.prototype.type = typeIs(ObjectType.NULL);
-            Null.prototype.eval = selfEval;
-            Null.prototype.compile = selfCompile;
+            makeType(Null, ObjectType.NULL);
             Null.prototype.toString = function () { return "()"; };
 
             return new Null();
@@ -104,9 +108,7 @@ var SLUR = (function (TEST) {
 
         TRUE = (function() {
             function True() { this.value = true; }
-            True.prototype.type = typeIs(ObjectType.BOOLEAN);
-            True.prototype.eval = selfEval;
-            True.prototype.compile = selfCompile;
+            makeType(True, ObjectType.BOOLEAN);
             True.prototype.toString = function () { return "#t"; };
 
             return new True();
@@ -116,26 +118,20 @@ var SLUR = (function (TEST) {
     function FixNum(value) {
         this.value = value > 0 ? Math.floor(value) : Math.ceil(value);
     }
-    FixNum.prototype.type = typeIs(ObjectType.FIX_NUM);
-    FixNum.prototype.eval = selfEval;
-    FixNum.prototype.compile = selfCompile;
+    makeType(FixNum, ObjectType.FIX_NUM);
     FixNum.prototype.toString = function () { return this.value.toString(); };
 
     // Represent the floating point primitive.
     function Real(value) {
         this.value = value;
     }
-    Real.prototype.type = typeIs(ObjectType.REAL);
-    Real.prototype.eval = selfEval;
-    Real.prototype.compile = selfCompile;
+    makeType(Real, ObjectType.REAL);
     Real.prototype.toString = function () { return this.value.toString(); };
 
     function StringValue(value) {
         this.value = value;
     }
-    StringValue.prototype.type = typeIs(ObjectType.STRING);
-    StringValue.prototype.eval = selfEval;
-    StringValue.prototype.compile = selfCompile;
+    makeType(StringValue, ObjectType.STRING);
     StringValue.prototype.toString = function () { return '"' + this.value + '"'; };
 
     function Symbol(name) {
@@ -211,7 +207,7 @@ var SLUR = (function (TEST) {
     }
 
     function makeList(list_or_single) {
-        if (typeof list_or_single == 'undefined') {
+        if (typeof list_or_single === 'undefined') {
             return NULL;
         }
         else if (Array.isArray(list_or_single)) {
@@ -269,9 +265,7 @@ var SLUR = (function (TEST) {
             throw "Malformed function definition";
         }
     }
-    Func.prototype.type = typeIs(ObjectType.FUNCTION);
-    Func.prototype.eval = selfEval;
-    Func.prototype.compile = selfCompile;
+    makeType(Func, ObjectType.FUNCTION);
     Func.prototype.toString = selfName;
 
     Func.prototype.shadowArgs = function (env) {
@@ -376,9 +370,7 @@ var SLUR = (function (TEST) {
         this.run = invoke;
         this.build = compile;
     }
-    SpecialForm.prototype.type = typeIs(ObjectType.SPECIAL_FORM);
-    SpecialForm.prototype.eval = selfEval;
-    SpecialForm.prototype.compile = selfCompile;
+    makeType(SpecialForm, ObjectType.SPECIAL_FORM);
     SpecialForm.prototype.toString = selfName;
 
     SpecialForm.prototype.compileSpecial = function(env, args) {
@@ -438,7 +430,7 @@ var SLUR = (function (TEST) {
         }
 
         var binding = this.symbols[name];
-        if (typeof binding != 'undefined') {
+        if (typeof binding !== 'undefined') {
             if (binding == SHADOW) {
                 return null;
             }
@@ -1732,7 +1724,25 @@ public class Interpreter {
     testSuite();
 
     return {
+        evalException: evalException,
         ObjectType: ObjectType,
+        makeType: makeType,
+        isFunction: isFunction,
+        isSpecialForm: isSpecialForm,
+        isInt: isInt,
+        isReal: isReal,
+        isString: isString,
+        isSymbol: isSymbol,
+        isCons: isCons,
+        isNull: isNull,
+        NULL: NULL,
+        TRUE: TRUE,
+        Cons: Cons,
+        FixNum: FixNum,
+        Real: Real,
+        Func: Func,
+        StringValue: StringValue,
+        define: define,
         baseEnvironment: baseEnvironment,
         defaultEnvironment: defaultEnvironment
     };
