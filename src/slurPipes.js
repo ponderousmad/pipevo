@@ -8,32 +8,32 @@ var SLUR_PIPES = (function() {
         BOARD: 16384,
         POSITION: 32768
     };
-    
+
     function PieceObj(piece) {
         this.piece = piece;
     }
     SLUR.makeType(PieceObj, GameType.PIECE);
     PieceObj.prototype.toString = function () { return "PIECE"; };
-    
+
     function Game(game) {
         this.game = game;
     }
     SLUR.makeType(Game, GameType.GAME);
     Game.prototype.toString = function () { return "GAME"; };
-    
+
     function Board(game, board) {
         this.game = game;
         this.board = board;
     }
     SLUR.makeType(Board, GameType.BOARD);
     Board.prototype.toString = function () { return "BOARD"; };
-    
+
     function Pipe(pipe) {
         this.pipe = pipe;
     }
     SLUR.makeType(Pipe, GameType.BOARD);
     Pipe.prototype.toString = function () { return "PIPE"; };
-    
+
     function getGame(env, name) { return env.nameLookup(name).game; }
     function getPiece(env, name) { return env.nameLookup(name).piece; }
     function getSide(env, name) { return env.nameLookup(name).value; }
@@ -45,7 +45,7 @@ var SLUR_PIPES = (function() {
         }
         throw SLUR.evalException("Position must be of the form '(i . j)' where i and j are integers.", env);
     }
-    
+
     function createPosition(i, j) {
         if (typeof j !== 'undefined') {
             return new SLUR.Cons(new SLUR.FixNum(i), new SLUR.FixNum(j));
@@ -53,7 +53,7 @@ var SLUR_PIPES = (function() {
         var pos = i;
         return createPosition(pos.i, pos.j);
     }
-    
+
     function installConstants(env) {
         var typeLookup = {};
         for (var pieceType in PIPES.PieceTypes) {
@@ -69,11 +69,11 @@ var SLUR_PIPES = (function() {
         }
         return typeLookup;
     }
-    
+
     var T = SLUR.TRUE,
         F = SLUR.NULL;
-        
-    
+
+
     function installGame(env) {
         define("isGame?", ["g"], null, function (env) { return env.nameLookup("g").type() === GameType.GAME ? T : F; });
         define("isGameOver?", ["g"], null, function (env) { return getGame(env, "g").isGameOver() ? T : F; });
@@ -197,7 +197,7 @@ var SLUR_PIPES = (function() {
             return pos === null ? SLUR.NULL : createPosition(pos);
         });
     }
-    
+
     function install(env) {
         var typeLookup = installConstants(env);
         installGame(env);
@@ -336,5 +336,6 @@ public class GameTypeBuilder {
 }
 */
     return {
+        install: install
     };
 }());
