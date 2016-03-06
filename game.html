@@ -15,6 +15,7 @@
     <script type="text/javascript" src="src/ai.js"></script>
     <script type="text/javascript" src="src/slur.js"></script>
     <script type="text/javascript" src="src/slurTypes.js"></script>
+    <script type="text/javascript" src="src/slurPipes.js"></script>
     <script type="text/javascript" src="src/main.js"></script>   
   </head>
   <body>
@@ -33,6 +34,17 @@
             <button id="susanAI">Simple Susan</button>
             <button id="bobAI">Bob the Backtracker</button>            
         </div>
+    </div>
+    <div>
+        <h2>Interpreter</h2>
+        <div>
+            <textarea id="code" rows="10" cols="80">(+ 5 7)</textarea>
+            <button id="codeRun">Run</button>
+        </div>
+        <h3>Parsed as:</h3>
+        <div id="codeParsed"></div>
+        <h3>Result:</h3>
+        <div id="codeOutput"></div>
     </div>
   </body>
 </html>

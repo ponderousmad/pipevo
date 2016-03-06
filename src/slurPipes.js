@@ -57,14 +57,14 @@ var SLUR_PIPES = (function() {
     function installConstants(env) {
         var typeLookup = {};
         for (var pieceType in PIPES.PieceTypes) {
-            if (PIPES.PieceType.hasOwnProperty(pieceType)) {
+            if (PIPES.PieceTypes.hasOwnProperty(pieceType)) {
                 typeLookup[PIPES.PieceTypes[pieceType]] = pieceType;
-                env.add("pt" + pieceType, new SLUR.StringValue(pieceType));
+                env.bind("pt" + pieceType, new SLUR.StringValue(pieceType));
             }
         }
         for (var side in PIPES.Side) {
-            if (PIPES.Side.hasOwnProperty(s)) {
-                env.add("side" + side, new SLUR.FixNum(PIPES.Side[side]));
+            if (PIPES.Side.hasOwnProperty(side)) {
+                env.bind("side" + side, new SLUR.FixNum(PIPES.Side[side]));
             }
         }
         return typeLookup;
@@ -73,37 +73,47 @@ var SLUR_PIPES = (function() {
     var T = SLUR.TRUE,
         F = SLUR.NULL;
 
-
     function installGame(env) {
-        define("isGame?", ["g"], null, function (env) { return env.nameLookup("g").type() === GameType.GAME ? T : F; });
-        define("isGameOver?", ["g"], null, function (env) { return getGame(env, "g").isGameOver() ? T : F; });
-        define("gameWidth", ["g"], null, function (env) { return new SLUR.FixNum(getGame(env, "g").width()); });
-        define("gameHeight", ["g"], null, function (env) { return new SLUR.FixNum(getGame(env, "g").height()); });
+        SLUR.define(env, "isGame?", ["g"], null, function (env) {
+            return env.nameLookup("g").type() === GameType.GAME ? T : F;
+        });
 
-        define("gamePlace", ["g", "pos"], null, function (env) {
+        SLUR.define(env, "isGameOver?", ["g"], null, function (env) {
+            return getGame(env, "g").isGameOver() ? T : F;
+        });
+
+        SLUR.define(env, "gameWidth", ["g"], null, function (env) {
+            return new SLUR.FixNum(getGame(env, "g").width());
+        });
+
+        SLUR.define(env, "gameHeight", ["g"], null, function (env) {
+            return new SLUR.FixNum(getGame(env, "g").height());
+        });
+
+        SLUR.define(env, "gamePlace", ["g", "pos"], null, function (env) {
             var game = getGame(env, "g");
             return game.placeNext(getPosition(env, game, "pos")) ? T : F;
         });
 
-        define("gameIsValidPos?", ["g", "pos"], null, function (env) {
+        SLUR.define(env, "gameIsValidPos?", ["g", "pos"], null, function (env) {
             return getPosition(env, getGame(env, "g"), "pos").valid() ? T : F;
         });
 
-        define("gameIsEmpty?", ["g", "pos"], null, function (env) {
+        SLUR.define(env, "gameIsEmpty?", ["g", "pos"], null, function (env) {
             var game = getGame(env, "g"),
                 pos = getPosition(env, game, "pos");
             return game.substrate().isEmpty(pos) ? T : F;
         });
 
-        define("gameSourceDirection", ["g"], null, function (env) {
+        SLUR.define(env, "gameSourceDirection", ["g"], null, function (env) {
             return new SLUR.FixNum(getGame(env, "g").source.type.outflow);
         });
 
-        define("gameSourcePosition", ["g"], null, function (env) {
+        SLUR.define(env, "gameSourcePosition", ["g"], null, function (env) {
             return createPosition(getGame(env, "g").sourcePosition());
         });
 
-        define("gamePieceAt", ["s", "pos"], null, function (env) {
+        SLUR.define(env, "gamePieceAt", ["s", "pos"], null, function (env) {
             var piece = getBoard(env, "s").at(getPosition(env, s.game(), "pos"));
             if (piece === null) {
                 return SLUR.NULL;
@@ -111,11 +121,11 @@ var SLUR_PIPES = (function() {
             return new PieceObj(piece);
         });
 
-        define("gamePeekNext", ["g"], null, function (env) {
+        SLUR.define(env, "gamePeekNext", ["g"], null, function (env) {
             return new PieceObj(getGame(env, "g").peek()[0]);
         });
 
-        define("gamePeek", ["g", "i"], null, function (env) {
+        SLUR.define(env, "gamePeek", ["g", "i"], null, function (env) {
             var game = getGame(env, "g"),
                 index = env.nameLookup("i").value;
             if (0 <= index && index < game.peek().length) {
@@ -124,48 +134,63 @@ var SLUR_PIPES = (function() {
             throw SLUR.evalException("Peek index out of range.", env);
         });
 
-        define("oppositeSide", ["s"], null, function (env) {
+        SLUR.define(env, "oppositeSide", ["s"], null, function (env) {
             return new SLUR.FixNum(PIPES.OPPOSITES[getSide(env, "s")]);
         });
     }
 
     function installPiece(env, typeLookup) {
-        define("isPiece?", ["p"], null, function (env) { return env.nameLookup("p").type() === GameType.PIECE ? T : F; });
-        define("pieceIsFull?", ["p", "side"], null, function (env) {
+        SLUR.define(env, "isPiece?", ["p"], null, function (env) {
+            return env.nameLookup("p").type() === GameType.PIECE ? T : F;
+        });
+
+        SLUR.define(env, "pieceIsFull?", ["p", "side"], null, function (env) {
             return getPiece(env, "p").isFull(getSide(env, "side")) ? T : F;
         });
 
-        define("pieceType", ["p"], null, function (env) {
+        SLUR.define(env, "pieceType", ["p"], null, function (env) {
             return new SLUR.StringValue(typeLookup[getPiece(env, "p").type]);
         });
 
-        define("pieceIsSource?", ["p"], null, function (env) { return getPiece(env, "p").type.isSource() ? T : F; });
-        define("pieceIsSingle?", ["p"], null, function (env) { return getPiece(env, "p").type.isSingle() ? T : F; });
-        define("pieceIsDual?",   ["p"], null, function (env) { return getPiece(env, "p").type.isDual() ? T : F; });
-        define("pieceIsOpen?", ["p", "side"], null, function (env) {
+        SLUR.define(env, "pieceIsSource?", ["p"], null, function (env) {
+            return getPiece(env, "p").type.isSource() ? T : F;
+        });
+
+        SLUR.define(env, "pieceIsSingle?", ["p"], null, function (env) {
+            return getPiece(env, "p").type.isSingle() ? T : F;
+        });
+
+        SLUR.define(env, "pieceIsDual?",   ["p"], null, function (env) {
+            return getPiece(env, "p").type.isDual() ? T : F;
+        });
+
+        SLUR.define(env, "pieceIsOpen?", ["p", "side"], null, function (env) {
             return getPiece(env, "p").isPipeAt(getSide(env, "side")) ? T : F;
         });
 
-        define("pieceFarSide", ["p", "side"], null, function (env) {
+        SLUR.define(env, "pieceFarSide", ["p", "side"], null, function (env) {
             var farSide = getPiece(env, "p").getFarSide(getSide(env, "side"));
             return farSide === null ? SLUR.NULL : new FixNum(farSide);
         });
     }
 
     function installBoard(env) {
-        define("isBoard?", ["b"], null, function (env) { return env.nameLookup("b").type() === GameType.BOARD ? T : F; });
-        define("gameBoard", ["g"], null, function (env) {
+        SLUR.define(env, "isBoard?", ["b"], null, function (env) {
+            return env.nameLookup("b").type() === GameType.BOARD ? T : F;
+        });
+
+        SLUR.define(env, "gameBoard", ["g"], null, function (env) {
             var game = getGame(env, "g");
             return new Board(game, game.substrate);
         });
 
-        define("boardIsEmpty?", ["board", "pos"], null, function (env) {
+        SLUR.define(env, "boardIsEmpty?", ["board", "pos"], null, function (env) {
             var board = env.nameLookup("board"),
                 pos = getPosition(env, board.game, "pos");
             return board.board.isEmpty(pos) ? T : F;
         });
 
-        define("gameTryNth", ["board", "pos", "n"], null, function (env) {
+        SLUR.define(env, "gameTryNth", ["board", "pos", "n"], null, function (env) {
             var board = env.nameLookup("board"),
                 pos = getPosition(env, board.game, "pos"),
                 n = env.lookup("n").value;
@@ -177,20 +202,38 @@ var SLUR_PIPES = (function() {
     }
 
     function installPipe(env) {
-        define("followPipe", ["x"], null, function (env) {
+        SLUR.define(env, "followPipe", ["x"], null, function (env) {
             var board = env.nameLookup("x");
             return new Pipe(AI.followPipe(board.game, board.board));
         });
-        define("isPipe?", ["p"], null, function (env) { return env.nameLookup("p").type() === GameType.PIPE ? T : F; });
-        define("pipeLength", ["p"], null, function (env) { return new FixNum(getPipe(env, "p").length); });
-        define("pipeFilled", ["p"], null, function (env) { return new FixNum(getPipe(env, "p").filled); });
-        define("pipeOutDirection", ["p"], null, function (env) { return new FixNum(getPipe(env, "p").outflow); });
-        define("pipeOutPosition", ["p"], null, function (env) { return createPosition(asPipe(env, "p").position); });
-        define("pipeOpenEnd", ["p"], null, function (env) { return getPipe(env, "p").openEnd ? T : F; });
+
+        SLUR.define(env, "isPipe?", ["p"], null, function (env) {
+            return env.nameLookup("p").type() === GameType.PIPE ? T : F;
+        });
+
+        SLUR.define(env, "pipeLength", ["p"], null, function (env) {
+            return new FixNum(getPipe(env, "p").length);
+        });
+
+        SLUR.define(env, "pipeFilled", ["p"], null, function (env) {
+            return new FixNum(getPipe(env, "p").filled);
+        });
+
+        SLUR.define(env, "pipeOutDirection", ["p"], null, function (env) {
+            return new FixNum(getPipe(env, "p").outflow);
+        });
+
+        SLUR.define(env, "pipeOutPosition", ["p"], null, function (env) {
+            return createPosition(asPipe(env, "p").position);
+        });
+
+        SLUR.define(env, "pipeOpenEnd", ["p"], null, function (env) {
+            return getPipe(env, "p").openEnd ? T : F;
+        });
     }
 
     function installDiscarder(env) {
-        define("borderDiscard", ["x"], null, function (env) {
+        SLUR.define(env, "borderDiscard", ["x"], null, function (env) {
             var board = env.nameLookup("x"),
                 border = new AI.BorderDiscarder(board.game, board.board),
                 pos = border.discard;
@@ -336,6 +379,7 @@ public class GameTypeBuilder {
 }
 */
     return {
+        Game: Game,
         install: install
     };
 }());

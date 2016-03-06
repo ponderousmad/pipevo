@@ -11,6 +11,10 @@ var SLUR = (function (TEST) {
         return this.name + ": " + this.message;
     };
 
+    SlurException.prototype.toLocaleStringString = function () {
+        return this.toString();
+    };
+
     SlurException.prototype.context = function () {
         var description = "";
         if (this.environment) {
@@ -21,7 +25,7 @@ var SLUR = (function (TEST) {
                     if (c > 0) {
                         description += ", ";
                     }
-                    description += c[c];
+                    description += contexts[c];
 
                 }
             }
@@ -38,7 +42,7 @@ var SLUR = (function (TEST) {
     }
 
     function invocationException(message, func, args, environment) {
-        var exception = new SlurException(message, environment);
+        var exception = new SlurException("InvocationException", message, environment);
         exception.func = func;
         exception.args = args;
         return exception;
@@ -474,7 +478,7 @@ var SLUR = (function (TEST) {
 
     Frame.prototype.context = function () {
         var c = this.env ? this.env.context() : [];
-        if (this.context !== null) {
+        if (this.contextName) {
             c.push(this.contextName);
         }
         return c;
@@ -945,10 +949,10 @@ var SLUR = (function (TEST) {
                 frame = new Frame(env, func.name + " - compiled");
             frame.bindFunction(func);
             func.compileBody(frame);
-            return makeList(this, new Symbol(func.name), func);
+            return makeList([this, new Symbol(func.name), func]);
         } else if (isSymbol(args.car)) {
             defineCheckTarget(args.cdr);
-            return makeList(this, args.car, args.cdr.car.compile(env));
+            return makeList([this, args.car, args.cdr.car.compile(env)]);
         } else {
             throw evalException("Malformed define", env);
         }
@@ -1280,7 +1284,7 @@ var SLUR = (function (TEST) {
         }
         return this.atDot() || this.atDigit();
     };
-    
+
     Parser.prototype.consumeDigits = function () {
         while (!this.atEnd() && this.atDigit()) {
             this.advance(1);
@@ -1418,7 +1422,7 @@ var SLUR = (function (TEST) {
     };
 
     SlurFile.prototype.execute = function(env) {
-        if (this.code.length() > 0) {
+        if (this.code.length > 0) {
             try {
                 var parser = new Parser(this.code);
                 for(;;) {
@@ -1456,46 +1460,6 @@ var SLUR = (function (TEST) {
         }
         return env;
     }
-
-/*
-public class Interpreter {
-    public static void main(String[] args) {
-        launchInterpreter();
-    }
-
-    public static void launchInterpreter() {
-        BufferedReader read = new BufferedReader(new InputStreamReader(System.in));
-        PrintStream out = System.out;
-
-        Environment env = Initialize.initWithLibraries();
-
-        try {
-            String line;
-            do {
-                out.print(":");
-                line = read.readLine();
-                if(line != null && line.length() > 0) {
-                    try {
-                        Parser parser = new Parser(line);
-                        Obj result;
-                        while((result = parser.parse()) != null) {
-                            out.println(result.toString());
-                            out.println(result.eval(env).toString());
-                        }
-                    } catch(Parser.ParseException ex) {
-                        out.println(ex.getMessage());
-                    }
-                } else if(line != null) {
-                    line = null;
-                }
-            } while(line != null);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-}
-*/
 
     function testSuite() {
         var parseTests = [
@@ -1743,6 +1707,7 @@ public class Interpreter {
         Func: Func,
         StringValue: StringValue,
         define: define,
+        Parser: Parser,
         baseEnvironment: baseEnvironment,
         defaultEnvironment: defaultEnvironment
     };
