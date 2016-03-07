@@ -502,6 +502,255 @@ var SLUR_TYPES = (function (SLUR) {
         Primitives.BOOL = new Maybe(Primitives.BOOLEAN);
     }());
     
+/*
+    public class ObjectRegistry {
+	List<TypedSymbol> mRegistry = new ArrayList<TypedSymbol>();
+
+	public void add( Symbol symbol, Type type ) {
+		mRegistry.add( new TypedSymbol( symbol, type ) );
+	}
+
+	// Class to remined clients that a function requires a type whose parameters are guarenteed to be unique.
+	public static class UniqueParameterPromise {}
+	public static UniqueParameterPromise PromiseUniqueParameter = new UniqueParameterPromise();
+
+	public List<Symbol> findMatching( Type type, UniqueParameterPromise promise ) {
+		List<Symbol> matching = new ArrayList<Symbol>();
+		for( TypedSymbol tSym : mRegistry ) {
+			if( type.match(tSym.type ).matches() ) {
+				matching.add( tSym.symbol );
+			}
+		}
+		return matching;
+	}
+
+	public static class TypedSymbol {
+		TypedSymbol( Symbol sym, Type itsType ) {
+			symbol = sym;
+			type = itsType;
+		}
+		Symbol symbol;
+		Type type;
+	}
+
+	public List<TypedSymbol> findFunctionTypeReturning(Type returnType, UniqueParameterPromise promise ) {
+		List<TypedSymbol> matching = new ArrayList<TypedSymbol>();
+		for(TypedSymbol tSym : mRegistry) {
+			if(tSym.type instanceof FunctionType) {
+				FunctionType funcType = ((FunctionType)tSym.type);
+				Match match = returnType.match( funcType.returnType() );
+				if(match.matches()) {
+					matching.add( new TypedSymbol( tSym.symbol, funcType.substitute( match.mappings() ) ) );
+				}
+			}
+		}
+		return matching;
+	}
+}
+
+public class BuiltinRegistrar {
+	private ObjectRegistry mReg;
+
+	public void add(String name, Type type) {
+		mReg.add(new Symbol(name), type);
+	}
+
+	public static void registerBuiltins(ObjectRegistry reg) {
+		BuiltinRegistrar registrar = new BuiltinRegistrar();
+		registrar.register( reg );
+	}
+
+	public void register( ObjectRegistry reg ) {
+		mReg = reg;
+		registerNumeric();
+		registerLogic();
+		registerList();
+		registerTypes();
+	}
+
+	private void addNumerical(String name) {
+		add( name, new FunctionType( BaseType.FIXNUM, new Type[]{BaseType.FIXNUM, BaseType.FIXNUM}) );
+		add( name, new FunctionType( BaseType.REAL, new Type[]{BaseType.REAL, BaseType.REAL}) );
+		add( name, new FunctionType( BaseType.REAL, new Type[]{BaseType.REAL, BaseType.FIXNUM}) );
+		add( name, new FunctionType( BaseType.REAL, new Type[]{BaseType.FIXNUM, BaseType.REAL}) );
+	}
+
+	private void addRelational(String name ) {
+		add( name, new FunctionType( BaseType.BOOL, new Type[]{BaseType.FIXNUM,BaseType.FIXNUM}));
+		add( name, new FunctionType( BaseType.BOOL, new Type[]{BaseType.REAL,BaseType.REAL}));
+		add( name, new FunctionType( BaseType.BOOL, new Type[]{BaseType.FIXNUM,BaseType.REAL}));
+		add( name, new FunctionType( BaseType.BOOL, new Type[]{BaseType.REAL,BaseType.FIXNUM}));
+	}
+
+	private FunctionType RealFunc() {
+		return new FunctionType( BaseType.REAL, new Type[]{BaseType.REAL});
+	}
+
+	private FunctionType RealFunc2() {
+		return new FunctionType( BaseType.REAL, new Type[]{BaseType.REAL, BaseType.REAL});
+	}
+
+	private FunctionType FixNumFunc() {
+		return new FunctionType( BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
+	}
+
+	private FunctionType FixNumFunc2() {
+		return new FunctionType( BaseType.FIXNUM, new Type[]{BaseType.FIXNUM, BaseType.FIXNUM});
+	}
+
+	private FunctionType ToFixNum() {
+		return new FunctionType( BaseType.FIXNUM, new Type[]{BaseType.REAL});
+	}
+
+	public void registerNumeric() {
+		addNumerical("+");
+		addNumerical("-");
+		addNumerical("*");
+		addNumerical("/");
+
+		addRelational(">");
+		addRelational("<");
+		addRelational(">");
+		addRelational("<=");
+		addRelational(">=");
+		addRelational("=");
+		addRelational("!=");
+
+		add("PI", BaseType.REAL);
+		add("E", BaseType.REAL);
+		add("sin", RealFunc());
+		add("cos", RealFunc());
+		add("tan", RealFunc());
+		add("asin", RealFunc());
+		add("acos", RealFunc());
+		add("atan", RealFunc());
+		add("atan2", RealFunc2());
+		add("pow", RealFunc2());
+
+		add("abs", RealFunc());
+		add("max", RealFunc2());
+		add("min", RealFunc2());
+
+		add("abs", FixNumFunc());
+		add("max", FixNumFunc2());
+		add("min", FixNumFunc2());
+
+		add("floor", ToFixNum());
+		add("ciel", ToFixNum());
+		add("round", ToFixNum());
+	}
+
+	public void registerLogic() {
+		add("and", binaryPredicateFn());
+		add("or",  binaryPredicateFn());
+		add("not", new FunctionType(BaseType.BOOL, new Type[]{anyBool()}));
+
+		Parameter p = new Parameter();
+		add("if", new FunctionType(p, new Type[]{anyBool(), p, p}));
+	}
+
+	private void registerList() {
+		Parameter p = new Parameter();
+		Parameter q = new Parameter();
+		add("cons", new FunctionType(new ConsType(p, q), new Type[]{p, q}));
+
+		p = new Parameter();
+		q = new Parameter();
+		add("car", new FunctionType(p, new Type[]{new ConsType(p, q)}));
+
+		p = new Parameter();
+		q = new Parameter();
+		add("cdr", new FunctionType(q, new Type[]{new ConsType( p, q )}));
+
+		p = new Parameter();
+		add("isList?", new FunctionType(BaseType.BOOL, new Type[]{p}));
+
+		// TODO Is this a resonable way of handling rest parameter types?
+		List<Parameter> ps = new ArrayList<Parameter>();
+		for(int i = 0; i < 10; ++ i) {
+			ps.clear();
+			p = new Parameter();
+			for(int j = 0; j < i; ++j) {
+				ps.add(p);
+			}
+
+			add("list", new FunctionType(new ListType(p), ps.toArray(new Type[i])));
+		}
+	}
+
+	private void registerTypes() {
+		add( "isCons?",   isTypeFn() );
+		add( "isSym?",    isTypeFn() );
+		add( "isString?", isTypeFn() );
+		add( "isFn?",     isTypeFn() );
+		add( "isMacro?",  isTypeFn() );
+		add( "isNull?",   isTypeFn() );
+		add( "isFixNum?", isTypeFn() );
+		add( "isReal?",   isTypeFn() );
+	}
+
+	private FunctionType isTypeFn() {
+		return new FunctionType(BaseType.BOOL, new Type[]{new Parameter()});
+	}
+
+	private Type anyBool() {
+		return new Maybe(new Parameter());
+	}
+
+	private FunctionType binaryPredicateFn() {
+		return new FunctionType(
+			BaseType.BOOL,
+			new Type[]{anyBool(), anyBool()}
+		);
+	}
+}
+
+public class LibraryRegistrar {
+	private ObjectRegistry mReg;
+
+	public void add(String name, Type type) {
+		mReg.add(new Symbol(name), type);
+	}
+
+	public static void registerLibrary(ObjectRegistry reg) {
+		LibraryRegistrar registrar = new LibraryRegistrar();
+		registrar.register( reg );
+	}
+
+	public void register( ObjectRegistry reg ) {
+		mReg = reg;
+		registerList();
+	}
+
+	private void registerList() {
+		add("length", new FunctionType(BaseType.FIXNUM, new Type[]{new ListType(new Parameter())}));
+		Parameter p = new Parameter();
+		add("first", new FunctionType(p, new Type[]{new ListType(p)}));
+		p = new Parameter();
+		add("second", new FunctionType(p, new Type[]{new ListType(p)}));
+		p = new Parameter();
+		add("third", new FunctionType(p, new Type[]{new ListType(p)}));
+		p = new Parameter();
+		add("last", new FunctionType(p, new Type[]{new ListType(p)}));
+		p = new Parameter();
+		add("nth", new FunctionType(p, new Type[]{new ListType(p), BaseType.FIXNUM}));
+		p = new Parameter();
+		add("append", new FunctionType(new ListType(p), new Type[]{new ListType(p), p}));
+		p = new Parameter();
+		add("remove", new FunctionType(new ListType(p), new Type[]{new ListType(p), new FunctionType(BaseType.BOOL, new Type[]{p})}));
+		p = new Parameter();
+		add("reverse", new FunctionType(new ListType(p), new Type[]{new ListType(p)}));
+		p = new Parameter();
+		Parameter q = new Parameter();
+		add("map", new FunctionType(new ListType(q), new Type[]{new FunctionType(q, new Type[]{p}),new ListType(p)}));
+		p = new Parameter();
+		q = new Parameter();
+		add("reduce", new FunctionType(q, new Type[]{new FunctionType(q, new Type[]{p, q}), new ListType(p), q}));
+	}
+}
+    */
+    
+    
     function testSuite() {
         var parameterTests = [
         	function testParameter() {
