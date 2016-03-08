@@ -502,52 +502,41 @@ var SLUR_TYPES = (function (SLUR) {
         Primitives.BOOL = new Maybe(Primitives.BOOLEAN);
     }());
     
+    function Registry() {
+        this.entries = [];
+    }
+    
+    Registry.prototype.add = function (symbol, type) {
+        this.entries.push({symbol: symbol, type: type});
+    };
+    
+    // Requires that type's parameters are unique.
+    Registry.prototype.findMatch = function (type) {
+        var matching = [];
+        for (var e = 0; e < this.entries.length; ++e) {
+            var entry = this.entries[e];
+            if (type.match(entry.type).matches) {
+                matching.push(entry.symbol);
+            }
+        }
+        return matching;
+    };
+    
+    // Requires that returnType's parameters are unique.
+    Registry.prototype.findFunctionReturning = function (returnType) {
+        var matching = [];
+        for (var e = 0; e < this.entries.length; ++e) {
+            var entry = this.entries[e];
+            if (entry.returnType) {
+                var match = returnType.match(entry.returnType);
+                if (match.matches) {
+                    matching.add({symbol: entry.symbol, type: entry.type.substitute(match.mappings)});
+                }
+            }
+        }
+    };
+    
 /*
-    public class ObjectRegistry {
-	List<TypedSymbol> mRegistry = new ArrayList<TypedSymbol>();
-
-	public void add( Symbol symbol, Type type ) {
-		mRegistry.add( new TypedSymbol( symbol, type ) );
-	}
-
-	// Class to remined clients that a function requires a type whose parameters are guarenteed to be unique.
-	public static class UniqueParameterPromise {}
-	public static UniqueParameterPromise PromiseUniqueParameter = new UniqueParameterPromise();
-
-	public List<Symbol> findMatching( Type type, UniqueParameterPromise promise ) {
-		List<Symbol> matching = new ArrayList<Symbol>();
-		for( TypedSymbol tSym : mRegistry ) {
-			if( type.match(tSym.type ).matches() ) {
-				matching.add( tSym.symbol );
-			}
-		}
-		return matching;
-	}
-
-	public static class TypedSymbol {
-		TypedSymbol( Symbol sym, Type itsType ) {
-			symbol = sym;
-			type = itsType;
-		}
-		Symbol symbol;
-		Type type;
-	}
-
-	public List<TypedSymbol> findFunctionTypeReturning(Type returnType, UniqueParameterPromise promise ) {
-		List<TypedSymbol> matching = new ArrayList<TypedSymbol>();
-		for(TypedSymbol tSym : mRegistry) {
-			if(tSym.type instanceof FunctionType) {
-				FunctionType funcType = ((FunctionType)tSym.type);
-				Match match = returnType.match( funcType.returnType() );
-				if(match.matches()) {
-					matching.add( new TypedSymbol( tSym.symbol, funcType.substitute( match.mappings() ) ) );
-				}
-			}
-		}
-		return matching;
-	}
-}
-
 public class BuiltinRegistrar {
 	private ObjectRegistry mReg;
 
