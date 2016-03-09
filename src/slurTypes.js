@@ -42,7 +42,7 @@ var SLUR_TYPES = (function (SLUR) {
 
     Parameter.prototype.findParameters = function (result) {
         for (var i = 0; i < result.length; ++i) {
-            if(result[i].equals(this)) {
+            if (result[i].equals(this)) {
                 return;
             }
         }
@@ -82,33 +82,33 @@ var SLUR_TYPES = (function (SLUR) {
         this.name = name;
     }
 
-    BaseType.prototype.match = function (other) {
+    Primitive.prototype.match = function (other) {
         if (this.equals(other)) {
             return MATCHED;
         }
         return NO_MATCH;
     };
 
-    BaseType.prototype.equals = function (other) {
+    Primitive.prototype.equals = function (other) {
         return other.type && other.type === this.type;
     };
 
-    BaseType.prototype.involves = function (other) {
+    Primitive.prototype.involves = function (other) {
         return false;
     };
 
-    BaseType.prototype.isParameterized = function () {
+    Primitive.prototype.isParameterized = function () {
         return false;
     };
 
-    BaseType.prototype.substitute = function (mappings) {
+    Primitive.prototype.substitute = function (mappings) {
         return this;
     };
 
-    BaseType.prototype.findParameters = function (result) {
+    Primitive.prototype.findParameters = function (result) {
     };
 
-    BaseType.prototype.toString = function () {
+    Primitive.prototype.toString = function () {
         return this.name ? this.name : "BaseType" + this.type;
     };
 
@@ -371,7 +371,7 @@ var SLUR_TYPES = (function (SLUR) {
             this.matches = false;
         } else if (Array.isArray(parameter)) {
             this.mappings = parameter.slice();
-        } else if(!this.add(new ParameterMapping(parameter, type))) {
+        } else if (!this.add(new ParameterMapping(parameter, type))) {
             this.matches = false;
         }
     }
@@ -379,7 +379,7 @@ var SLUR_TYPES = (function (SLUR) {
     Match.prototype.match = function (parameter, type) {
         if (type.involves(parameter)) {
             this.matches = false;
-        } else if(!this.add(new ParameterMapping(parameter, type))) {
+        } else if (!this.add(new ParameterMapping(parameter, type))) {
             this.matches = false;
         }
     };
@@ -489,11 +489,11 @@ var SLUR_TYPES = (function (SLUR) {
         }
         return type.substitute(mappings);
     }
- 
+
     (function () {
         MATCHED = new Match([]);
         NO_MATCH = new Match();
-    
+
         for (var type in SLUR.ObjectType) {
             if (SLUR.ObjectType.hasOwnProperty(type) && SLUR.ObjectType[type]) {
                 Primitives[type] = new BaseType(SLUR.ObjectType[type], type);
@@ -501,15 +501,15 @@ var SLUR_TYPES = (function (SLUR) {
         }
         Primitives.BOOL = new Maybe(Primitives.BOOLEAN);
     }());
-    
+
     function Registry() {
         this.entries = [];
     }
-    
+
     Registry.prototype.add = function (symbol, type) {
         this.entries.push({symbol: symbol, type: type});
     };
-    
+
     // Requires that type's parameters are unique.
     Registry.prototype.findMatch = function (type) {
         var matching = [];
@@ -521,7 +521,7 @@ var SLUR_TYPES = (function (SLUR) {
         }
         return matching;
     };
-    
+
     // Requires that returnType's parameters are unique.
     Registry.prototype.findFunctionReturning = function (returnType) {
         var matching = [];
@@ -535,21 +535,21 @@ var SLUR_TYPES = (function (SLUR) {
             }
         }
     };
-    
+
 /*
 public class BuiltinRegistrar {
 	private ObjectRegistry mReg;
 
-	public void add(String name, Type type) {
+	function add(String name, Type type) {
 		mReg.add(new Symbol(name), type);
 	}
 
-	public static void registerBuiltins(ObjectRegistry reg) {
+	function registerBuiltins(ObjectRegistry reg) {
 		BuiltinRegistrar registrar = new BuiltinRegistrar();
-		registrar.register( reg );
+		registrar.register(reg);
 	}
 
-	public void register( ObjectRegistry reg ) {
+	function register(ObjectRegistry reg) {
 		mReg = reg;
 		registerNumeric();
 		registerLogic();
@@ -558,40 +558,40 @@ public class BuiltinRegistrar {
 	}
 
 	private void addNumerical(String name) {
-		add( name, new FunctionType( BaseType.FIXNUM, new Type[]{BaseType.FIXNUM, BaseType.FIXNUM}) );
-		add( name, new FunctionType( BaseType.REAL, new Type[]{BaseType.REAL, BaseType.REAL}) );
-		add( name, new FunctionType( BaseType.REAL, new Type[]{BaseType.REAL, BaseType.FIXNUM}) );
-		add( name, new FunctionType( BaseType.REAL, new Type[]{BaseType.FIXNUM, BaseType.REAL}) );
+		add(name, new FunctionType(Primitive.FIX_NUM, [Primitive.FIX_NUM, Primitive.FIX_NUM]));
+		add(name, new FunctionType(Primitive.REAL, [Primitive.REAL, Primitive.REAL]));
+		add(name, new FunctionType(Primitive.REAL, [Primitive.REAL, Primitive.FIX_NUM]));
+		add(name, new FunctionType(Primitive.REAL, [Primitive.FIX_NUM, Primitive.REAL]));
 	}
 
-	private void addRelational(String name ) {
-		add( name, new FunctionType( BaseType.BOOL, new Type[]{BaseType.FIXNUM,BaseType.FIXNUM}));
-		add( name, new FunctionType( BaseType.BOOL, new Type[]{BaseType.REAL,BaseType.REAL}));
-		add( name, new FunctionType( BaseType.BOOL, new Type[]{BaseType.FIXNUM,BaseType.REAL}));
-		add( name, new FunctionType( BaseType.BOOL, new Type[]{BaseType.REAL,BaseType.FIXNUM}));
+	private void addRelational(String name) {
+		add(name, new FunctionType(Primitive.BOOL, [Primitive.FIX_NUM,Primitive.FIX_NUM]));
+		add(name, new FunctionType(Primitive.BOOL, [Primitive.REAL,Primitive.REAL]));
+		add(name, new FunctionType(Primitive.BOOL, [Primitive.FIX_NUM,Primitive.REAL]));
+		add(name, new FunctionType(Primitive.BOOL, [Primitive.REAL,Primitive.FIX_NUM]));
 	}
 
 	private FunctionType RealFunc() {
-		return new FunctionType( BaseType.REAL, new Type[]{BaseType.REAL});
+		return new FunctionType(Primitive.REAL, [Primitive.REAL]);
 	}
 
 	private FunctionType RealFunc2() {
-		return new FunctionType( BaseType.REAL, new Type[]{BaseType.REAL, BaseType.REAL});
+		return new FunctionType(Primitive.REAL, [Primitive.REAL, Primitive.REAL]);
 	}
 
-	private FunctionType FixNumFunc() {
-		return new FunctionType( BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
+	private FunctionType FIX_NUMFunc() {
+		return new FunctionType(Primitive.FIX_NUM, [Primitive.FIX_NUM]);
 	}
 
-	private FunctionType FixNumFunc2() {
-		return new FunctionType( BaseType.FIXNUM, new Type[]{BaseType.FIXNUM, BaseType.FIXNUM});
+	private FunctionType FIX_NUMFunc2() {
+		return new FunctionType(Primitive.FIX_NUM, [Primitive.FIX_NUM, Primitive.FIX_NUM]);
 	}
 
-	private FunctionType ToFixNum() {
-		return new FunctionType( BaseType.FIXNUM, new Type[]{BaseType.REAL});
+	private FunctionType ToFIX_NUM() {
+		return new FunctionType(Primitive.FIX_NUM, [Primitive.REAL]);
 	}
 
-	public void registerNumeric() {
+	function registerNumeric() {
 		addNumerical("+");
 		addNumerical("-");
 		addNumerical("*");
@@ -605,8 +605,8 @@ public class BuiltinRegistrar {
 		addRelational("=");
 		addRelational("!=");
 
-		add("PI", BaseType.REAL);
-		add("E", BaseType.REAL);
+		add("PI", Primitive.REAL);
+		add("E", Primitive.REAL);
 		add("sin", RealFunc());
 		add("cos", RealFunc());
 		add("tan", RealFunc());
@@ -620,46 +620,46 @@ public class BuiltinRegistrar {
 		add("max", RealFunc2());
 		add("min", RealFunc2());
 
-		add("abs", FixNumFunc());
-		add("max", FixNumFunc2());
-		add("min", FixNumFunc2());
+		add("abs", FIX_NUMFunc());
+		add("max", FIX_NUMFunc2());
+		add("min", FIX_NUMFunc2());
 
-		add("floor", ToFixNum());
-		add("ciel", ToFixNum());
-		add("round", ToFixNum());
+		add("floor", ToFIX_NUM());
+		add("ciel", ToFIX_NUM());
+		add("round", ToFIX_NUM());
 	}
 
-	public void registerLogic() {
+	function registerLogic() {
 		add("and", binaryPredicateFn());
 		add("or",  binaryPredicateFn());
-		add("not", new FunctionType(BaseType.BOOL, new Type[]{anyBool()}));
+		add("not", new FunctionType(Primitive.BOOL, [anyBool()]));
 
 		Parameter p = new Parameter();
-		add("if", new FunctionType(p, new Type[]{anyBool(), p, p}));
+		add("if", new FunctionType(p, [anyBool(), p, p]));
 	}
 
 	private void registerList() {
 		Parameter p = new Parameter();
 		Parameter q = new Parameter();
-		add("cons", new FunctionType(new ConsType(p, q), new Type[]{p, q}));
+		add("cons", new FunctionType(new ConsType(p, q), [p, q]));
 
 		p = new Parameter();
 		q = new Parameter();
-		add("car", new FunctionType(p, new Type[]{new ConsType(p, q)}));
+		add("car", new FunctionType(p, [new ConsType(p, q)]));
 
 		p = new Parameter();
 		q = new Parameter();
-		add("cdr", new FunctionType(q, new Type[]{new ConsType( p, q )}));
+		add("cdr", new FunctionType(q, [new ConsType(p, q)]));
 
 		p = new Parameter();
-		add("isList?", new FunctionType(BaseType.BOOL, new Type[]{p}));
+		add("isList?", new FunctionType(Primitive.BOOL, [p]));
 
 		// TODO Is this a resonable way of handling rest parameter types?
 		List<Parameter> ps = new ArrayList<Parameter>();
-		for(int i = 0; i < 10; ++ i) {
+		for (int i = 0; i < 10; ++ i) {
 			ps.clear();
 			p = new Parameter();
-			for(int j = 0; j < i; ++j) {
+			for (int j = 0; j < i; ++j) {
 				ps.add(p);
 			}
 
@@ -668,18 +668,18 @@ public class BuiltinRegistrar {
 	}
 
 	private void registerTypes() {
-		add( "isCons?",   isTypeFn() );
-		add( "isSym?",    isTypeFn() );
-		add( "isString?", isTypeFn() );
-		add( "isFn?",     isTypeFn() );
-		add( "isMacro?",  isTypeFn() );
-		add( "isNull?",   isTypeFn() );
-		add( "isFixNum?", isTypeFn() );
-		add( "isReal?",   isTypeFn() );
+		add("isCons?",   isTypeFn());
+		add("isSym?",    isTypeFn());
+		add("isString?", isTypeFn());
+		add("isFn?",     isTypeFn());
+		add("isMacro?",  isTypeFn());
+		add("isNull?",   isTypeFn());
+		add("isFixnum?", isTypeFn());
+		add("isReal?",   isTypeFn());
 	}
 
 	private FunctionType isTypeFn() {
-		return new FunctionType(BaseType.BOOL, new Type[]{new Parameter()});
+		return new FunctionType(Primitive.BOOL, [new Parameter()]);
 	}
 
 	private Type anyBool() {
@@ -688,8 +688,8 @@ public class BuiltinRegistrar {
 
 	private FunctionType binaryPredicateFn() {
 		return new FunctionType(
-			BaseType.BOOL,
-			new Type[]{anyBool(), anyBool()}
+			Primitive.BOOL,
+			[anyBool(), anyBool()]
 		);
 	}
 }
@@ -697,49 +697,49 @@ public class BuiltinRegistrar {
 public class LibraryRegistrar {
 	private ObjectRegistry mReg;
 
-	public void add(String name, Type type) {
+	function add(String name, Type type) {
 		mReg.add(new Symbol(name), type);
 	}
 
-	public static void registerLibrary(ObjectRegistry reg) {
+	function registerLibrary(ObjectRegistry reg) {
 		LibraryRegistrar registrar = new LibraryRegistrar();
-		registrar.register( reg );
+		registrar.register(reg);
 	}
 
-	public void register( ObjectRegistry reg ) {
+	function register(ObjectRegistry reg) {
 		mReg = reg;
 		registerList();
 	}
 
 	private void registerList() {
-		add("length", new FunctionType(BaseType.FIXNUM, new Type[]{new ListType(new Parameter())}));
+		add("length", new FunctionType(Primitive.FIX_NUM, [new ListType(new Parameter())]));
 		Parameter p = new Parameter();
-		add("first", new FunctionType(p, new Type[]{new ListType(p)}));
+		add("first", new FunctionType(p, [new ListType(p)]));
 		p = new Parameter();
-		add("second", new FunctionType(p, new Type[]{new ListType(p)}));
+		add("second", new FunctionType(p, [new ListType(p)]));
 		p = new Parameter();
-		add("third", new FunctionType(p, new Type[]{new ListType(p)}));
+		add("third", new FunctionType(p, [new ListType(p)]));
 		p = new Parameter();
-		add("last", new FunctionType(p, new Type[]{new ListType(p)}));
+		add("last", new FunctionType(p, [new ListType(p)]));
 		p = new Parameter();
-		add("nth", new FunctionType(p, new Type[]{new ListType(p), BaseType.FIXNUM}));
+		add("nth", new FunctionType(p, [new ListType(p), Primitive.FIX_NUM]));
 		p = new Parameter();
-		add("append", new FunctionType(new ListType(p), new Type[]{new ListType(p), p}));
+		add("append", new FunctionType(new ListType(p), [new ListType(p), p]));
 		p = new Parameter();
-		add("remove", new FunctionType(new ListType(p), new Type[]{new ListType(p), new FunctionType(BaseType.BOOL, new Type[]{p})}));
+		add("remove", new FunctionType(new ListType(p), [new ListType(p), new FunctionType(Primitive.BOOL, [p])]));
 		p = new Parameter();
-		add("reverse", new FunctionType(new ListType(p), new Type[]{new ListType(p)}));
+		add("reverse", new FunctionType(new ListType(p), [new ListType(p)]));
 		p = new Parameter();
 		Parameter q = new Parameter();
-		add("map", new FunctionType(new ListType(q), new Type[]{new FunctionType(q, new Type[]{p}),new ListType(p)}));
+		add("map", new FunctionType(new ListType(q), [new FunctionType(q, [p]),new ListType(p)]));
 		p = new Parameter();
 		q = new Parameter();
-		add("reduce", new FunctionType(q, new Type[]{new FunctionType(q, new Type[]{p, q}), new ListType(p), q}));
+		add("reduce", new FunctionType(q, [new FunctionType(q, [p, q]), new ListType(p), q]));
 	}
 }
-    */
-    
-    
+*/
+
+
     function testSuite() {
         var parameterTests = [
         	function testParameter() {
@@ -790,7 +790,7 @@ public class LibraryRegistrar {
                 TEST.isTrue(result.equals(Primitives.STRING));
 
                 var q = new Parameter();
-                
+
                 result = q.substitute(match.mappings);
                 TEST.isTrue(result.equals(q));
             },
@@ -814,7 +814,7 @@ public class LibraryRegistrar {
                 TEST.isTrue(m1.equals(m2));
             }
         ];
-        
+
         var baseTypeTests = [
             function testParameter () {
                 TEST.isFalse(Primitives.NULL.isParameterized());
@@ -837,13 +837,13 @@ public class LibraryRegistrar {
                 TEST.equals(Primitives.SYMBOL.toString(), "SYMBOL");
             }
         ];
-        
+
         var cons = new ConsType(Primitives.REAL, Primitives.STRING),
             pcar = new ConsType(new Parameter(), Primitives.STRING),
             pcdr = new ConsType(Primitives.REAL, new Parameter());
 
         var consTypeTests = [
-        	function testParameter() {                  
+        	function testParameter() {
                 TEST.isFalse(cons.isParameterized());
                 TEST.isFalse(cons.involves(new Parameter()));
 
@@ -877,7 +877,7 @@ public class LibraryRegistrar {
                 TEST.equals(match.mappings[0].type, cons.carType);
 
                 match = pcdr.match(cons);
-                
+
                 TEST.isTrue(match.matches);
                 TEST.equals(match.mappings.length, 1);
                 TEST.equals(match.mappings[0].parameter, pcdr.cdrType);
@@ -892,7 +892,7 @@ public class LibraryRegistrar {
                     target = new ConsType(Primitives.STRING, Primitives.REAL),
                     match = parameterized.match(target),
                     result = parameterized.substitute(match.mappings);
-                    
+
                 TEST.isTrue(result.equals(target));
 
                 p = new Parameter();
@@ -906,7 +906,7 @@ public class LibraryRegistrar {
                 TEST.equals(cons.toString(), "Cons[REAL, STRING]");
             }
         ];
-        
+
         var listTypeTests = [
         	function testParameter() {
                 var list = new ListType(Primitives.STRING);
@@ -961,7 +961,7 @@ public class LibraryRegistrar {
                 TEST.equals(new ListType(Primitives.NULL).toString(), "List[NULL]");
             }
         ];
-        
+
         var maybeTests = [
         	function testParameter() {
                 var maybe = new Maybe(Primitives.FIX_NUM);
@@ -1015,7 +1015,7 @@ public class LibraryRegistrar {
                 TEST.equals(new Maybe(Primitives.SYMBOL).toString(), "Maybe[SYMBOL]");
             }
         ];
-        
+
         var functionTypeTests = [
         	function testParameter() {
                 var func = new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]);
@@ -1030,7 +1030,7 @@ public class LibraryRegistrar {
                 TEST.isTrue(funcP.involves(p));
                 TEST.isTrue(funcP.involves(q));
                 TEST.isFalse(funcP.involves(new Parameter()));
-                
+
                 var parameters = findParameters(funcP);
                 TEST.inList(parameters, q);
                 TEST.inList(parameters, p);
@@ -1123,12 +1123,12 @@ public class LibraryRegistrar {
                 TEST.equals(func2.toString(),"F[STRING, STRING]->[Maybe[BOOLEAN]]");
             }
         ];
-        
+
         var matchTests = [
         	function testResult() {
                 TEST.isTrue(MATCHED.matches);
                 TEST.isEmpty(MATCHED.mappings);
-                
+
                 TEST.isFalse(NO_MATCH.matches);
                 TEST.isEmpty(NO_MATCH.mappings);
             },
@@ -1169,7 +1169,7 @@ public class LibraryRegistrar {
                     match = new Match(p, Primitives.FIX_NUM),
                     other = new Match(q, Primitives.REAL),
                     combined = match.combine(other);
-                    
+
                 TEST.isTrue(combined.matches);
                 TEST.equals(combined.mappings.length, 2);
 
@@ -1201,7 +1201,7 @@ public class LibraryRegistrar {
                         match = new Match(p, i === 0 ? new ListType(q) : new ListType(Primitives.STRING)),
                         other = new Match(p, i !== 0 ? new ListType(q) : new ListType(Primitives.STRING)),
                         combined = match.combine(other);
-                        
+
                     TEST.isTrue(combined.matches);
 
                     var mappings = combined.mappings,
@@ -1220,7 +1220,7 @@ public class LibraryRegistrar {
                 }
             }
         ];
-        
+
         var uniqueTests = [
             function testUniqueFunction() {
                 var func = new FunctionType(Primitives.FIX_NUM, [Primitives.STRING]);
@@ -1269,10 +1269,10 @@ public class LibraryRegistrar {
                 TEST.isFalse(makeParametersUnique(p).equals(p));
             }
         ];
-        
+
         function testCompareAreEqual(a, b) { TEST.isTrue (typesEqualModuloParamaters(a, b)); }
         function testCompareNotEqual(a, b) { TEST.isFalse(typesEqualModuloParamaters(a, b)); }
-        
+
         var compareTests = [
             function testBaseTypes() {
                 testCompareAreEqual(Primitives.STRING, Primitives.STRING);
@@ -1338,8 +1338,8 @@ public class LibraryRegistrar {
                 testCompareAreEqual(new FunctionType(p, [p]), new FunctionType(q, [q]));
                 testCompareAreEqual(new FunctionType(p, [p, q]), new FunctionType(r, [r, q]));
             }
-        ];        
-        
+        ];
+
         TEST.run("Parameter", parameterTests);
         TEST.run("BaseType", baseTypeTests);
         TEST.run("ConsType", consTypeTests);
@@ -1352,7 +1352,7 @@ public class LibraryRegistrar {
     }
 
     testSuite();
-    
+
     return {
         Parameter: Parameter,
         BaseType: BaseType,
