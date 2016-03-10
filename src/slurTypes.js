@@ -1321,13 +1321,17 @@ var SLUR_TYPES = (function (SLUR) {
     testSuite();
 
     return {
+        Primitives: Primitives,
         Parameter: Parameter,
         BaseType: BaseType,
         ConsType: ConsType,
         ListType: ListType,
         Maybe: Maybe,
+        FunctionType: FunctionType,
         Match: Match,
         typesEqualModuloParamaters: typesEqualModuloParamaters,
-        makeParametersUnique: makeParametersUnique
+        makeParametersUnique: makeParametersUnique,
+        Registry: Registry,
+        registerBuiltins: registerBuiltins
     };
 }(SLUR));

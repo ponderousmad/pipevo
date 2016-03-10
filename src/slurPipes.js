@@ -250,101 +250,77 @@ var SLUR_PIPES = (function() {
         installDiscarder(env);
     }
 
+    function register(registry, allowModify, allowFollow) {
+        function add(name, type) {
+            registry.add(name, type);
+        }
+        
+        function addFunction(name, returnType, parameterTypes) {
+            add(name, new SLUR_TYPES.FunctionType(returnType, parameterTypes));
+        }
+        
+        var Primitives = SLUR_TYPES.Primitives;
+        
+        // Register constants
+        for (var pieceType in PIPES.PieceTypes) {
+            if (PIPES.PieceTypes.hasOwnProperty(pieceType)) {
+                add("pt" + pieceType, Primitives.STRING);
+            }
+        }
+        for (var side in PIPES.Side) {
+            if (PIPES.Side.hasOwnProperty(side)) {
+                add("side" + side, Primitives.FIX_NUM);
+            }
+        }
+        
+        // Register Game
+        addFunction("isGame?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
+        addFunction("isGameOver?", Primitives.BOOL, [GameType.GAME]);
+        addFunction("gameWidth", Primitives.FIX_NUM, [GameType.GAME]);
+        addFunction("gameHeight", Primitives.FIX_NUM, [GameType.GAME]);
+        addFunction("gameIsValidPos?", Primitives.BOOL, [GameType.GAME, GameType.POSITION]);
+        addFunction("gameIsEmpty?", Primitives.BOOL, [GameType.GAME, GameType.POSITION]);
+        addFunction("gameSourceDirection", Primitives.FIX_NUM, [GameType.GAME]);
+        addFunction("gameSourcePosition", GameType.POSITION, [GameType.GAME]);
+        addFunction("gamePieceAt", GameType.PIECE, [GameType.BOARD, GameType.POSITION]);
+        addFunction("gamePeekNext", GameType.PIECE, [GameType.GAME]);
+        addFunction("gamePeek", GameType.PIECE, [GameType.GAME, Primitives.FIX_NUM]);
+        addFunction("oppositeSide", Primitives.FIX_NUM, [Primitives.FIX_NUM]);
+        
+        // Register Piece
+        addFunction("isPiece?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
+        addFunction("pieceIsFull?", Primitives.BOOL, [GameType.PIECE, Primitives.FIX_NUM]);
+        addFunction("pieceType", Primitives.FIX_NUM, [GameType.PIECE]);
+        addFunction("pieceIsSource?", Primitives.BOOL, [GameType.PIECE]);
+        addFunction("pieceIsSingle?", Primitives.BOOL, [GameType.PIECE]);
+        addFunction("pieceIsDual?", Primitives.BOOL, [GameType.PIECE]);
+        addFunction("pieceIsOpen?", Primitives.BOOL, [GameType.PIECE, Primitives.FIX_NUM]);
+        addFunction("pieceFarSide", new SLUR_TYPES.Maybe(Primitives.FIX_NUM), [GameType.PIECE, Primitives.FIX_NUM]);
+        
+        // Register Board
+        addFunction("isBoard?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
+        addFunction("gameBoard", GameType.BOARD, [GameType.GAME]);
+        addFunction("boardIsEmpty?", Primitives.BOOL, [GameType.BOARD, GameType.POSITION]);
+        addFunction("gameTryNth", new SLUR_TYPES.Maybe(GameType.BOARD), [GameType.BOARD, GameType.POSITION, Primitives.FIX_NUM]);
+        
+        if (allowModify) {
+            addFunction("gamePlace", Primitives.BOOL, [GameType.GAME, GameType.POSITION]);
+        }
+
+        // Pipe follow functions        
+        if (!allowFollow) {
+            return;
+        }
+        addFunction("isPipe?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
+        addFunction("followPipe", GameType.PIPE, [GameType.GAME]);
+        addFunction("followPipe", GameType.PIPE, [GameType.BOARD]);
+        addFunction("pipeLength", Primitives.FIX_NUM, [GameType.PIPE]);
+        addFunction("pipeFilled", Primitives.FIX_NUM, [GameType.PIPE]);
+        addFunction("pipeOutDirection", Primitives.FIX_NUM, [GameType.PIPE]);
+        addFunction("pipeOutPosition", new SLUR_TYPES.Maybe(GameType.POSITION), [GameType.PIPE]);
+    }
+
 /*
-public class GameRegistrar {
-    private ObjectRegistry mReg;
-
-    public static void registerGame(ObjectRegistry reg, boolean allowFollow) {
-        GameRegistrar doReg = new GameRegistrar();
-        doReg.register(reg, allowFollow);
-    }
-
-    void register(ObjectRegistry reg, boolean allowFollow) {
-        mReg = reg;
-        registerGame();
-        registerPiece();
-        registerBoard();
-        if (allowFollow) {
-            registerPipe();
-        }
-    }
-
-    void add(String name, Type type) {
-        mReg.add(new Symbol(name), type);
-    }
-
-    void addFunction(String name, Type returnType) {
-        mReg.add(new Symbol(name), new FuncType(returnType, new Type[]{}));
-    }
-
-    void addFunction(String name, Type returnType, Type arg1Type) {
-        mReg.add(new Symbol(name), new FuncType(returnType, new Type[]{arg1Type}));
-    }
-
-    void addFunction(String name, Type returnType, Type arg1Type, Type arg2Type) {
-        mReg.add(new Symbol(name), new FuncType(returnType, new Type[]{arg1Type, arg2Type}));
-    }
-
-    void addFunction(String name, Type returnType, Type arg1Type, Type arg2Type, Type arg3Type) {
-        mReg.add(new Symbol(name), new FuncType(returnType, new Type[]{arg1Type, arg2Type, arg3Type}));
-    }
-
-    void registerConstants() {
-        for (PieceType pieceType : PieceType.values()) {
-            add("pt" + pieceType.toString(), BaseType.FIXNUM);
-        }
-        for (Side side : Side.values()) {
-            add("side" + side.toString(), BaseType.FIXNUM);
-        }
-    }
-
-    void registerGame() {
-        addFunction("isGame?", BaseType.BOOL, new Parameter());
-        addFunction("isGameOver?", BaseType.BOOL, GameType.GAME);
-        addFunction("gameWidth", BaseType.FIXNUM, GameType.GAME);
-        addFunction("gameHeight", BaseType.FIXNUM, GameType.GAME);
-        addFunction("gameIsValidPos?", BaseType.BOOL, GameType.GAME, GameType.POSITION);
-        addFunction("gameIsEmpty?", BaseType.BOOL, GameType.GAME, GameType.POSITION);
-        addFunction("gameSourceDirection", BaseType.FIXNUM, GameType.GAME);
-        addFunction("gameSourcePosition", GameType.POSITION, GameType.GAME);
-        addFunction("gamePieceAt", GameType.PIECE, GameType.STRACETATE, GameType.POSITION);
-        addFunction("gamePeekNext", GameType.PIECE, GameType.GAME);
-        addFunction("gamePeek", GameType.PIECE, GameType.GAME, BaseType.FIXNUM);
-        addFunction("oppositeSide", BaseType.FIXNUM, BaseType.FIXNUM);
-    }
-
-    void registerPiece() {
-        addFunction("isPiece?", BaseType.BOOL, new Parameter());
-        addFunction("pieceIsFull?", BaseType.BOOL, GameType.PIECE, BaseType.FIXNUM);
-        addFunction("pieceType", BaseType.FIXNUM, GameType.PIECE);
-        addFunction("pieceIsSource?", BaseType.BOOL, GameType.PIECE);
-        addFunction("pieceIsSingle?", BaseType.BOOL, GameType.PIECE);
-        addFunction("pieceIsDual?", BaseType.BOOL, GameType.PIECE);
-        addFunction("pieceIsOpen?", BaseType.BOOL, GameType.PIECE, BaseType.FIXNUM);
-        addFunction("pieceFarSide", new Maybe(BaseType.FIXNUM), GameType.PIECE, BaseType.FIXNUM);
-    }
-
-    void registerBoard() {
-        addFunction("isBoard?", BaseType.BOOL, new Parameter());
-        addFunction("gameBoard", GameType.STRACETATE, GameType.GAME);
-        addFunction("stracetateIsEmpty?", BaseType.BOOL, GameType.STRACETATE, GameType.POSITION);
-        addFunction("gameTryNth", new Maybe(GameType.STRACETATE), GameType.STRACETATE, GameType.POSITION, BaseType.FIXNUM);
-    }
-
-    void registerPipe() {
-        addFunction("isPipe?", BaseType.BOOL, new Parameter());
-        addFunction("followPipe", GameType.PIPE, GameType.GAME);
-        addFunction("followPipe", GameType.PIPE, GameType.STRACETATE);
-        addFunction("pipeLength", BaseType.FIXNUM, GameType.PIECE);
-        addFunction("pipeOutDirection", BaseType.FIXNUM, GameType.PIPE);
-        addFunction("pipeOutPosition", new Maybe(GameType.POSITION), GameType.PIPE);
-    }
-
-    void registerModifiers() {
-        addFunction("gamePlace", BaseType.BOOL, GameType.GAME, GameType.POSITION);
-    }
-}
-
 public class GameTypeBuilder {
     public static TypeBuilder.Probabilities defaultProbabilities() {
         TypeBuilder.Probabilities probs = new TypeBuilder.Probabilities();
@@ -353,7 +329,7 @@ public class GameTypeBuilder {
         typeWeights.add(new Pair<Type,Integer>(GameType.PIECE, 10));
         typeWeights.add(new Pair<Type,Integer>(GameType.PIPE, 10));
         typeWeights.add(new Pair<Type,Integer>(GameType.POSITION, 10));
-        typeWeights.add(new Pair<Type,Integer>(GameType.STRACETATE, 10));
+        typeWeights.add(new Pair<Type,Integer>(GameType.BOARD, 10));
         return probs;
     }
 
@@ -362,24 +338,50 @@ public class GameTypeBuilder {
         constraints.add(new TypeBuilder.Constraint(GameType.GAME, new java.util.ArrayList<Type>()));
         List<Type> sourceTypes = new java.util.ArrayList<Type>();
         sourceTypes.add(GameType.GAME);
-        constraints.add(new TypeBuilder.Constraint(GameType.STRACETATE, sourceTypes));
+        constraints.add(new TypeBuilder.Constraint(GameType.BOARD, sourceTypes));
 
         sourceTypes = new java.util.ArrayList<Type>();
         sourceTypes.add(GameType.GAME);
-        sourceTypes.add(GameType.STRACETATE);
+        sourceTypes.add(GameType.BOARD);
         constraints.add(new TypeBuilder.Constraint(GameType.PIPE, sourceTypes));
 
         sourceTypes = new java.util.ArrayList<Type>();
         sourceTypes.add(GameType.GAME);
-        sourceTypes.add(GameType.STRACETATE);
+        sourceTypes.add(GameType.BOARD);
         sourceTypes.add(GameType.PIPE);
         constraints.add(new TypeBuilder.Constraint(GameType.PIECE, sourceTypes));
         return constraints;
     }
 }
 */
+
+    function testSuite() {
+        var registryTests = [
+            function testRegisterBasic() {
+                var reg = new SLUR_TYPES.Registry();
+                register(reg, false, false);
+                TEST.equals(reg.entries.length, 41);
+            },
+            function testRegisterModify() {
+                var reg = new SLUR_TYPES.Registry();
+                register(reg, true, false);
+                TEST.equals(reg.entries.length, 42);
+            },
+            function testRegisterPipe() {
+                var reg = new SLUR_TYPES.Registry();
+                register(reg, false, true);
+                TEST.equals(reg.entries.length, 48);
+            }
+        ];
+        
+        TEST.run("Game Registry", registryTests);
+    }
+
+    testSuite();
+    
     return {
         Game: Game,
-        install: install
+        install: install,
+        register: register
     };
 }());
