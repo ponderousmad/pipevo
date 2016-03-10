@@ -82,33 +82,33 @@ var SLUR_TYPES = (function (SLUR) {
         this.name = name;
     }
 
-    Primitive.prototype.match = function (other) {
+    BaseType.prototype.match = function (other) {
         if (this.equals(other)) {
             return MATCHED;
         }
         return NO_MATCH;
     };
 
-    Primitive.prototype.equals = function (other) {
+    BaseType.prototype.equals = function (other) {
         return other.type && other.type === this.type;
     };
 
-    Primitive.prototype.involves = function (other) {
+    BaseType.prototype.involves = function (other) {
         return false;
     };
 
-    Primitive.prototype.isParameterized = function () {
+    BaseType.prototype.isParameterized = function () {
         return false;
     };
 
-    Primitive.prototype.substitute = function (mappings) {
+    BaseType.prototype.substitute = function (mappings) {
         return this;
     };
 
-    Primitive.prototype.findParameters = function (result) {
+    BaseType.prototype.findParameters = function (result) {
     };
 
-    Primitive.prototype.toString = function () {
+    BaseType.prototype.toString = function () {
         return this.name ? this.name : "BaseType" + this.type;
     };
 
@@ -536,63 +536,43 @@ var SLUR_TYPES = (function (SLUR) {
         }
     };
 
-/*
-public class BuiltinRegistrar {
-	private ObjectRegistry mReg;
+    function registerBuiltins(registry) {
+        function add(name, type) {
+            registry.add(name, type);
+        }
 
-	function add(String name, Type type) {
-		mReg.add(new Symbol(name), type);
-	}
+        function anyBool() {
+            return new Maybe(new Parameter());
+        }
 
-	function registerBuiltins(ObjectRegistry reg) {
-		BuiltinRegistrar registrar = new BuiltinRegistrar();
-		registrar.register(reg);
-	}
+        function isTypeFn() {
+            return new FunctionType(Primitives.BOOL, [new Parameter()]);
+        }
 
-	function register(ObjectRegistry reg) {
-		mReg = reg;
-		registerNumeric();
-		registerLogic();
-		registerList();
-		registerTypes();
-	}
+        var unaryInt = new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]),
+            unaryReal = new FunctionType(Primitives.REAL, [Primitives.REAL]),
+            binaryInt = new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM, Primitives.FIX_NUM]),
+            binaryReal = new FunctionType(Primitives.REAL, [Primitives.REAL, Primitives.REAL]),
+            toInt = new FunctionType(Primitives.FIX_NUM, [Primitives.REAL]),
+            p = null,
+            q = null;
 
-	private void addNumerical(String name) {
-		add(name, new FunctionType(Primitive.FIX_NUM, [Primitive.FIX_NUM, Primitive.FIX_NUM]));
-		add(name, new FunctionType(Primitive.REAL, [Primitive.REAL, Primitive.REAL]));
-		add(name, new FunctionType(Primitive.REAL, [Primitive.REAL, Primitive.FIX_NUM]));
-		add(name, new FunctionType(Primitive.REAL, [Primitive.FIX_NUM, Primitive.REAL]));
-	}
+        function addNumerical(name) {
+            add(name, binaryInt);
+            add(name, binaryReal);
+            add(name, new FunctionType(Primitives.REAL, [Primitives.REAL, Primitives.FIX_NUM]));
+            add(name, new FunctionType(Primitives.REAL, [Primitives.FIX_NUM, Primitives.REAL]));
+        }
 
-	private void addRelational(String name) {
-		add(name, new FunctionType(Primitive.BOOL, [Primitive.FIX_NUM,Primitive.FIX_NUM]));
-		add(name, new FunctionType(Primitive.BOOL, [Primitive.REAL,Primitive.REAL]));
-		add(name, new FunctionType(Primitive.BOOL, [Primitive.FIX_NUM,Primitive.REAL]));
-		add(name, new FunctionType(Primitive.BOOL, [Primitive.REAL,Primitive.FIX_NUM]));
-	}
+        function addRelational(name) {
+            add(name, new FunctionType(Primitives.BOOL, [Primitives.FIX_NUM,Primitives.FIX_NUM]));
+            add(name, new FunctionType(Primitives.BOOL, [Primitives.REAL,Primitives.REAL]));
+            add(name, new FunctionType(Primitives.BOOL, [Primitives.FIX_NUM,Primitives.REAL]));
+            add(name, new FunctionType(Primitives.BOOL, [Primitives.REAL,Primitives.FIX_NUM]));
+        }
 
-	private FunctionType RealFunc() {
-		return new FunctionType(Primitive.REAL, [Primitive.REAL]);
-	}
-
-	private FunctionType RealFunc2() {
-		return new FunctionType(Primitive.REAL, [Primitive.REAL, Primitive.REAL]);
-	}
-
-	private FunctionType FIX_NUMFunc() {
-		return new FunctionType(Primitive.FIX_NUM, [Primitive.FIX_NUM]);
-	}
-
-	private FunctionType FIX_NUMFunc2() {
-		return new FunctionType(Primitive.FIX_NUM, [Primitive.FIX_NUM, Primitive.FIX_NUM]);
-	}
-
-	private FunctionType ToFIX_NUM() {
-		return new FunctionType(Primitive.FIX_NUM, [Primitive.REAL]);
-	}
-
-	function registerNumeric() {
-		addNumerical("+");
+        // Numeric:
+        addNumerical("+");
 		addNumerical("-");
 		addNumerical("*");
 		addNumerical("/");
@@ -605,42 +585,40 @@ public class BuiltinRegistrar {
 		addRelational("=");
 		addRelational("!=");
 
-		add("PI", Primitive.REAL);
-		add("E", Primitive.REAL);
-		add("sin", RealFunc());
-		add("cos", RealFunc());
-		add("tan", RealFunc());
-		add("asin", RealFunc());
-		add("acos", RealFunc());
-		add("atan", RealFunc());
-		add("atan2", RealFunc2());
-		add("pow", RealFunc2());
+		add("PI", Primitives.REAL);
+		add("E", Primitives.REAL);
+		add("sin", unaryReal);
+		add("cos", unaryReal);
+		add("tan", unaryReal);
+		add("asin", unaryReal);
+		add("acos", unaryReal);
+		add("atan", unaryReal);
+		add("atan2", binaryReal);
+		add("pow", binaryReal);
 
-		add("abs", RealFunc());
-		add("max", RealFunc2());
-		add("min", RealFunc2());
+		add("abs", unaryReal);
+		add("max", binaryReal);
+		add("min", binaryReal);
 
-		add("abs", FIX_NUMFunc());
-		add("max", FIX_NUMFunc2());
-		add("min", FIX_NUMFunc2());
+		add("abs", unaryInt);
+		add("max", binaryInt);
+		add("min", binaryInt);
 
-		add("floor", ToFIX_NUM());
-		add("ciel", ToFIX_NUM());
-		add("round", ToFIX_NUM());
-	}
+		add("floor", toInt);
+		add("ciel", toInt);
+		add("round", toInt);
 
-	function registerLogic() {
-		add("and", binaryPredicateFn());
-		add("or",  binaryPredicateFn());
-		add("not", new FunctionType(Primitive.BOOL, [anyBool()]));
+        // Logic:
+        add("and", new FunctionType(Primitives.BOOL, [anyBool(), anyBool()]));
+		add("or",  new FunctionType(Primitives.BOOL, [anyBool(), anyBool()]));
+		add("not", new FunctionType(Primitives.BOOL, [anyBool()]));
 
-		Parameter p = new Parameter();
+        p = new Parameter();
 		add("if", new FunctionType(p, [anyBool(), p, p]));
-	}
 
-	private void registerList() {
-		Parameter p = new Parameter();
-		Parameter q = new Parameter();
+        // List:
+        p = new Parameter();
+		q = new Parameter();
 		add("cons", new FunctionType(new ConsType(p, q), [p, q]));
 
 		p = new Parameter();
@@ -652,23 +630,21 @@ public class BuiltinRegistrar {
 		add("cdr", new FunctionType(q, [new ConsType(p, q)]));
 
 		p = new Parameter();
-		add("isList?", new FunctionType(Primitive.BOOL, [p]));
+		add("isList?", new FunctionType(Primitives.BOOL, [p]));
 
 		// TODO Is this a resonable way of handling rest parameter types?
-		List<Parameter> ps = new ArrayList<Parameter>();
-		for (int i = 0; i < 10; ++ i) {
-			ps.clear();
+		for (var i = 0; i < 10; ++i) {
+            var ps = [];
 			p = new Parameter();
-			for (int j = 0; j < i; ++j) {
-				ps.add(p);
+			for (var j = 0; j < i; ++j) {
+				ps.push(p);
 			}
 
-			add("list", new FunctionType(new ListType(p), ps.toArray(new Type[i])));
+			add("list", new FunctionType(new ListType(p), ps));
 		}
-	}
 
-	private void registerTypes() {
-		add("isCons?",   isTypeFn());
+        // Types:
+        add("isCons?",   isTypeFn());
 		add("isSym?",    isTypeFn());
 		add("isString?", isTypeFn());
 		add("isFn?",     isTypeFn());
@@ -676,24 +652,9 @@ public class BuiltinRegistrar {
 		add("isNull?",   isTypeFn());
 		add("isFixnum?", isTypeFn());
 		add("isReal?",   isTypeFn());
-	}
+    }
 
-	private FunctionType isTypeFn() {
-		return new FunctionType(Primitive.BOOL, [new Parameter()]);
-	}
-
-	private Type anyBool() {
-		return new Maybe(new Parameter());
-	}
-
-	private FunctionType binaryPredicateFn() {
-		return new FunctionType(
-			Primitive.BOOL,
-			[anyBool(), anyBool()]
-		);
-	}
-}
-
+/*
 public class LibraryRegistrar {
 	private ObjectRegistry mReg;
 
@@ -712,7 +673,7 @@ public class LibraryRegistrar {
 	}
 
 	private void registerList() {
-		add("length", new FunctionType(Primitive.FIX_NUM, [new ListType(new Parameter())]));
+		add("length", new FunctionType(Primitives.FIX_NUM, [new ListType(new Parameter())]));
 		Parameter p = new Parameter();
 		add("first", new FunctionType(p, [new ListType(p)]));
 		p = new Parameter();
@@ -722,11 +683,11 @@ public class LibraryRegistrar {
 		p = new Parameter();
 		add("last", new FunctionType(p, [new ListType(p)]));
 		p = new Parameter();
-		add("nth", new FunctionType(p, [new ListType(p), Primitive.FIX_NUM]));
+		add("nth", new FunctionType(p, [new ListType(p), Primitives.FIX_NUM]));
 		p = new Parameter();
 		add("append", new FunctionType(new ListType(p), [new ListType(p), p]));
 		p = new Parameter();
-		add("remove", new FunctionType(new ListType(p), [new ListType(p), new FunctionType(Primitive.BOOL, [p])]));
+		add("remove", new FunctionType(new ListType(p), [new ListType(p), new FunctionType(Primitives.BOOL, [p])]));
 		p = new Parameter();
 		add("reverse", new FunctionType(new ListType(p), [new ListType(p)]));
 		p = new Parameter();
