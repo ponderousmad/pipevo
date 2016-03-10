@@ -1292,6 +1292,19 @@ var SLUR_TYPES = (function (SLUR) {
                 testCompareAreEqual(new FunctionType(p, [p, q]), new FunctionType(r, [r, q]));
             }
         ];
+        
+        var registryTests = [
+            function testBuiltin() {
+                var registry = new Registry();
+                registerBuiltins(registry, false);
+                TEST.equals(registry.entries.length, 89);
+            },
+            function testLibrary() {
+                var registry = new Registry();
+                registerBuiltins(registry, true);
+                TEST.equals(registry.entries.length, 100);
+            }
+        ];
 
         TEST.run("Parameter", parameterTests);
         TEST.run("BaseType", baseTypeTests);
@@ -1302,6 +1315,7 @@ var SLUR_TYPES = (function (SLUR) {
         TEST.run("Match", matchTests);
         TEST.run("Unique", uniqueTests);
         TEST.run("Compare", compareTests);
+        TEST.run("Registry", registryTests);
     }
 
     testSuite();
