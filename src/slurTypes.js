@@ -536,7 +536,7 @@ var SLUR_TYPES = (function (SLUR) {
         }
     };
 
-    function registerBuiltins(registry) {
+    function registerBuiltins(registry, includeLibrary) {
         function add(name, type) {
             registry.add(name, type);
         }
@@ -652,55 +652,47 @@ var SLUR_TYPES = (function (SLUR) {
 		add("isNull?",   isTypeFn());
 		add("isFixnum?", isTypeFn());
 		add("isReal?",   isTypeFn());
-    }
-
-/*
-public class LibraryRegistrar {
-	private ObjectRegistry mReg;
-
-	function add(String name, Type type) {
-		mReg.add(new Symbol(name), type);
-	}
-
-	function registerLibrary(ObjectRegistry reg) {
-		LibraryRegistrar registrar = new LibraryRegistrar();
-		registrar.register(reg);
-	}
-
-	function register(ObjectRegistry reg) {
-		mReg = reg;
-		registerList();
-	}
-
-	private void registerList() {
-		add("length", new FunctionType(Primitives.FIX_NUM, [new ListType(new Parameter())]));
-		Parameter p = new Parameter();
+        
+        if (!includeLibrary) {
+            return;
+        }
+        
+        // List library
+        add("length", new FunctionType(Primitives.FIX_NUM, [new ListType(new Parameter())]));
+        
+		p = new Parameter();
 		add("first", new FunctionType(p, [new ListType(p)]));
+        
 		p = new Parameter();
 		add("second", new FunctionType(p, [new ListType(p)]));
+        
 		p = new Parameter();
 		add("third", new FunctionType(p, [new ListType(p)]));
+        
 		p = new Parameter();
 		add("last", new FunctionType(p, [new ListType(p)]));
+        
 		p = new Parameter();
 		add("nth", new FunctionType(p, [new ListType(p), Primitives.FIX_NUM]));
+        
 		p = new Parameter();
 		add("append", new FunctionType(new ListType(p), [new ListType(p), p]));
+        
 		p = new Parameter();
 		add("remove", new FunctionType(new ListType(p), [new ListType(p), new FunctionType(Primitives.BOOL, [p])]));
+        
 		p = new Parameter();
 		add("reverse", new FunctionType(new ListType(p), [new ListType(p)]));
+        
 		p = new Parameter();
-		Parameter q = new Parameter();
-		add("map", new FunctionType(new ListType(q), [new FunctionType(q, [p]),new ListType(p)]));
+		q = new Parameter();
+		add("map", new FunctionType(new ListType(q), [new FunctionType(q, [p]), new ListType(p)]));
+        
 		p = new Parameter();
 		q = new Parameter();
 		add("reduce", new FunctionType(q, [new FunctionType(q, [p, q]), new ListType(p), q]));
-	}
-}
-*/
-
-
+    }
+    
     function testSuite() {
         var parameterTests = [
         	function testParameter() {
