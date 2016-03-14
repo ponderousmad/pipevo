@@ -53,5 +53,7 @@ var TEST = (function () {
         }
     };
     
+    TEST.INCLUDE_SLOW = false;
+    
     return TEST;
 }());

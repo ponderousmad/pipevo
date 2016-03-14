@@ -123,7 +123,7 @@ var ENTROPY = (function () {
         } else {
             this.balanced = true;
             if (this.right === null) {
-                this.ight = new WeightedNode(value, weight);
+                this.right = new WeightedNode(value, weight);
             } else {
                 this.right.add(value, weight);
             }
@@ -138,12 +138,12 @@ var ENTROPY = (function () {
             throw "seed out of bounds";
         }
         if (this.left !== null && seed < this.left.weight ) {
-            return this.left.select(seed);
+            return this.left.selectSeed(seed);
         }
         if (this.right !== null ) {
             var rightBorder = this.weight - this.right.weight;
             if (seed >= rightBorder) {
-                return this.right.select(seed - rightBorder);
+                return this.right.selectSeed(seed - rightBorder);
             }
         }
         return this.value;
@@ -241,7 +241,7 @@ var ENTROPY = (function () {
 
     // Get a seed value for the set given a source of randomness.
     ReweightedSet.prototype.nextValue = function (entropy) {
-        return entropy.nextInt(0, total());
+        return entropy.randomInt(0, this.total());
     };
 
     // Select a value randomly, biased by the weights.
@@ -253,7 +253,7 @@ var ENTROPY = (function () {
     // If larger then total, will exagerate the bias of the last value added.
     ReweightedSet.prototype.selectSeed = function (seed) {
         if (this.baseSet !== null && seed < this.baseSet.total()) {
-            return this.baseSet.select(seed);
+            return this.baseSet.selectSeed(seed);
         }
         seed -= this.baseTotal();
         for (var e = 0; e < this.extra.length; ++e) {
@@ -265,6 +265,120 @@ var ENTROPY = (function () {
         }
         throw "nextValue returned too large result.";
     };
+    
+    function testSuite() {
+        var setTests = [
+            function testWeighted() {
+                var set = new WeightedSet(),
+                    weight = 3,
+                    allWeights = 0,
+                    COUNT = 20,
+                    counts = [],
+                    rCounts = [],
+                    failures = 0,
+                    entropy = makeRandom();
+
+                for (var i = 0; i < COUNT; ++i) {
+                    set.add(i, weight);
+                    allWeights += weight;
+                    weight *= 2;
+                    counts[i] = 0;
+                    rCounts[i] = 0;
+                }
+
+                for (var c = 0; c < allWeights; ++c) {
+                    ++rCounts[set.select(entropy)];
+                    ++counts[set.selectSeed(c)];
+                }
+
+                weight = 3;
+                for (var j = 0; j < COUNT; ++j) {
+                    TEST.equals(counts[j], weight);
+                    var error = Math.abs(rCounts[j] - weight);
+                    error = Math.max(error - 20.0, 0.0);
+                    if ((error / weight) > 0.02) {
+                        ++failures;
+                    }
+                    weight *= 2;
+                }
+
+                TEST.isTrue(failures < 5);
+            },
+            function testReweighted() {
+                var set = new WeightedSet(),
+                    weight = 3,
+                    allWeights = 0,
+                    COUNT = 20,
+                    MAX = 36,
+                    counts = [],
+                    rCounts = [],
+                    failures = 0,
+                    entropy = makeRandom();
+                for (var i = 0; i < MAX; ++i) {
+                    if (i < COUNT) {
+                        set.add(i, weight);
+                        allWeights += weight;
+                        weight *= 2;
+                    }
+                    counts[i] = 0;
+                    rCounts[i] = 0;
+                }
+                var reset = new ReweightedSet(set),
+                    weight25 = 1000,
+                    weight35 = 2000;
+                reset.add(25, weight25);
+                allWeights += weight25;
+                reset.add(35, weight35);
+                allWeights += weight35;
+
+                for (var c = 0; c < allWeights; ++c) {
+                    ++rCounts[reset.select(entropy)];
+                    ++counts[reset.selectSeed(c)];
+                }
+
+                weight = 3;
+                for (var j = 0; j < COUNT; ++j) {
+                    TEST.equals(counts[j], weight);
+                    var error = Math.abs(rCounts[j] - weight);
+                    error = Math.max(error - 20.0, 0.0);
+                    if((error / weight) > 0.02) {
+                        ++failures;
+                    }
+                    weight *= 2;
+                }
+                TEST.isTrue(failures < 5);
+
+                TEST.equals(counts[25], weight25);
+                TEST.equals(counts[35], weight35);
+
+                var ratio = rCounts[35] / rCounts[25];
+                TEST.isTrue(1.8 < ratio && ratio < 2.2);
+
+                reset.remove(25);
+                allWeights -= weight25;
+                rCounts[25] = 0;
+                counts[25] = 0;
+                rCounts[35] = 0;
+                counts[35] = 0;
+                for (var d = 0; d < allWeights; ++d) {
+                    ++rCounts[reset.select(entropy)];
+                    ++counts[reset.selectSeed(d)];
+                }
+
+                TEST.equals(counts[25], 0);
+                TEST.equals(counts[35], weight35);
+                TEST.equals(rCounts[25], 0);
+                TEST.isTrue(weight35 * 0.8 < rCounts[35] && rCounts[35] < weight35 * 1.2);
+            }
+        ];
+        
+        TEST.run("Random Set", setTests);
+    }
+    
+    // These tests are slow, don't want to run them all the time.
+    if (TEST.INCLUDE_SLOW) {
+        testSuite();
+    }
 
     return {
         Entropy: Entropy,
