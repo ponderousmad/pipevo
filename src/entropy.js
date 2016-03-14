@@ -72,6 +72,10 @@ var ENTROPY = (function () {
         return list[this.randomInt(0, list.length)];
     };
     
+    Entropy.prototype.select = function (bias) {
+        return this.random() < bias;
+    };
+    
     function makeRandom() {
         return new Entropy(Math.floor(Math.random() * 193401701));
     }
