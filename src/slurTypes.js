@@ -573,129 +573,129 @@ var SLUR_TYPES = (function (SLUR) {
 
         // Numeric:
         addNumerical("+");
-		addNumerical("-");
-		addNumerical("*");
-		addNumerical("/");
+        addNumerical("-");
+        addNumerical("*");
+        addNumerical("/");
 
-		addRelational(">");
-		addRelational("<");
-		addRelational(">");
-		addRelational("<=");
-		addRelational(">=");
-		addRelational("=");
-		addRelational("!=");
+        addRelational(">");
+        addRelational("<");
+        addRelational(">");
+        addRelational("<=");
+        addRelational(">=");
+        addRelational("=");
+        addRelational("!=");
 
-		add("PI", Primitives.REAL);
-		add("E", Primitives.REAL);
-		add("sin", unaryReal);
-		add("cos", unaryReal);
-		add("tan", unaryReal);
-		add("asin", unaryReal);
-		add("acos", unaryReal);
-		add("atan", unaryReal);
-		add("atan2", binaryReal);
-		add("pow", binaryReal);
+        add("PI", Primitives.REAL);
+        add("E", Primitives.REAL);
+        add("sin", unaryReal);
+        add("cos", unaryReal);
+        add("tan", unaryReal);
+        add("asin", unaryReal);
+        add("acos", unaryReal);
+        add("atan", unaryReal);
+        add("atan2", binaryReal);
+        add("pow", binaryReal);
 
-		add("abs", unaryReal);
-		add("max", binaryReal);
-		add("min", binaryReal);
+        add("abs", unaryReal);
+        add("max", binaryReal);
+        add("min", binaryReal);
 
-		add("abs", unaryInt);
-		add("max", binaryInt);
-		add("min", binaryInt);
+        add("abs", unaryInt);
+        add("max", binaryInt);
+        add("min", binaryInt);
 
-		add("floor", toInt);
-		add("ciel", toInt);
-		add("round", toInt);
+        add("floor", toInt);
+        add("ciel", toInt);
+        add("round", toInt);
 
         // Logic:
         add("and", new FunctionType(Primitives.BOOL, [anyBool(), anyBool()]));
-		add("or",  new FunctionType(Primitives.BOOL, [anyBool(), anyBool()]));
-		add("not", new FunctionType(Primitives.BOOL, [anyBool()]));
+        add("or",  new FunctionType(Primitives.BOOL, [anyBool(), anyBool()]));
+        add("not", new FunctionType(Primitives.BOOL, [anyBool()]));
 
         p = new Parameter();
-		add("if", new FunctionType(p, [anyBool(), p, p]));
+        add("if", new FunctionType(p, [anyBool(), p, p]));
 
         // List:
         p = new Parameter();
-		q = new Parameter();
-		add("cons", new FunctionType(new ConsType(p, q), [p, q]));
+        q = new Parameter();
+        add("cons", new FunctionType(new ConsType(p, q), [p, q]));
 
-		p = new Parameter();
-		q = new Parameter();
-		add("car", new FunctionType(p, [new ConsType(p, q)]));
+        p = new Parameter();
+        q = new Parameter();
+        add("car", new FunctionType(p, [new ConsType(p, q)]));
 
-		p = new Parameter();
-		q = new Parameter();
-		add("cdr", new FunctionType(q, [new ConsType(p, q)]));
+        p = new Parameter();
+        q = new Parameter();
+        add("cdr", new FunctionType(q, [new ConsType(p, q)]));
 
-		p = new Parameter();
-		add("isList?", new FunctionType(Primitives.BOOL, [p]));
+        p = new Parameter();
+        add("isList?", new FunctionType(Primitives.BOOL, [p]));
 
-		// TODO Is this a resonable way of handling rest parameter types?
-		for (var i = 0; i < 10; ++i) {
+        // TODO Is this a resonable way of handling rest parameter types?
+        for (var i = 0; i < 10; ++i) {
             var ps = [];
-			p = new Parameter();
-			for (var j = 0; j < i; ++j) {
-				ps.push(p);
-			}
+            p = new Parameter();
+            for (var j = 0; j < i; ++j) {
+                ps.push(p);
+            }
 
-			add("list", new FunctionType(new ListType(p), ps));
-		}
+            add("list", new FunctionType(new ListType(p), ps));
+        }
 
         // Types:
         add("isCons?",   isTypeFn());
-		add("isSym?",    isTypeFn());
-		add("isString?", isTypeFn());
-		add("isFn?",     isTypeFn());
-		add("isMacro?",  isTypeFn());
-		add("isNull?",   isTypeFn());
-		add("isFixnum?", isTypeFn());
-		add("isReal?",   isTypeFn());
-        
+        add("isSym?",    isTypeFn());
+        add("isString?", isTypeFn());
+        add("isFn?",     isTypeFn());
+        add("isMacro?",  isTypeFn());
+        add("isNull?",   isTypeFn());
+        add("isFixnum?", isTypeFn());
+        add("isReal?",   isTypeFn());
+
         if (!includeLibrary) {
             return;
         }
-        
+
         // List library
         add("length", new FunctionType(Primitives.FIX_NUM, [new ListType(new Parameter())]));
-        
-		p = new Parameter();
-		add("first", new FunctionType(p, [new ListType(p)]));
-        
-		p = new Parameter();
-		add("second", new FunctionType(p, [new ListType(p)]));
-        
-		p = new Parameter();
-		add("third", new FunctionType(p, [new ListType(p)]));
-        
-		p = new Parameter();
-		add("last", new FunctionType(p, [new ListType(p)]));
-        
-		p = new Parameter();
-		add("nth", new FunctionType(p, [new ListType(p), Primitives.FIX_NUM]));
-        
-		p = new Parameter();
-		add("append", new FunctionType(new ListType(p), [new ListType(p), p]));
-        
-		p = new Parameter();
-		add("remove", new FunctionType(new ListType(p), [new ListType(p), new FunctionType(Primitives.BOOL, [p])]));
-        
-		p = new Parameter();
-		add("reverse", new FunctionType(new ListType(p), [new ListType(p)]));
-        
-		p = new Parameter();
-		q = new Parameter();
-		add("map", new FunctionType(new ListType(q), [new FunctionType(q, [p]), new ListType(p)]));
-        
-		p = new Parameter();
-		q = new Parameter();
-		add("reduce", new FunctionType(q, [new FunctionType(q, [p, q]), new ListType(p), q]));
+
+        p = new Parameter();
+        add("first", new FunctionType(p, [new ListType(p)]));
+
+        p = new Parameter();
+        add("second", new FunctionType(p, [new ListType(p)]));
+
+        p = new Parameter();
+        add("third", new FunctionType(p, [new ListType(p)]));
+
+        p = new Parameter();
+        add("last", new FunctionType(p, [new ListType(p)]));
+
+        p = new Parameter();
+        add("nth", new FunctionType(p, [new ListType(p), Primitives.FIX_NUM]));
+
+        p = new Parameter();
+        add("append", new FunctionType(new ListType(p), [new ListType(p), p]));
+
+        p = new Parameter();
+        add("remove", new FunctionType(new ListType(p), [new ListType(p), new FunctionType(Primitives.BOOL, [p])]));
+
+        p = new Parameter();
+        add("reverse", new FunctionType(new ListType(p), [new ListType(p)]));
+
+        p = new Parameter();
+        q = new Parameter();
+        add("map", new FunctionType(new ListType(q), [new FunctionType(q, [p]), new ListType(p)]));
+
+        p = new Parameter();
+        q = new Parameter();
+        add("reduce", new FunctionType(q, [new FunctionType(q, [p, q]), new ListType(p), q]));
     }
-    
+
     function testSuite() {
         var parameterTests = [
-        	function testParameter() {
+            function testParameter() {
                 var p = new Parameter(),
                     q = new Parameter();
 
@@ -796,7 +796,7 @@ var SLUR_TYPES = (function (SLUR) {
             pcdr = new ConsType(Primitives.REAL, new Parameter());
 
         var consTypeTests = [
-        	function testParameter() {
+            function testParameter() {
                 TEST.isFalse(cons.isParameterized());
                 TEST.isFalse(cons.involves(new Parameter()));
 
@@ -861,7 +861,7 @@ var SLUR_TYPES = (function (SLUR) {
         ];
 
         var listTypeTests = [
-        	function testParameter() {
+            function testParameter() {
                 var list = new ListType(Primitives.STRING);
                 TEST.isFalse(list.isParameterized());
                 TEST.isFalse(list.involves(new Parameter()));
@@ -916,7 +916,7 @@ var SLUR_TYPES = (function (SLUR) {
         ];
 
         var maybeTests = [
-        	function testParameter() {
+            function testParameter() {
                 var maybe = new Maybe(Primitives.FIX_NUM);
                 TEST.isFalse(maybe.isParameterized());
                 TEST.isFalse(maybe.involves(new Parameter()));
@@ -970,7 +970,7 @@ var SLUR_TYPES = (function (SLUR) {
         ];
 
         var functionTypeTests = [
-        	function testParameter() {
+            function testParameter() {
                 var func = new FunctionType(Primitives.FIX_NUM, [Primitives.FIX_NUM]);
                 TEST.isFalse(func.isParameterized());
                 TEST.isFalse(func.involves(new Parameter()));
@@ -1078,7 +1078,7 @@ var SLUR_TYPES = (function (SLUR) {
         ];
 
         var matchTests = [
-        	function testResult() {
+            function testResult() {
                 TEST.isTrue(MATCHED.matches);
                 TEST.isEmpty(MATCHED.mappings);
 
@@ -1292,7 +1292,7 @@ var SLUR_TYPES = (function (SLUR) {
                 testCompareAreEqual(new FunctionType(p, [p, q]), new FunctionType(r, [r, q]));
             }
         ];
-        
+
         var registryTests = [
             function testBuiltin() {
                 var registry = new Registry();
