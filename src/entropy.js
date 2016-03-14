@@ -64,12 +64,22 @@ var ENTROPY = (function () {
         };
     }
 
-    function randomEntropy() {
+    function makeRandom() {
         return makeEntropy(Math.floor(Math.random() * 193401701));
+    }
+    
+    function randomInt(entropy, min, max) {
+        return Math.min(Math.floor(min + entropy() * (max - min)), max - 1);
+    }
+
+    function randomElement(list, entropy) {
+        return list[randomInt(entropy, 0, list.length)];
     }
     
     return {
         makeEntropy: makeEntropy,
-        random: randomEntropy
+        makeRandom: makeRandom,
+        randomInt: randomInt,
+        randomElement, randomElement
     };
 }());

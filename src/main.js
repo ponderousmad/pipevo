@@ -1,7 +1,7 @@
 (function () {
     "use strict";
 
-    var entropy = ENTROPY.random();
+    var entropy = ENTROPY.makeRandom();
 
     function AIRunner(view) {
         this.view = view;

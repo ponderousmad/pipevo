@@ -299,14 +299,6 @@ var PIPES = (function () {
         }
     };
 
-    function randomInt(entropy, min, max) {
-        return Math.min(Math.floor(min + entropy() * (max - min)), max - 1);
-    }
-
-    function getRandomElement(list, entropy) {
-        return list[randomInt(entropy, 0, list.length)];
-    }
-
     function PieceQueue(size, entropy) {
         this.size = size;
         this.entropy = entropy;
@@ -316,7 +308,7 @@ var PIPES = (function () {
     }
 
     function randomPiece(types, entropy) {
-        return new Piece(getRandomElement(types, entropy));
+        return new Piece(ENTROPY.randomElement(types, entropy));
     }
 
     PieceQueue.prototype.fill = function () {
@@ -362,8 +354,8 @@ var PIPES = (function () {
     Gameplay.prototype.setupSource = function() {
         this.source = randomPiece(SOURCE_TYPES, this.entropy);
         this.sourcePosition = this.position(
-            randomInt(this.entropy, 1, this.width() - 1),
-            randomInt(this.entropy, 1, this.height() - 1)
+            ENTROPY.randomInt(this.entropy, 1, this.width() - 1),
+            ENTROPY.randomInt(this.entropy, 1, this.height() - 1)
         );
         this.substrate.place(this.sourcePosition, this.source);
     };
@@ -885,7 +877,6 @@ var PIPES = (function () {
         Substrate: Substrate,
         GamePlay: Gameplay,
         SubstrateView: SubstrateView,
-        randomInt: randomInt,
         createDefault: createDefault
     };
 }());
