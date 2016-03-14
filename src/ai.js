@@ -111,8 +111,8 @@ var AI = (function () {
             return position;
         }
         do {
-            var i = ENTROPY.randomInt(this.entropy, 0, this.game.width()),
-                j = ENTROPY.randomInt(this.entropy, 0, this.game.height());
+            var i = this.entropy.randomInt(0, this.game.width()),
+                j = this.entropy.randomInt(0, this.game.height());
             position = this.game.position(i, j);
         } while (!this.game.substrate.isEmpty(position));
 

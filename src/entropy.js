@@ -54,32 +54,30 @@ var ENTROPY = (function () {
         }
         this.index = 0;
     };
-
-    function makeEntropy(seed) {
-        var twister = new MersenneTwister(seed),
-            maxValue = Math.pow(2, 31);
-
-        return function() {
-            return twister.next() / maxValue;
-        };
-    }
-
-    function makeRandom() {
-        return makeEntropy(Math.floor(Math.random() * 193401701));
+    
+    function Entropy(seed) {
+        this.twister = new MersenneTwister(seed);
+        this.maxValue = Math.pow(2, 31);
     }
     
-    function randomInt(entropy, min, max) {
-        return Math.min(Math.floor(min + entropy() * (max - min)), max - 1);
-    }
-
-    function randomElement(list, entropy) {
-        return list[randomInt(entropy, 0, list.length)];
+    Entropy.prototype.random = function () {
+        return this.twister.next() / this.maxValue;
+    };
+    
+    Entropy.prototype.randomInt = function (min, max) {
+        return Math.min(Math.floor(min + this.random() * (max - min)), max - 1);
+    };
+    
+    Entropy.prototype.randomElement = function (list) {
+        return list[this.randomInt(0, list.length)];
+    };
+    
+    function makeRandom() {
+        return new Entropy(Math.floor(Math.random() * 193401701));
     }
     
     return {
-        makeEntropy: makeEntropy,
-        makeRandom: makeRandom,
-        randomInt: randomInt,
-        randomElement, randomElement
+        Entropy: Entropy,
+        makeRandom: makeRandom
     };
 }());

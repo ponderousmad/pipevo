@@ -308,7 +308,7 @@ var PIPES = (function () {
     }
 
     function randomPiece(types, entropy) {
-        return new Piece(ENTROPY.randomElement(types, entropy));
+        return new Piece(entropy.randomElement(types));
     }
 
     PieceQueue.prototype.fill = function () {
@@ -354,8 +354,8 @@ var PIPES = (function () {
     Gameplay.prototype.setupSource = function() {
         this.source = randomPiece(SOURCE_TYPES, this.entropy);
         this.sourcePosition = this.position(
-            ENTROPY.randomInt(this.entropy, 1, this.width() - 1),
-            ENTROPY.randomInt(this.entropy, 1, this.height() - 1)
+            this.entropy.randomInt(1, this.width() - 1),
+            this.entropy.randomInt(1, this.height() - 1)
         );
         this.substrate.place(this.sourcePosition, this.source);
     };
@@ -785,7 +785,7 @@ var PIPES = (function () {
         var pieceQueueTests = [
             function testPeek() {
                 var testSize = 3,
-                    queue = new PieceQueue(testSize, Math.random),
+                    queue = new PieceQueue(testSize, ENTROPY.makeRandom()),
                     pieces = queue.queue;
                 TEST.notNull(pieces);
                 TEST.equals(pieces.length, testSize);
@@ -798,7 +798,7 @@ var PIPES = (function () {
             },
             function testNextPiece() {
                 var testSize = 3,
-                    queue = new PieceQueue(testSize, Math.random),
+                    queue = new PieceQueue(testSize, ENTROPY.makeRandom()),
                     peekPieces = queue.queue.slice();
 
                 for (var p = 0; p < testSize; ++p) {
@@ -809,7 +809,7 @@ var PIPES = (function () {
             },
             function testSize() {
                 var size = 4,
-                    queue = new PieceQueue(size, Math.random);
+                    queue = new PieceQueue(size, ENTROPY.makeRandom());
                 TEST.equals(queue.size, size);
             },
         ];
