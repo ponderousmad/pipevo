@@ -3,10 +3,10 @@ var EVOLVE = (function () {
 
 /*
 public interface Gene {
-    public Obj express( Context context );
+    public Obj express(Context context);
     public Type type();
 
-    public Gene mutate( Mutation mutation, Context context, Random random );
+    public Gene mutate(Mutation mutation, Context context, Random random);
 }
 
 public class Chromasome implements Serializable {
@@ -14,7 +14,7 @@ public class Chromasome implements Serializable {
     String mName;
     List<Gene> mGenes = new ArrayList<Gene>();
 
-    public Chromasome( String name ) {
+    public Chromasome(String name) {
         mName = name;
     }
 
@@ -27,7 +27,7 @@ public class Chromasome implements Serializable {
     }
 
     public class NamedGene {
-        NamedGene( Gene aGene, String itsName ) {
+        NamedGene(Gene aGene, String itsName) {
             gene = aGene;
             name = itsName;
         }
@@ -39,21 +39,21 @@ public class Chromasome implements Serializable {
         return geneName(mGenes.size());
     }
 
-    private String geneName( int i ) {
+    private String geneName(int i) {
         return mName + Integer.toString(i+1);
     }
 
     public NamedGene[] genes() {
         NamedGene[] genes = new NamedGene[mGenes.size()];
         int i = 0;
-        for( Gene gene : mGenes ) {
+        for (Gene gene : mGenes) {
             genes[i] = new NamedGene(gene, geneName(i));
             ++i;
         }
         return genes;
     }
 
-    public void addGene( Gene gene ) {
+    public void addGene(Gene gene) {
         mGenes.add(gene);
     }
 
@@ -61,24 +61,24 @@ public class Chromasome implements Serializable {
         public String name;
         public Obj expression;
 
-        Phene( String name, Obj expression ) {
+        Phene(String name, Obj expression) {
             this.name = name;
             this.expression = expression;
         }
     }
 
-    public Phene[] express( Context context ) {
+    public Phene[] express(Context context) {
         Phene[] phenes = new Phene[mGenes.size()];
-        for( int i = 0; i < mGenes.size(); ++i ) {
-            phenes[i] = new Phene( geneName(i), mGenes.get(i).express(context) );
+        for (int i = 0; i < mGenes.size(); ++i) {
+            phenes[i] = new Phene(geneName(i), mGenes.get(i).express(context));
         }
         return phenes;
     }
 
     public Chromasome.NamedGene findLastMatching(Type targetType) {
         NamedGene[] genes = genes();
-        for( int j = genes.length - 1; j >= 0; --j ) {
-            if( genes[j].gene.type().equals(targetType) ) {
+        for (int j = genes.length - 1; j >= 0; --j) {
+            if (genes[j].gene.type().equals(targetType)) {
                 return genes[j];
             }
         }
@@ -93,8 +93,8 @@ public class Genome implements Serializable {
     public Genome() {
     }
 
-    public void add( Chromasome chromasome ) {
-        assert( chromasome != null );
+    public void add(Chromasome chromasome) {
+        assert(chromasome != null);
         mChromasomes.add(chromasome);
     }
 
@@ -104,21 +104,21 @@ public class Genome implements Serializable {
 
     public List<Phene> express(Context context) {
         List<Phene> phenome = new ArrayList<Phene>();
-        for( Chromasome chromasome : mChromasomes ) {
+        for (Chromasome chromasome : mChromasomes) {
             context.addChromasome(chromasome);
             Phene[] phenes = chromasome.express(context);
-            for( Phene phene : phenes ) {
+            for (Phene phene : phenes) {
                 phenome.add(phene);
             }
         }
         return phenome;
     }
 
-    public Symbol findLastMatching( Type targetType ) {
-        for( int i = mChromasomes.size() - 1; i >= 0; --i ) {
+    public Symbol findLastMatching(Type targetType) {
+        for (int i = mChromasomes.size() - 1; i >= 0; --i) {
             Chromasome c = mChromasomes.get(i);
             Chromasome.NamedGene matching = c.findLastMatching(targetType);
-            if( matching != null ) {
+            if (matching != null) {
                 return new Symbol(matching.name);
             }
         }
@@ -128,7 +128,7 @@ public class Genome implements Serializable {
 
 public class TypeBuilder {
     public interface Builder {
-        public Type build( Random random );
+        public Type build(Random random);
     }
 
     public static class Constraint {
@@ -152,11 +152,11 @@ public class TypeBuilder {
 
         public boolean available(List<Type> inContext)
         {
-            if(inContext.contains(mConstrained)) {
+            if (inContext.contains(mConstrained)) {
                 return true;
             }
-            for( Type type : inContext ) {
-                if(mSources.contains(type)) {
+            for (Type type : inContext) {
+                if (mSources.contains(type)) {
                     return true;
                 }
             }
@@ -198,7 +198,7 @@ public class TypeBuilder {
         }
 
         public void setConcreteWeights(List<Pair<Type,Integer>> weights) {
-            assert( weights != null );
+            assert(weights != null);
             mConcreteWeights = weights;
         }
 
@@ -207,13 +207,13 @@ public class TypeBuilder {
         }
 
         public void setArgCountDistribution(int[] distribution) {
-            assert( distribution != null );
+            assert(distribution != null);
             mArgCountDistribution = distribution;
         }
 
         public WeightedSet<Integer> functionArgCountDistribution() {
             WeightedSet<Integer> dist = new WeightedSet<Integer>();
-            for( int i = 0; i < mArgCountDistribution.length; ++i ) {
+            for (int i = 0; i < mArgCountDistribution.length; ++i) {
                 dist.add(i, mArgCountDistribution[i]);
             }
             return dist;
@@ -239,7 +239,7 @@ public class TypeBuilder {
         mProbabilities = probs;
         mAllowParameterized = allowParameterized;
 
-        for( Constraint constraint : constraints ) {
+        for (Constraint constraint : constraints) {
             addConstraint(constraint);
         }
 
@@ -249,21 +249,21 @@ public class TypeBuilder {
         addListBuilder(builders);
         addMaybeBuilder(builders);
         addConsBuilder(builders);
-        if( mAllowParameterized ) {
+        if (mAllowParameterized) {
             addParameterBuilder(builders);
         }
         mBuilders = new ReweightedSet<Builder>(builders);
     }
 
     private void addConstraint(Constraint constraint) {
-        if( mConstraints == null ) {
+        if (mConstraints == null) {
             mConstraints = new java.util.HashMap<Type, Constraint>();
             mAllowances = new java.util.HashMap<Type, List<Type>>();
         }
         mConstraints.put(constraint.constrained(), constraint);
-        for( Type type : constraint.sources() ) {
+        for (Type type : constraint.sources()) {
             List<Type> allowed = mAllowances.get(type);
-            if( allowed == null ) {
+            if (allowed == null) {
                 allowed = new ArrayList<Type>();
                 mAllowances.put(type, allowed);
             }
@@ -279,16 +279,16 @@ public class TypeBuilder {
     List<Pair<Type,Builder>> mConstrainedStack = new ArrayList<Pair<Type,Builder>>();
     public void allowDependentTypes(java.util.Set<Type> sources) {
         assert(mSourceStack == null);
-        if( mAllowances == null ) {
+        if (mAllowances == null) {
             return;
         }
         mSourceStack = new ArrayList<Type>();
-        for(Type type : sources) {
+        for (Type type : sources) {
             mSourceStack.add(type);
             List<Type> dependents = mAllowances.get(type);
             addConstrained(type);
-            if( dependents != null ) {
-                for( Type constrained : dependents) {
+            if (dependents != null) {
+                for (Type constrained : dependents) {
                     addConstrained(constrained);
                 }
             }
@@ -296,23 +296,23 @@ public class TypeBuilder {
     }
 
     private void addConstrained(Type constrained) {
-        if( !onConstrainedStack(constrained) ) {
+        if (!onConstrainedStack(constrained)) {
             Builder builder = addConstrainedBuilder(constrained);
-            if( builder != null ) {
+            if (builder != null) {
                 mConstrainedStack.add(new Pair<Type,Builder>(constrained, builder));
             }
         }
     }
 
     public void allowAllConstrained() {
-        if( mAllowances != null ) {
+        if (mAllowances != null) {
             allowDependentTypes(mAllowances.keySet());
         }
     }
 
     private boolean onConstrainedStack(Type constrained) {
-        for(Pair<Type,Builder> entry : mConstrainedStack) {
-            if(entry.first.equals(constrained)) {
+        for (Pair<Type,Builder> entry : mConstrainedStack) {
+            if (entry.first.equals(constrained)) {
                 return true;
             }
         }
@@ -320,8 +320,8 @@ public class TypeBuilder {
     }
 
     private Builder addConstrainedBuilder(final Type constrained) {
-        for(Pair<Type,Integer> entry : mProbabilities.concreteWeights()) {
-            if( entry.first.equals(constrained) ) {
+        for (Pair<Type,Integer> entry : mProbabilities.concreteWeights()) {
+            if (entry.first.equals(constrained)) {
                 Builder builder = new Builder() {public Type build(Random random) {return constrained;}};
                 mBuilders.add(builder, entry.second);
                 return builder;
@@ -332,7 +332,7 @@ public class TypeBuilder {
 
     public void clearDependentTypes() {
         mSourceStack = null;
-        for( Pair<Type,Builder> entry : mConstrainedStack) {
+        for (Pair<Type,Builder> entry : mConstrainedStack) {
             mBuilders.remove(entry.second);
         }
     }
@@ -341,50 +341,50 @@ public class TypeBuilder {
         builders.add(
             new Builder() { public Type build(Random random) { return createParameter(random); } },
             mProbabilities.parameterWeight
-        );
+      );
     }
 
     private void addConcreteBuilders(WeightedSet<Builder> builders) {
-        for( Pair<Type,Integer> entry : mProbabilities.concreteWeights() ) {
-            if( !isConstrained(entry.first) ) {
+        for (Pair<Type,Integer> entry : mProbabilities.concreteWeights()) {
+            if (!isConstrained(entry.first)) {
                 addConcreteBuilder(builders, entry.first, entry.second);
             }
         }
     }
 
     private void addConcreteBuilder(WeightedSet<Builder> builders, final Type type, final int weight) {
-        if( weight == 0 ) return;
+        if (weight == 0) return;
         builders.add(
             new Builder() { public Type build(Random random) { return type; } }, weight
-        );
+      );
     }
 
     private void addFunctionBuilder(WeightedSet<Builder> builders) {
-        if( mProbabilities.functionWeight == 0 ) return;
+        if (mProbabilities.functionWeight == 0) return;
         builders.add(
             new Builder() { public Type build(Random random) { return createFunction(random); }},
             mProbabilities.functionWeight
-        );
+      );
     }
 
     private void addListBuilder(WeightedSet<Builder> builders) {
-        if( mProbabilities.listWeight == 0 ) return;
+        if (mProbabilities.listWeight == 0) return;
         builders.add(
             new Builder() { public Type build(Random random) { return createList(random); }},
             mProbabilities.listWeight
-        );
+      );
     }
 
     private void addMaybeBuilder(WeightedSet<Builder> builders) {
-        if( mProbabilities.maybeWeight == 0 ) return;
+        if (mProbabilities.maybeWeight == 0) return;
         builders.add(
             new Builder() { public Type build(Random random) { return createMaybe(random); }},
             mProbabilities.maybeWeight
-        );
+      );
     }
 
     private void addConsBuilder(WeightedSet<Builder> builders) {
-        if( mProbabilities.consWeight == 0 ) return;
+        if (mProbabilities.consWeight == 0) return;
         builders.add(
             new Builder() {
                 public Type build(Random random) {
@@ -392,19 +392,19 @@ public class TypeBuilder {
                 }
             },
             mProbabilities.consWeight
-        );
+      );
     }
 
     int mNesting = 0;
-    public Type createType( Random random ) {
+    public Type createType(Random random) {
         ++mNesting;
         try {
-            Builder builder = mBuilders.select( random );
+            Builder builder = mBuilders.select(random);
             Type result = builder.build(random);
             return result;
         } finally {
             --mNesting;
-            if( mNesting == 0 ) {
+            if (mNesting == 0) {
                 mParameters.clear();
             }
         }
@@ -417,33 +417,33 @@ public class TypeBuilder {
     public FunctionType createFunction(Type returnType, Random random) {
         boolean clearParameters = false;
         try {
-            if( mParameters.isEmpty() && returnType instanceof Parameter ) {
+            if (mParameters.isEmpty() && returnType instanceof Parameter) {
                 clearParameters = true;
-                mParameters.add( (Parameter)returnType );
+                mParameters.add((Parameter)returnType);
             }
             int arguments = functionArgCount(random);
             Type[] argTypes = new Type[arguments];
-            for( int i = 0; i < arguments; ++i ) {
-                argTypes[i] = createType( random );
+            for (int i = 0; i < arguments; ++i) {
+                argTypes[i] = createType(random);
             }
-            if( isConstrained(returnType) ) {
+            if (isConstrained(returnType)) {
                 boolean satisfied = false;
                 Constraint constraint = mConstraints.get(returnType);
-                for(Type type : argTypes) {
-                    if( constraint.sources().contains(type) || type.equals(returnType)) {
+                for (Type type : argTypes) {
+                    if (constraint.sources().contains(type) || type.equals(returnType)) {
                         satisfied = true;
                         break;
                     }
                 }
                 // If we don't have one of the source types for this constrained type, then force the issue.
-                if( !satisfied ) {
-                    if(arguments == 0 ) {
+                if (!satisfied) {
+                    if (arguments == 0) {
                         arguments = 1;
                         argTypes = new Type[arguments];
                     }
                     Type source;
                     int index = random.nextInt(constraint.sources().size() + 1);
-                    if( index == constraint.sources().size() ) {
+                    if (index == constraint.sources().size()) {
                         source = returnType;
                     } else {
                         source = constraint.sources().get(index);
@@ -453,7 +453,7 @@ public class TypeBuilder {
             }
             return new FunctionType(returnType, argTypes);
         } finally {
-            if( clearParameters ) {
+            if (clearParameters) {
                 mParameters.clear();
             }
         }
@@ -461,7 +461,7 @@ public class TypeBuilder {
 
     private WeightedSet<Integer> mFunctionArgCountDist = null;
     private int functionArgCount(Random random) {
-        if( mFunctionArgCountDist == null ) {
+        if (mFunctionArgCountDist == null) {
             mFunctionArgCountDist = mProbabilities.functionArgCountDistribution();
         }
         return mFunctionArgCountDist.select(random);
@@ -473,7 +473,7 @@ public class TypeBuilder {
 
     private Type createMaybe(Random random) {
         Type type = createType(random);
-        if( type.equals(BaseType.NULL) ) {
+        if (type.equals(BaseType.NULL)) {
             return type;
         }
         return new Maybe(type);
@@ -484,34 +484,34 @@ public class TypeBuilder {
     }
 
     protected Type createParameter(Random random) {
-        if( mParameters.isEmpty() || createNewParameter(random) ) {
+        if (mParameters.isEmpty() || createNewParameter(random)) {
             Parameter p = new Parameter();
-            mParameters.add( p );
+            mParameters.add(p);
             return p;
         }
         return mParameters.get(random.nextInt(mParameters.size()));
     }
 
     public static void findConcreteTypes(Type type, java.util.Set<Type> result) {
-        if( type instanceof Maybe ) {
+        if (type instanceof Maybe) {
             findConcreteTypes(((Maybe)type).type(), result);
         }
-        else if( type instanceof Parameter ) {
-        } else if( type instanceof ConsType ) {
+        else if (type instanceof Parameter) {
+        } else if (type instanceof ConsType) {
             ConsType cons = (ConsType)type;
             findConcreteTypes(cons.carType(), result);
             findConcreteTypes(cons.cdrType(), result);
-        } else if( type instanceof ListType ) {
+        } else if (type instanceof ListType) {
             findConcreteTypes(((ListType)type).elementType(), result);
-        } else if( type instanceof FunctionType ) {
+        } else if (type instanceof FunctionType) {
             // Only allowed the return type - and in theory we need all the
             // argument types to do it, but we're not going to worry about that here.
             findConcreteTypes(((FunctionType)type).returnType(), result);
-        } else if( type instanceof BaseType ) {
+        } else if (type instanceof BaseType) {
             result.add(type);
         } else {
             // We missed a type class.
-            assert( false );
+            assert(false);
         }
     }
 
@@ -529,8 +529,8 @@ public class Context {
     private List<Chromasome> mChromasomes = new ArrayList<Chromasome>();
 
     private static class SymbolEntry {
-        SymbolEntry( String name, Type type ) {
-            mSymbol = new Symbol( name );
+        SymbolEntry(String name, Type type) {
+            mSymbol = new Symbol(name);
             mType = type;
         }
         public Symbol mSymbol;
@@ -539,41 +539,41 @@ public class Context {
 
     private ArrayList<SymbolEntry> mSymbolTable = new ArrayList<SymbolEntry>();
 
-    public Context( ObjectRegistry registry ) {
+    public Context(ObjectRegistry registry) {
         mRegistry = registry;
     }
 
-    public void addChromasome( Chromasome chromasome ) {
-        mChromasomes.add( chromasome );
+    public void addChromasome(Chromasome chromasome) {
+        mChromasomes.add(chromasome);
     }
 
     public List<Symbol> findMatching(Type type) {
         type = ParameterUtils.uniqueParameters(type);
         List<Symbol> matching = mRegistry.findMatching(type, ObjectRegistry.PromiseUniqueParameter);
-        for( Chromasome chromasome : mChromasomes ) {
-            for( Chromasome.NamedGene gene : chromasome.genes() ) {
-                if( gene.gene.type().match(type).matches() ) {
+        for (Chromasome chromasome : mChromasomes) {
+            for (Chromasome.NamedGene gene : chromasome.genes()) {
+                if (gene.gene.type().match(type).matches()) {
                     matching.add(new Symbol(gene.name));
                 }
             }
         }
-        for( SymbolEntry entry : mSymbolTable ) {
-            if( type.match(entry.mType).matches() ) {
+        for (SymbolEntry entry : mSymbolTable) {
+            if (type.match(entry.mType).matches()) {
                 matching.add(entry.mSymbol);
             }
         }
         return matching;
     }
 
-    public void pushSymbol( String name, Type type )
+    public void pushSymbol(String name, Type type)
     {
         mSymbolTable.add(new SymbolEntry(name, type));
     }
 
-    public void popSymbols( final int count ) {
+    public void popSymbols(final int count) {
         final int last = mSymbolTable.size() - 1;
-        assert( count == 0 || last >= 0 );
-        for( int i = last; i > (last - count); --i ) {
+        assert(count == 0 || last >= 0);
+        for (int i = last; i > (last - count); --i) {
             mSymbolTable.remove(i);
         }
     }
@@ -581,24 +581,24 @@ public class Context {
     public List<TypedSymbol> findFunctionTypeReturning(Type returnType) {
         returnType = ParameterUtils.uniqueParameters(returnType);
         List<TypedSymbol> matching = mRegistry.findFunctionTypeReturning(returnType, ObjectRegistry.PromiseUniqueParameter);
-        for( Chromasome chromasome : mChromasomes ) {
-            for( Chromasome.NamedGene gene : chromasome.genes() ) {
+        for (Chromasome chromasome : mChromasomes) {
+            for (Chromasome.NamedGene gene : chromasome.genes()) {
                 Type type = gene.gene.type();
-                if( type instanceof FunctionType ) {
+                if (type instanceof FunctionType) {
                     FunctionType funcType = (FunctionType)type;
-                    Match match = returnType.match( funcType.returnType() );
-                    if( match.matches() ) {
-                        matching.add( new TypedSymbol( new Symbol( gene.name ), funcType.substitute(match.mappings()) ) );
+                    Match match = returnType.match(funcType.returnType());
+                    if (match.matches()) {
+                        matching.add(new TypedSymbol(new Symbol(gene.name), funcType.substitute(match.mappings())));
                     }
                 }
             }
         }
-        for( SymbolEntry entry : mSymbolTable ) {
-            if( entry.mType instanceof FunctionType ) {
+        for (SymbolEntry entry : mSymbolTable) {
+            if (entry.mType instanceof FunctionType) {
                 FunctionType funcType = (FunctionType)entry.mType;
-                Match match = returnType.match( funcType.returnType() );
-                if( match.matches() ) {
-                    matching.add( new TypedSymbol( entry.mSymbol, funcType.substitute(match.mappings()) ) );
+                Match match = returnType.match(funcType.returnType());
+                if (match.matches()) {
+                    matching.add(new TypedSymbol(entry.mSymbol, funcType.substitute(match.mappings())));
                 }
             }
         }
@@ -607,7 +607,7 @@ public class Context {
 
     public java.util.Set<Type> findConcreteTypes() {
         java.util.Set<Type> result = new java.util.HashSet<Type>();
-        for( SymbolEntry entry : mSymbolTable ) {
+        for (SymbolEntry entry : mSymbolTable) {
             TypeBuilder.findConcreteTypes(entry.mType, result);
         }
         return result;
@@ -649,7 +649,7 @@ public class Population implements java.lang.Iterable<Genome>{
             ObjectOutput s = new ObjectOutputStream(f);
             s.writeObject(mTarget);
             s.writeInt(mCrowd.size());
-            for( Genome genome : mCrowd ) {
+            for (Genome genome : mCrowd) {
                 s.writeObject(genome);
             }
             s.flush();
@@ -666,8 +666,8 @@ public class Population implements java.lang.Iterable<Genome>{
             ObjectInputStream s = new ObjectInputStream(f);
             Population pop = new Population((FunctionType)s.readObject());
             int count = s.readInt();
-            for( int i = 0; i < count; ++i) {
-                pop.mCrowd.add( (Genome)s.readObject() );
+            for (int i = 0; i < count; ++i) {
+                pop.mCrowd.add((Genome)s.readObject());
             }
             s.close();
             return pop;
@@ -687,8 +687,8 @@ public class Context {
     private List<Chromasome> mChromasomes = new ArrayList<Chromasome>();
 
     private static class SymbolEntry {
-        SymbolEntry( String name, Type type ) {
-            mSymbol = new Symbol( name );
+        SymbolEntry(String name, Type type) {
+            mSymbol = new Symbol(name);
             mType = type;
         }
         public Symbol mSymbol;
@@ -697,41 +697,41 @@ public class Context {
 
     private ArrayList<SymbolEntry> mSymbolTable = new ArrayList<SymbolEntry>();
 
-    public Context( ObjectRegistry registry ) {
+    public Context(ObjectRegistry registry) {
         mRegistry = registry;
     }
 
-    public void addChromasome( Chromasome chromasome ) {
-        mChromasomes.add( chromasome );
+    public void addChromasome(Chromasome chromasome) {
+        mChromasomes.add(chromasome);
     }
 
     public List<Symbol> findMatching(Type type) {
         type = ParameterUtils.uniqueParameters(type);
         List<Symbol> matching = mRegistry.findMatching(type, ObjectRegistry.PromiseUniqueParameter);
-        for( Chromasome chromasome : mChromasomes ) {
-            for( Chromasome.NamedGene gene : chromasome.genes() ) {
-                if( gene.gene.type().match(type).matches() ) {
+        for (Chromasome chromasome : mChromasomes) {
+            for (Chromasome.NamedGene gene : chromasome.genes()) {
+                if (gene.gene.type().match(type).matches()) {
                     matching.add(new Symbol(gene.name));
                 }
             }
         }
-        for( SymbolEntry entry : mSymbolTable ) {
-            if( type.match(entry.mType).matches() ) {
+        for (SymbolEntry entry : mSymbolTable) {
+            if (type.match(entry.mType).matches()) {
                 matching.add(entry.mSymbol);
             }
         }
         return matching;
     }
 
-    public void pushSymbol( String name, Type type )
+    public void pushSymbol(String name, Type type)
     {
         mSymbolTable.add(new SymbolEntry(name, type));
     }
 
-    public void popSymbols( final int count ) {
+    public void popSymbols(final int count) {
         final int last = mSymbolTable.size() - 1;
-        assert( count == 0 || last >= 0 );
-        for( int i = last; i > (last - count); --i ) {
+        assert(count == 0 || last >= 0);
+        for (int i = last; i > (last - count); --i) {
             mSymbolTable.remove(i);
         }
     }
@@ -739,24 +739,24 @@ public class Context {
     public List<TypedSymbol> findFunctionTypeReturning(Type returnType) {
         returnType = ParameterUtils.uniqueParameters(returnType);
         List<TypedSymbol> matching = mRegistry.findFunctionTypeReturning(returnType, ObjectRegistry.PromiseUniqueParameter);
-        for( Chromasome chromasome : mChromasomes ) {
-            for( Chromasome.NamedGene gene : chromasome.genes() ) {
+        for (Chromasome chromasome : mChromasomes) {
+            for (Chromasome.NamedGene gene : chromasome.genes()) {
                 Type type = gene.gene.type();
-                if( type instanceof FunctionType ) {
+                if (type instanceof FunctionType) {
                     FunctionType funcType = (FunctionType)type;
-                    Match match = returnType.match( funcType.returnType() );
-                    if( match.matches() ) {
-                        matching.add( new TypedSymbol( new Symbol( gene.name ), funcType.substitute(match.mappings()) ) );
+                    Match match = returnType.match(funcType.returnType());
+                    if (match.matches()) {
+                        matching.add(new TypedSymbol(new Symbol(gene.name), funcType.substitute(match.mappings())));
                     }
                 }
             }
         }
-        for( SymbolEntry entry : mSymbolTable ) {
-            if( entry.mType instanceof FunctionType ) {
+        for (SymbolEntry entry : mSymbolTable) {
+            if (entry.mType instanceof FunctionType) {
                 FunctionType funcType = (FunctionType)entry.mType;
-                Match match = returnType.match( funcType.returnType() );
-                if( match.matches() ) {
-                    matching.add( new TypedSymbol( entry.mSymbol, funcType.substitute(match.mappings()) ) );
+                Match match = returnType.match(funcType.returnType());
+                if (match.matches()) {
+                    matching.add(new TypedSymbol(entry.mSymbol, funcType.substitute(match.mappings())));
                 }
             }
         }
@@ -765,7 +765,7 @@ public class Context {
 
     public java.util.Set<Type> findConcreteTypes() {
         java.util.Set<Type> result = new java.util.HashSet<Type>();
-        for( SymbolEntry entry : mSymbolTable ) {
+        for (SymbolEntry entry : mSymbolTable) {
             TypeBuilder.findConcreteTypes(entry.mType, result);
         }
         return result;
@@ -841,8 +841,8 @@ public class GeneRandomizer {
     }
 
     public int buildTypeWeight(BuildType type) {
-        for( Pair<BuildType,Integer> entry : mProbabilities.buildTypeWeights) {
-            if( entry.first == type ) {
+        for (Pair<BuildType,Integer> entry : mProbabilities.buildTypeWeights) {
+            if (entry.first == type) {
                 return entry.second;
             }
         }
@@ -885,8 +885,8 @@ public class GeneRandomizer {
 
         public WeightedSet<T> distribution(List<Pair<T,Integer>> weights, T skip){
             WeightedSet<T> dist = new WeightedSet<T>();
-            for( Pair<T, Integer> entry : weights ) {
-                if( entry.first != skip && entry.second > 0) {
+            for (Pair<T, Integer> entry : weights) {
+                if (entry.first != skip && entry.second > 0) {
                     dist.add(entry.first, entry.second);
                 }
             }
@@ -896,9 +896,9 @@ public class GeneRandomizer {
 
     private static WeightedSet<Integer> distribution(int[] weights) {
         WeightedSet<Integer> dist = new WeightedSet<Integer>();
-        for( int i = 0; i  < weights.length; ++i ) {
+        for (int i = 0; i  < weights.length; ++i) {
             int weight = weights[i];
-            if( weight > 0 )  {
+            if (weight > 0)  {
                 dist.add(i, weight);
             }
         }
@@ -934,7 +934,7 @@ public class GeneBuilder {
     private GeneRandomizer mRandomizer;
     private int mDepthAllowed = 5;
 
-    public GeneBuilder( TypeBuilder typeBuilder, GeneRandomizer randomizer, Context context ) {
+    public GeneBuilder(TypeBuilder typeBuilder, GeneRandomizer randomizer, Context context) {
         mTypeBuilder = typeBuilder;
         mRandomizer = randomizer;
         mContext = context;
@@ -947,58 +947,58 @@ public class GeneBuilder {
     public Gene buildItem(final Type geneType, Random random) {
         WeightedSet<Builder> builders = new WeightedSet<Builder>();
 
-        if( canLookup(geneType) ) {
+        if (canLookup(geneType)) {
             builders.add(new Builder() {
                 public Gene build(Random random) {
                     return lookup(geneType, random);
                 }},
                 mRandomizer.buildTypeWeight(BuildType.LOOKUP)
-            );
+          );
         }
 
-        if( isConstructable(geneType)) {
+        if (isConstructable(geneType)) {
             builders.add(new Builder() {
                 public Gene build(Random random) {
                     return constructItem(geneType, random);
                 }},
                 mRandomizer.buildTypeWeight(BuildType.CONSTRUCT)
-            );
+          );
         }
 
-        if( canApply(geneType, mDepthAllowed) ) {
+        if (canApply(geneType, mDepthAllowed)) {
             builders.add(new Builder() {
                 public Gene build(Random random) {
                     return buildApplication(geneType, random);
                 }},
                 mRandomizer.buildTypeWeight(BuildType.CONSTRUCT)
-            );
+          );
 
-            if( geneType instanceof Maybe ) {
+            if (geneType instanceof Maybe) {
                 builders.add(new Builder() {
                     public Gene build(Random random) {
                         return buildPassMaybe((Maybe)geneType, random);
                     }},
                     mRandomizer.buildTypeWeight(BuildType.MAYBE)
-                );
+              );
             }
         }
 
-        if( !builders.isEmpty() ) {
-            if( mDepthAllowed > 0 ) {
-                if( !(geneType instanceof Maybe || geneType.equals(BaseType.NULL)) ) {
+        if (!builders.isEmpty()) {
+            if (mDepthAllowed > 0) {
+                if (!(geneType instanceof Maybe || geneType.equals(BaseType.NULL))) {
                     builders.add(new Builder() {
                         public Gene build(Random random) {
-                            return buildDemaybe( geneType, random );
+                            return buildDemaybe(geneType, random);
                         }},
                         mRandomizer.buildTypeWeight(BuildType.MAYBE)
-                    );
+                  );
                 }
                 builders.add(new Builder() {
                     public Gene build(Random random) {
                         return buildBranch(geneType, random);
                     }},
                     mRandomizer.buildTypeWeight(BuildType.BRANCH)
-                );
+              );
             }
 
             try
@@ -1014,10 +1014,10 @@ public class GeneBuilder {
     }
 
     private boolean canApply(Type type, int depth) {
-        if( depth > 0 ) {
+        if (depth > 0) {
             List<TypedSymbol> matching = mContext.findFunctionTypeReturning(type);
-            for(TypedSymbol function : matching) {
-                if(canInvoke((FunctionType)function.type, depth)) {
+            for (TypedSymbol function : matching) {
+                if (canInvoke((FunctionType)function.type, depth)) {
                     return true;
                 }
             }
@@ -1026,14 +1026,14 @@ public class GeneBuilder {
     }
 
     private boolean canInvoke(FunctionType type, int depth) {
-        for( Type argType : type.argumentTypes()) {
-            if(isConstructable(argType)) {
+        for (Type argType : type.argumentTypes()) {
+            if (isConstructable(argType)) {
                 continue;
             }
-            if(canLookup(argType)) {
+            if (canLookup(argType)) {
                 continue;
             }
-            if(canApply(argType, depth-1)) {
+            if (canApply(argType, depth-1)) {
                 continue;
             }
         }
@@ -1045,22 +1045,22 @@ public class GeneBuilder {
     }
 
     private Gene buildBranch(Type geneType, Random random) {
-        Gene predicate = buildItem( BaseType.BOOL, random );
-        Gene thenGene = buildItem( geneType, random );
-        Gene elseGene = buildItem( geneType, random );
+        Gene predicate = buildItem(BaseType.BOOL, random);
+        Gene thenGene = buildItem(geneType, random);
+        Gene elseGene = buildItem(geneType, random);
         return new IfGene(geneType,predicate,thenGene,elseGene);
     }
 
     private Gene buildDemaybe(Type geneType, Random random) {
-        String name = StringRandom.alphaString( random, 3 );
+        String name = StringRandom.alphaString(random, 3);
         Gene maybeGene = null;
         // Check if we built a null directly, and if so, reject it.
         do {
             maybeGene = buildItem(new Maybe(geneType), random);
-        } while( maybeGene.type().equals( BaseType.NULL ) );
+        } while(maybeGene.type().equals(BaseType.NULL));
         // If we didn't build a maybe, then just return the gene,
         // rather then forcing the issue.
-        if( !(maybeGene.type() instanceof Maybe ) ) {
+        if (!(maybeGene.type() instanceof Maybe)) {
             return maybeGene;
         }
         Gene concreteGene = buildItem(geneType, random);
@@ -1072,15 +1072,15 @@ public class GeneBuilder {
         Type argumentTypes[] = ((FunctionType)function.type()).argumentTypes();
         Gene arguments[] = new Gene[argumentTypes.length];
         boolean addedMaybe = false;
-        for( int i = 0; i < argumentTypes.length; ++i) {
+        for (int i = 0; i < argumentTypes.length; ++i) {
             Type type = argumentTypes[i];
-            if( !(type instanceof Maybe || type.equals(BaseType.NULL)) ) {
+            if (!(type instanceof Maybe || type.equals(BaseType.NULL))) {
                 type = new Maybe(type);
                 addedMaybe = true;
             }
             arguments[i] = buildItem(type,random);
         }
-        if( addedMaybe ) {
+        if (addedMaybe) {
             return new PassMaybeGene(geneType, function, arguments, StringRandom.alphaString(random, 3));
         } else {
             return new ApplicationGene(function, arguments);
@@ -1091,62 +1091,62 @@ public class GeneBuilder {
         Gene function = buildInvokeable(geneType, random);
         Type argumentTypes[] = ((FunctionType)function.type()).argumentTypes();
         Gene arguments[] = new Gene[argumentTypes.length];
-        for( int i = 0; i < argumentTypes.length; ++i) {
+        for (int i = 0; i < argumentTypes.length; ++i) {
             arguments[i] = buildItem(argumentTypes[i],random);
         }
-        return new ApplicationGene( function, arguments );
+        return new ApplicationGene(function, arguments);
     }
 
     private Gene buildInvokeable(Type geneType, Random random) {
         List<TypedSymbol> matching = mContext.findFunctionTypeReturning(geneType);
         assert(!matching.isEmpty());
-        TypedSymbol function = matching.get( random.nextInt( matching.size() ) );
+        TypedSymbol function = matching.get(random.nextInt(matching.size()));
         return new LookupGene(ParameterUtils.uniqueParameters(function.type), function.symbol.name(), random.nextLong());
     }
 
     private Gene lookup(Type geneType, Random random) {
         List<Symbol> matching = mContext.findMatching(geneType);
-        if( matching.isEmpty() ) {
+        if (matching.isEmpty()) {
             return null;
         }
-        Symbol symbol = matching.get( random.nextInt( matching.size() ) );
-        return new LookupGene(geneType, symbol.name(), random.nextLong() );
+        Symbol symbol = matching.get(random.nextInt(matching.size()));
+        return new LookupGene(geneType, symbol.name(), random.nextLong());
     }
 
     private Gene constructItem(Type geneType, Random random) {
-        while( geneType instanceof Parameter ) {
+        while(geneType instanceof Parameter) {
             geneType = mTypeBuilder.createConstructableType(random);
         }
 
-        if(geneType.equals(BaseType.FIXNUM)) {
+        if (geneType.equals(BaseType.FIXNUM)) {
             return buildFixNum(random);
-        } else if(geneType.equals(BaseType.REAL)) {
+        } else if (geneType.equals(BaseType.REAL)) {
             return buildReal(random);
-        } else if(geneType.equals(BaseType.BOOL)) {
+        } else if (geneType.equals(BaseType.BOOL)) {
             return buildBool(random);
-        } else if(geneType.equals(BaseType.NULL)) {
+        } else if (geneType.equals(BaseType.NULL)) {
             return new NullGene();
-        } else if(geneType.equals(BaseType.TRUE)) {
+        } else if (geneType.equals(BaseType.TRUE)) {
             return new TrueGene();
-        } else if(geneType.equals(BaseType.STRING)) {
+        } else if (geneType.equals(BaseType.STRING)) {
             return buildString(random);
-        } else if(geneType.equals(BaseType.SYMBOL)) {
+        } else if (geneType.equals(BaseType.SYMBOL)) {
             return buildSymbol(random);
-        } else if(geneType instanceof ConsType) {
+        } else if (geneType instanceof ConsType) {
             return buildCons((ConsType)geneType,random);
-        } else if(geneType instanceof ListType) {
+        } else if (geneType instanceof ListType) {
             return buildList(((ListType)geneType),random);
-        } else if(geneType instanceof Maybe) {
+        } else if (geneType instanceof Maybe) {
             return buildMaybe((Maybe)geneType, random);
-        } else if(geneType instanceof FunctionType) {
+        } else if (geneType instanceof FunctionType) {
             return buildLambda((FunctionType)geneType, random);
         }
-        assert( false ); // Unknown type
+        assert(false); // Unknown type
         return null;
     }
 
     private Gene buildMaybe(Maybe maybe, Random random) {
-        if( mRandomizer.maybeIsNull(random) ) {
+        if (mRandomizer.maybeIsNull(random)) {
             return new NullGene();
         }
         return buildItem(maybe.type(),random);
@@ -1163,10 +1163,10 @@ public class GeneBuilder {
     }
 
     private Gene buildCons(ConsType type, Random random) {
-        return new ConsGene( type,
+        return new ConsGene(type,
                 buildItem(type.carType(),random),
                 buildItem(type.cdrType(),random)
-        );
+      );
     }
 
     private Gene buildSymbol(Random random) {
@@ -1193,7 +1193,7 @@ public class GeneBuilder {
 
     public Gene buildFunction(FunctionType type, String name, Random random) {
         java.util.Set<Type> allowTypes = new java.util.HashSet<Type>();
-        for( Type argType : type.argumentTypes() ) {
+        for (Type argType : type.argumentTypes()) {
             TypeBuilder.findConcreteTypes(argType, allowTypes);
         }
         mTypeBuilder.allowDependentTypes(allowTypes);
@@ -1206,8 +1206,8 @@ public class GeneBuilder {
     }
 
     private Gene buildFunctionGene(FunctionType type, Random random, String name, boolean isLambda) {
-        String names[] = FunctionGene.argumentNames( type, name);
-        pushArguments( names, type.argumentTypes() );
+        String names[] = FunctionGene.argumentNames(type, name);
+        pushArguments(names, type.argumentTypes());
 
         Gene body = buildItem(type.returnType(), random);
         Gene result = new FunctionGene(type, name, body, isLambda);
@@ -1217,7 +1217,7 @@ public class GeneBuilder {
     }
 
     private void pushArguments(String[] names, Type[] types) {
-        for( int i = 0; i < names.length; ++i ) {
+        for (int i = 0; i < names.length; ++i) {
             mContext.pushSymbol(names[i], types[i]);
         }
     }
@@ -1244,55 +1244,55 @@ public class GenomeBuilder {
         public FunctionType[] geneTypes;
     }
 
-    public ChromasomeStructure[] buildGenomeStructure( FunctionType target, Random random )
+    public ChromasomeStructure[] buildGenomeStructure(FunctionType target, Random random)
     {
         mTypeBuilder.allowAllConstrained();
         try {
             ChromasomeStructure[] structure = new ChromasomeStructure[mProbs.selectGenomeSize(random)];
-            for( int i = 0; i < structure.length - 1; ++i ) {
+            for (int i = 0; i < structure.length - 1; ++i) {
                 structure[i] = buildChromasomeStructure(random);
             }
 
-            structure[structure.length-1] = buildTargetStructure( target );
+            structure[structure.length-1] = buildTargetStructure(target);
             return structure;
         } finally {
             mTypeBuilder.clearDependentTypes();
         }
     }
 
-    public Genome build( ChromasomeStructure[] genomeStructure, Random random ) {
+    public Genome build(ChromasomeStructure[] genomeStructure, Random random) {
         Genome genome = new Genome();
         Context context = new Context(mRegistry);
         GeneBuilder geneBuilder = new GeneBuilder(mTypeBuilder, mProbs, context);
-        for( ChromasomeStructure structure : genomeStructure ) {
-            genome.add( buildChromasome(context,geneBuilder,structure,random));
+        for (ChromasomeStructure structure : genomeStructure) {
+            genome.add(buildChromasome(context,geneBuilder,structure,random));
         }
         return genome;
     }
 
-    private ChromasomeStructure buildChromasomeStructure( Random random ) {
+    private ChromasomeStructure buildChromasomeStructure(Random random) {
         ChromasomeStructure structure = new ChromasomeStructure();
-        structure.name = "cr" + StringRandom.alphaString( random, 5 );
+        structure.name = "cr" + StringRandom.alphaString(random, 5);
         structure.geneTypes = new FunctionType[mProbs.selectChromasomeLength(random)];
-        for( int i = 0; i < structure.geneTypes.length; ++i ) {
+        for (int i = 0; i < structure.geneTypes.length; ++i) {
             Type returnType = mTypeBuilder.createType(random);
             structure.geneTypes[i] = mTypeBuilder.createFunction(returnType, random);
         }
         return structure;
     }
 
-    private ChromasomeStructure buildTargetStructure( FunctionType target ) {
+    private ChromasomeStructure buildTargetStructure(FunctionType target) {
         ChromasomeStructure targetStructure = new ChromasomeStructure();
         targetStructure.name = "crTarget";
         targetStructure.geneTypes = new FunctionType[] { target };
         return targetStructure;
     }
 
-    private Chromasome buildChromasome( Context context, GeneBuilder geneBuilder, ChromasomeStructure structure, Random random ) {
-        Chromasome chromasome = new Chromasome( structure.name );
+    private Chromasome buildChromasome(Context context, GeneBuilder geneBuilder, ChromasomeStructure structure, Random random) {
+        Chromasome chromasome = new Chromasome(structure.name);
         context.addChromasome(chromasome);
-        for( FunctionType geneType : structure.geneTypes ) {
-            chromasome.addGene( geneBuilder.buildFunction(geneType, chromasome.nextGeneName(), random) );
+        for (FunctionType geneType : structure.geneTypes) {
+            chromasome.addGene(geneBuilder.buildFunction(geneType, chromasome.nextGeneName(), random));
         }
         return chromasome;
     }
@@ -1337,7 +1337,7 @@ public class Mutation {
         return mGeneRandomizer;
     }
 
-    public boolean mutateTopLevelGene( Random random ) {
+    public boolean mutateTopLevelGene(Random random) {
         return Probability.select(random, mProbabilities.mutateTopLevel);
     }
 
@@ -1351,10 +1351,10 @@ public class Mutation {
 
     public int newStringLength(int length, Random random) {
         int mutateType = random.nextInt(5);
-        if( mutateType < 2) {
+        if (mutateType < 2) {
             return length > 0 ? length - 1 : length;
         }
-        if( mutateType < 4 ) {
+        if (mutateType < 4) {
             return length + 1;
         }
         return mGeneRandomizer.selectStringLength(random);
@@ -1366,10 +1366,10 @@ public class Mutation {
 
     public int newSymbolLength(int length, Random random) {
         int mutateType = random.nextInt(5);
-        if( mutateType < 2) {
+        if (mutateType < 2) {
             return length > 0 ? length - 1 : length;
         }
-        if( mutateType < 4 ) {
+        if (mutateType < 4) {
             return length + 1;
         }
         return mGeneRandomizer.selectStringLength(random);
@@ -1379,13 +1379,13 @@ public class Mutation {
         return Probability.select(random, mProbabilities.replaceSubgene);
     }
 
-    public Gene createNewGene( Type type, Context context, Random random ) {
+    public Gene createNewGene(Type type, Context context, Random random) {
         GeneBuilder builder = new GeneBuilder(typeBuilder(), geneBuilderProbabilities(), context);
         return builder.buildItem(type, random);
     }
 
-    public Gene mutateGene( Type type, Gene gene, Context context, Random random ) {
-        if( replaceSubgene(random) ) {
+    public Gene mutateGene(Type type, Gene gene, Context context, Random random) {
+        if (replaceSubgene(random)) {
             return createNewGene(type, context, random);
         } else {
             gene.mutate(this, context, random);
@@ -1403,10 +1403,10 @@ public class Mutation {
 
     public int newListLength(int length, Random random) {
         int mutateType = random.nextInt(5);
-        if( mutateType < 2) {
+        if (mutateType < 2) {
             return length > 0 ? length - 1 : length;
         }
-        if( mutateType < 4 ) {
+        if (mutateType < 4) {
             return length + 1;
         }
         return mGeneRandomizer.selectListLength(random);
@@ -1420,18 +1420,18 @@ public class Mutation {
         return Probability.select(random, mProbabilities.mutateFixnumRange);
     }
 
-    public FixNumGenerator.Range newRange( FixNumGenerator.Range range, Random random) {
+    public FixNumGenerator.Range newRange(FixNumGenerator.Range range, Random random) {
         int min = range.min;
         int max = range.max;
         int mutateType = random.nextInt(5);
         int rangeSizeDelta = random.nextInt(20);
-        if( mutateType == 0 ) {
+        if (mutateType == 0) {
             min = min > Integer.MIN_VALUE + rangeSizeDelta ? min - rangeSizeDelta : Integer.MIN_VALUE;
-        } else if( mutateType == 1 ) {
+        } else if (mutateType == 1) {
             min = min < max - rangeSizeDelta ? min + rangeSizeDelta : max;
-        } else if( mutateType == 2 ) {
+        } else if (mutateType == 2) {
             max = max > min + rangeSizeDelta ? max - rangeSizeDelta : min;
-        } else if( mutateType == 3 ) {
+        } else if (mutateType == 3) {
             max = max < Integer.MAX_VALUE - rangeSizeDelta ? max + rangeSizeDelta : Integer.MAX_VALUE;
         } else {
             return mGeneRandomizer.selectFixnumRange(random);
@@ -1443,18 +1443,18 @@ public class Mutation {
         return Probability.select(random, mProbabilities.mutateRealRange);
     }
 
-    public RealGenerator.Range newRange( RealGenerator.Range range, Random random) {
+    public RealGenerator.Range newRange(RealGenerator.Range range, Random random) {
         double min = range.min;
         double max = range.max;
         int mutateType = random.nextInt(5);
         int rangeSizeDelta = random.nextInt(20);
-        if( mutateType == 0 ) {
+        if (mutateType == 0) {
             min = min > Double.MIN_VALUE + rangeSizeDelta ? min - rangeSizeDelta : Integer.MIN_VALUE;
-        } else if( mutateType == 1 ) {
+        } else if (mutateType == 1) {
             min = min < max - rangeSizeDelta ? min + rangeSizeDelta : max;
-        } else if( mutateType == 2 ) {
+        } else if (mutateType == 2) {
             max = max > min + rangeSizeDelta ? max - rangeSizeDelta : min;
-        } else if( mutateType == 3 ) {
+        } else if (mutateType == 3) {
             max = max < Double.MAX_VALUE - rangeSizeDelta ? max + rangeSizeDelta : Integer.MAX_VALUE;
         } else {
             return mGeneRandomizer.selectRealRange(random);
@@ -1464,10 +1464,10 @@ public class Mutation {
 
     public Long newSeed(Long seed, Random random) {
         int mutateType = random.nextInt(5);
-        if( mutateType < 2) {
+        if (mutateType < 2) {
             return seed > Long.MIN_VALUE ? seed - 1 : Long.MIN_VALUE;
         }
-        if( mutateType < 4 ) {
+        if (mutateType < 4) {
             return seed < Long.MAX_VALUE ? seed + 1 : Long.MAX_VALUE;
         }
         return random.nextLong();
@@ -1487,7 +1487,7 @@ public class Mutation {
         int chromasomeLength = mGeneRandomizer.selectChromasomeLength(random);
         Chromasome chromasome = new Chromasome("crA_" + util.StringRandom.alphaString(random, 5));
         context.addChromasome(chromasome);
-        for( int i = 0; i < chromasomeLength; ++i ) {
+        for (int i = 0; i < chromasomeLength; ++i) {
             typeBuilder.allowAllConstrained();
             Type returnType = typeBuilder.createType(random);
             typeBuilder.clearDependentTypes();
@@ -1535,7 +1535,7 @@ public class Mutator {
         mMutation = mutation;
     }
 
-    public Genome mutate(Genome genome, ObjectRegistry reg, boolean allowMacroMutation, Random random, FunctionType target ) {
+    public Genome mutate(Genome genome, ObjectRegistry reg, boolean allowMacroMutation, Random random, FunctionType target) {
         Context context = new Context(reg);
         boolean isMutated = false;
         Genome mutated = new Genome();
@@ -1543,31 +1543,31 @@ public class Mutator {
         boolean addChromasome = allowMacroMutation && mMutation.addChromasome(random);
         int i = 0;
 
-        for( Chromasome chromasome : genome.chromasomes() ) {
+        for (Chromasome chromasome : genome.chromasomes()) {
             ++i;
             boolean isLast = i == genome.chromasomes().size();
             boolean skipChromasome = !isLast && allowMacroMutation && mMutation.skipChromasome(random);
-            if( isLast && addChromasome ) {
+            if (isLast && addChromasome) {
                 mutated.add(mMutation.createChromasome(context, random));
                 isMutated = true;
             }
-            if( !(skipChromasome) ) {
+            if (!(skipChromasome)) {
                 context.addChromasome(chromasome);
                 Chromasome mutatedChromasome = mutate(chromasome, context, isLast, allowMacroMutation, random);
                 mutated.add(mutatedChromasome);
-                if( mutatedChromasome != chromasome ) {
+                if (mutatedChromasome != chromasome) {
                     isMutated = true;
                 }
             } else {
                 isMutated = true;
             }
         }
-        if( allowMacroMutation && mMutation.addTargetChromasome(random) ) {
+        if (allowMacroMutation && mMutation.addTargetChromasome(random)) {
             isMutated = true;
             mutated.add(mMutation.createChromasome(context, random, target));
         }
 
-        if( isMutated ) {
+        if (isMutated) {
             return mutated;
         } else {
             return genome;
@@ -1577,22 +1577,22 @@ public class Mutator {
     public Chromasome mutate(Chromasome chromasome, Context context, boolean isLast, boolean allowMacroMutation, Random random) {
         boolean isMutated = false;
         Chromasome mutated = new Chromasome(chromasome.name());
-        for( Chromasome.NamedGene gene : chromasome.genes() ) {
-            if( mMutation.mutateTopLevelGene(random) ) {
+        for (Chromasome.NamedGene gene : chromasome.genes()) {
+            if (mMutation.mutateTopLevelGene(random)) {
                 Gene mutatedGene = gene.gene.mutate(mMutation, context, random);
                 mutated.addGene(mutatedGene);
-                if( gene != mutatedGene ) {
+                if (gene != mutatedGene) {
                     isMutated = true;
                 }
             } else {
                 mutated.addGene(gene.gene);
             }
         }
-        if( !isLast && allowMacroMutation && mMutation.addGene(random) ) {
+        if (!isLast && allowMacroMutation && mMutation.addGene(random)) {
             mutated.addGene(mMutation.createGene(context, mutated.nextGeneName(), random));
             isMutated = true;
         }
-        if( isMutated ) {
+        if (isMutated) {
             return mutated;
         } else {
             return chromasome;
@@ -1602,10 +1602,10 @@ public class Mutator {
 
 public class Breeder {
     // Given two Genomes, produce an offspring
-    static public Genome breed( Genome a, Genome b, FunctionType target, Random random ) {
+    static public Genome breed(Genome a, Genome b, FunctionType target, Random random) {
         // Avoid making the problem O(n*n) by creating a hash of one set of chromasomes
         Map<String, Chromasome> lookup = new java.util.HashMap<String, Chromasome>();
-        for( Chromasome chromasome : a.chromasomes() ) {
+        for (Chromasome chromasome : a.chromasomes()) {
             lookup.put(chromasome.name(), chromasome);
         }
 
@@ -1619,11 +1619,11 @@ public class Breeder {
         // Keep track of the last chromasome matching the target.
         Chromasome crTarget = null;
 
-        for( Chromasome chromasome : b.chromasomes() ) {
+        for (Chromasome chromasome : b.chromasomes()) {
             Chromasome pair = lookup.get(chromasome.name());
-            if( pair != null ) {
+            if (pair != null) {
                 Chromasome result = breed(pair, chromasome, random);
-                if( result.findLastMatching(target) != null ) {
+                if (result.findLastMatching(target) != null) {
                     crTarget = result;
                 }
                 child.add(result);
@@ -1635,23 +1635,23 @@ public class Breeder {
                 bUnpaired.add(chromasome);
             }
         }
-        if( !bUnpaired.isEmpty() ) {
+        if (!bUnpaired.isEmpty()) {
             // Pair unpaired ones in order.
-            for( Chromasome chromasome : bUnpaired ) {
-                if( aUnpaired.isEmpty() ) {
-                    if( chromasome.findLastMatching(target) != null ) {
+            for (Chromasome chromasome : bUnpaired) {
+                if (aUnpaired.isEmpty()) {
+                    if (chromasome.findLastMatching(target) != null) {
                         crTarget = chromasome;
                     }
-                    child.add( chromasome );
+                    child.add(chromasome);
                 } else {
                     // Retrieve the next unpaired a chromasome
                     String next = aUnpaired.iterator().next();
                     aUnpaired.remove(next);
                     Chromasome pair = lookup.get(next);
 
-                    assert( pair != null );
+                    assert(pair != null);
                     Chromasome result = breed(chromasome, pair, random);
-                    if( chromasome.findLastMatching(target) != null ) {
+                    if (chromasome.findLastMatching(target) != null) {
                         crTarget = result;
                     }
                     child.add(result);
@@ -1661,59 +1661,59 @@ public class Breeder {
         Genome result = new Genome();
         // Make sure that a chromasome matching the target is last, by skipping it as we add, then
         // adding it explicitly afterwards.
-        for( Chromasome chromasome : child ) {
-            if( chromasome != crTarget ) {
+        for (Chromasome chromasome : child) {
+            if (chromasome != crTarget) {
                 result.add(chromasome);
             }
         }
-        if( crTarget == null ) {
+        if (crTarget == null) {
             throw new RuntimeException("No target!");
         }
         result.add(crTarget);
         return result;
     }
 
-    static public Chromasome breed( Chromasome a, Chromasome b, Random random ) {
-        if( a.name() != b.name() ) {
-            if( random.nextBoolean() ) {
+    static public Chromasome breed(Chromasome a, Chromasome b, Random random) {
+        if (a.name() != b.name()) {
+            if (random.nextBoolean()) {
                 return a;
             } else {
                 return b;
             }
         }
-        Chromasome result = new Chromasome( a.name() );
+        Chromasome result = new Chromasome(a.name());
         int i = 0;
         int j = 0;
         List<Gene> aGenes = a.mGenes;
         List<Gene> bGenes = b.mGenes;
-        while( i < aGenes.size() && j < bGenes.size() ) {
+        while(i < aGenes.size() && j < bGenes.size()) {
             boolean useA = random.nextBoolean();
             Gene aGene = aGenes.get(i);
             Gene bGene = bGenes.get(j);
-            if( aGene.type().equals(bGene.type()) ) {
-                if( useA ) {
+            if (aGene.type().equals(bGene.type())) {
+                if (useA) {
                     result.addGene(aGene);
                 } else {
                     result.addGene(bGene);
                 }
-            } else if( (aGenes.size() > i+1) && aGenes.get(i+1).type().equals(bGene.type()) ) {
+            } else if ((aGenes.size() > i+1) && aGenes.get(i+1).type().equals(bGene.type())) {
                 result.addGene(aGene);
-                if( useA ) {
+                if (useA) {
                     result.addGene(aGenes.get(i+1));
                 } else {
                     result.addGene(bGene);
                 }
                 ++i;
-            } else if( (bGenes.size() > j+1) && aGene.type().equals(bGenes.get(j+1).type())) {
+            } else if ((bGenes.size() > j+1) && aGene.type().equals(bGenes.get(j+1).type())) {
                 result.addGene(bGene);
-                if( useA ) {
+                if (useA) {
                     result.addGene(aGene);
                 } else {
                     result.addGene(bGenes.get(j+1));
                 }
                 ++j;
             } else {
-                if( useA ) {
+                if (useA) {
                     result.addGene(aGene);
                 } else {
                     result.addGene(bGene);
@@ -1733,7 +1733,7 @@ public interface Runner {
 
     // For efficiency this method should not be 'synchronized', and thus it would be best
     // if it was 'purely functional' - ie, doesn't used any mutable instance or static fields.
-    public double run( Environment env, Symbol target, Random random );
+    public double run(Environment env, Symbol target, Random random);
     public FunctionType targetType();
     public double maxScore();
 
@@ -1799,7 +1799,7 @@ public class Evaluator {
 
         public String toString() {
             StringBuilder result = new StringBuilder();
-            for( Phene expression : mExpressions ) {
+            for (Phene expression : mExpressions) {
                 result.append(expression.name + " = ");
                 result.append(expression.expression.toString());
                 result.append('\n');
@@ -1844,7 +1844,7 @@ public class Evaluator {
         }
 
         synchronized String view() {
-            if( mView != null ) {
+            if (mView != null) {
                 return mGenome.toString() + "\n" + mView.toString();
             }
             return mGenome.toString();
@@ -1855,18 +1855,18 @@ public class Evaluator {
             mEntryPoint = entryPoint;
         }
 
-        synchronized void failExpress(Throwable ex, String expression ) {
+        synchronized void failExpress(Throwable ex, String expression) {
             mErrors.add(new Pair<Throwable,String>(ex, expression));
         }
 
         synchronized void checkTime(long allowedTime) {
-            if( mStartTime != kUnset && ( ( System.currentTimeMillis() - mStartTime ) > allowedTime ) ) {
+            if (mStartTime != kUnset && ((System.currentTimeMillis() - mStartTime) > allowedTime)) {
                 mRunFrame.abort(new TimeoutException());
             }
         }
 
         synchronized void updateScore(double score) {
-            if( mStartTime != kUnset ) {
+            if (mStartTime != kUnset) {
                 mRunFrame = null;
                 mStartTime = kUnset;
                 mScore += score;
@@ -1880,16 +1880,16 @@ public class Evaluator {
         }
 
         synchronized double score() {
-            if( mEnv == null ) {
+            if (mEnv == null) {
                 return -2 * mIterationCount;
-            } else if( mIterations > 0 ) {
+            } else if (mIterations > 0) {
                 return mScore / mIterations;
             }
             return 0;
         }
 
         synchronized boolean done() {
-            return ( expressFailed() ) || mIterations >= mIterationCount;
+            return (expressFailed()) || mIterations >= mIterationCount;
         }
 
         private boolean expressFailed() {
@@ -1897,7 +1897,7 @@ public class Evaluator {
         }
 
         synchronized Evaluation evaluation() {
-            return new Evaluation( score(), mGenome );
+            return new Evaluation(score(), mGenome);
         }
 
         synchronized List<Pair<Throwable,String>> errors() {
@@ -1905,7 +1905,7 @@ public class Evaluator {
         }
 
         synchronized public IterationData iterationData() {
-            if( mEnv != null ) {
+            if (mEnv != null) {
                 Random random = new Random(mSeed);
                 mSeed = random.nextLong();
                 mRunFrame = new Frame(mEnv, "RunFrame");
@@ -1917,7 +1917,7 @@ public class Evaluator {
         }
 
         synchronized public void abort() {
-            if( mRunFrame != null ) {
+            if (mRunFrame != null) {
                 mRunFrame.abort(new AbortedException());
             }
         }
@@ -1931,7 +1931,7 @@ public class Evaluator {
         Queue<Task> mTasks;
         Task mTask;
 
-        public Worker( int workerID ) {
+        public Worker(int workerID) {
             mWorkerID = workerID;
             constructThread();
             getTask();
@@ -1947,27 +1947,27 @@ public class Evaluator {
         }
 
         synchronized boolean checkStatus(long allowedTime) {
-            if( mTask != null ) {
+            if (mTask != null) {
                 mTask.checkTime(allowedTime);
             }
             return mTask != null;
         }
 
         synchronized void abort() {
-            if( mTask != null ) {
+            if (mTask != null) {
                 mTask.abort();
             }
             mTasks = null;
         }
 
         synchronized boolean getTask() {
-            if( mTasks != null && mTask != null && !mTask.done() ) {
+            if (mTasks != null && mTask != null && !mTask.done()) {
                 return true;
             }
             mTask = null;
-            if( mTasks == null || mTasks.isEmpty() ) {
+            if (mTasks == null || mTasks.isEmpty()) {
                 mTasks = assignTasks();
-                if( mTasks == null ) {
+                if (mTasks == null) {
                     return false;
                 }
             }
@@ -1976,9 +1976,9 @@ public class Evaluator {
         }
 
         public void run() {
-            while( getTask() ) {
+            while(getTask()) {
                 IterationData data = mTask.iterationData();
-                if( data != null ) {
+                if (data != null) {
                     try {
                         double score = mRunner.run(data.env, data.entryPoint, data.random);
                         mTask.updateScore(score);
@@ -1999,21 +1999,21 @@ public class Evaluator {
                 mTask.setView(new GenomeView(phenome));
                 Environment env = bind(phenome);
                 Symbol entryPoint = genome.findLastMatching(mRunner.targetType());
-                if( entryPoint == null ) {
+                if (entryPoint == null) {
                     throw new TargetNotFoundException();
                 }
                 mTask.setExpression(env, entryPoint);
-            } catch( Throwable ex ) {
+            } catch(Throwable ex) {
                 mTask.failExpress(ex, mTask.view());
             }
         }
 
         private Environment bind(List<Phene> phenome) {
             Environment env = new Frame(mRunner.environment(),"expressFrame");
-            for( Phene phene : phenome ) {
+            for (Phene phene : phenome) {
                 Obj result = phene.expression.compile(env);
                 result = result.eval(env);
-                if( !isDefine(phene.expression) ) {
+                if (!isDefine(phene.expression)) {
                     env.add(phene.name, result);
                 }
             }
@@ -2021,10 +2021,10 @@ public class Evaluator {
         }
 
         private boolean isDefine(Obj expression) {
-            if( expression.isCons() ) {
+            if (expression.isCons()) {
                 Obj car = ((Cons)expression).car();
-                if( car.isSymbol() ) {
-                    if( ((Symbol)car).name().equals("define") ) {
+                if (car.isSymbol()) {
+                    if (((Symbol)car).name().equals("define")) {
                         return true;
                     }
                 }
@@ -2059,13 +2059,13 @@ public class Evaluator {
 
     synchronized Queue<Task> assignTasks() {
         mStatus.updateProgress(mUnassigned > 0 ? mUnassigned-1 : 0, mTasks.length);
-        if( mUnassigned == mTasks.length || mWorkers == null) {
+        if (mUnassigned == mTasks.length || mWorkers == null) {
             return null;
         }
         Queue<Task> tasks = new java.util.LinkedList<Task>();
         int chunk = Math.max(Math.min(5, mTasks.length / mWorkers.length), 1);
         int end = Math.min(mUnassigned + chunk, mTasks.length);
-        for( ; mUnassigned < end; ++mUnassigned ) {
+        for (; mUnassigned < end; ++mUnassigned) {
             tasks.add(mTasks[mUnassigned]);
         }
         return tasks;
@@ -2075,7 +2075,7 @@ public class Evaluator {
         public double score;
         public Genome genome;
 
-        public Evaluation( double score, Genome genome ) {
+        public Evaluation(double score, Genome genome) {
             this.score = score;
             this.genome = genome;
         }
@@ -2085,7 +2085,7 @@ public class Evaluator {
         mUnassigned = 0;
         mTasks = new Task[mPopulation.size()];
         int i = 0;
-        for( Genome genome : mPopulation ) {
+        for (Genome genome : mPopulation) {
             long seed = mRandom.nextLong();
             mTasks[i] = new Task(genome, i, mRunner.iterations(), seed);
             ++i;
@@ -2093,13 +2093,13 @@ public class Evaluator {
 
         int workerCount = java.lang.Runtime.getRuntime().availableProcessors();
         mWorkers = new Worker[workerCount];
-        for( i = 0; i < workerCount; ++i ) {
+        for (i = 0; i < workerCount; ++i) {
             mWorkers[i] = new Worker(i);
         }
     }
 
     synchronized void start() {
-        for( Worker worker : mWorkers ) {
+        for (Worker worker : mWorkers) {
             worker.start();
         }
     }
@@ -2110,12 +2110,12 @@ public class Evaluator {
 
     private boolean checkStatus() {
         Worker[] workers = getWorkers();
-        if( workers == null ) {
+        if (workers == null) {
             return false;
         }
         boolean isActive = false;
-        for( Worker worker : workers ) {
-            if( worker.checkStatus(mRunner.timeoutInterval()) ) {
+        for (Worker worker : workers) {
+            if (worker.checkStatus(mRunner.timeoutInterval())) {
                 isActive = true;
             }
         }
@@ -2140,14 +2140,14 @@ public class Evaluator {
                 mStatus.notify("Unexected interruption.");
                 e.printStackTrace(System.out);
             }
-        } while( interruped || checkStatus() );
+        } while(interruped || checkStatus());
 
         return finish();
     }
 
     synchronized private List<Evaluation> finish() {
-        if( mWorkers != null ) {
-            for( Worker worker : mWorkers ) {
+        if (mWorkers != null) {
+            for (Worker worker : mWorkers) {
                 worker.join();
             }
             mWorkers = null;
@@ -2160,15 +2160,15 @@ public class Evaluator {
     private List<Evaluation> processResults() {
         List<Evaluation> results = new ArrayList<Evaluation>();
         int i = 0;
-        for( Task task : mTasks) {
-            if( !task.done() ) {
+        for (Task task : mTasks) {
+            if (!task.done()) {
                 throw new RuntimeException("Task not done!");
             }
             List<Pair<Throwable,String>> errors = task.errors();
             boolean seen = false;
-            for( Pair<Throwable,String> error : errors ) {
+            for (Pair<Throwable,String> error : errors) {
                 String description = "";
-                if( !seen && error.second != null && error.second.length() > 0) {
+                if (!seen && error.second != null && error.second.length() > 0) {
                     description = "**** Genome " + i + " ****\n" + error.second;
                     seen = true;
                 }
@@ -2181,7 +2181,7 @@ public class Evaluator {
 
         Collections.sort(results, new Comparator<Evaluation>(){
             public int compare(Evaluation a, Evaluation b) {
-                if( a.score == b.score ) {
+                if (a.score == b.score) {
                     return 0;
                 }
                 return a.score > b.score ? -1 : 1;
@@ -2198,8 +2198,8 @@ public class Evaluator {
 
     public void stop() {
         Worker[] workers = clearWorkers();
-        if( workers != null ) {
-            for( Worker worker : workers ) {
+        if (workers != null) {
+            for (Worker worker : workers) {
                 worker.abort();
             }
         }
@@ -2227,15 +2227,15 @@ public class Darwin {
     private SurvivalRatios mSurvivalRatios;
     private boolean mStop = false;
 
-    public Darwin( TypeBuilder typeBuilder, Runner runner, Status status, GeneRandomizer geneRandomizer, Mutator mutator ) {
+    public Darwin(TypeBuilder typeBuilder, Runner runner, Status status, GeneRandomizer geneRandomizer, Mutator mutator) {
         initialize(typeBuilder, runner, status, geneRandomizer, mutator, new SurvivalRatios());
     }
 
-    public Darwin( TypeBuilder typeBuilder, Runner runner, Status status, GeneRandomizer geneRandomizer, Mutator mutator, SurvivalRatios survival ) {
+    public Darwin(TypeBuilder typeBuilder, Runner runner, Status status, GeneRandomizer geneRandomizer, Mutator mutator, SurvivalRatios survival) {
         initialize(typeBuilder, runner, status, geneRandomizer, mutator, survival);
     }
 
-    public void initialize( TypeBuilder typeBuilder, Runner runner, Status status, GeneRandomizer geneRandomizer, Mutator mutator, SurvivalRatios survival ) {
+    public void initialize(TypeBuilder typeBuilder, Runner runner, Status status, GeneRandomizer geneRandomizer, Mutator mutator, SurvivalRatios survival) {
         mTypeBuilder = typeBuilder;
         mObjectRegistry = runner.registry();
         mRunner = runner;
@@ -2254,21 +2254,21 @@ public class Darwin {
         return mRunner.targetType();
     }
 
-    public Population initialPopulation( int size, Random random ) {
+    public Population initialPopulation(int size, Random random) {
         start();
         Population population = new Population(target());
         GenomeBuilder builder = new GenomeBuilder(mObjectRegistry, mTypeBuilder, mGeneRandomizer);
         GenomeBuilder.ChromasomeStructure[] structure = builder.buildGenomeStructure(target(), random);
 
         mStatus.push("Generate Population");
-        for( int i = 0; i < size && !isStopped(); ++i ) {
+        for (int i = 0; i < size && !isStopped(); ++i) {
             mStatus.updateProgress(i, size);
             try {
                 population.add(builder.build(structure, random));
-            } catch( StackOverflowError ex ) {
+            } catch(StackOverflowError ex) {
                 mStatus.onFail(ex, "Generating population: ");
                 --i;
-            } catch( GeneBuilder.GeneBuildException ex ) {
+            } catch(GeneBuilder.GeneBuildException ex) {
                 mStatus.onFail(ex, "Generating population: ");
                 --i;
             }
@@ -2289,7 +2289,7 @@ public class Darwin {
             int survivors = Math.max((int)(count * mSurvivalRatios.survivalRatio),1);
             int mutatedSurvivors = (int)(count * mSurvivalRatios.mutatedSurvivorRatio);
             int mutants = (int)(count * mSurvivalRatios.mutantRatio);
-            final int offspringCount = Math.max(count - ( survivors + mutatedSurvivors + mutants ), 0);
+            final int offspringCount = Math.max(count - (survivors + mutatedSurvivors + mutants), 0);
 
             mStatus.push("Breading/mutating");
 
@@ -2297,14 +2297,14 @@ public class Darwin {
             final Population next = breedPopulation(evaluated, offspringCount, survivors, random);
 
             mStatus.updateProgress(1, 4);
-            for( int i = 0; i < survivors; ++i ) {
+            for (int i = 0; i < survivors; ++i) {
                 next.add(evaluated.get(i).genome);
             }
 
             mStatus.updateProgress(2, 4);
             try {
                 mStatus.push("Mutating Survivors");
-                for( int i = 0; i < mutatedSurvivors; ++i ) {
+                for (int i = 0; i < mutatedSurvivors; ++i) {
                     Genome mutantSurvivor = mutate(evaluated.get(random.nextInt(survivors)).genome, random);
                     next.add(mutantSurvivor);
                     mStatus.updateProgress(i, mutatedSurvivors);
@@ -2316,7 +2316,7 @@ public class Darwin {
             mStatus.updateProgress(3, 4);
             try {
                 mStatus.push("Mutating");
-                for( int i = 0; i < mutants; ++i ) {
+                for (int i = 0; i < mutants; ++i) {
                     Genome mutant = mutate(evaluated.get(random.nextInt(evaluated.size())).genome, random);
                     next.add(mutant);
                     mStatus.updateProgress(i, mutants);
@@ -2336,11 +2336,11 @@ public class Darwin {
         Population offspring = new Population(target());
         try {
             mStatus.push("Breeding");
-            for( int i = 0; i < count; ++i ) {
+            for (int i = 0; i < count; ++i) {
                 Genome parentA = selectParent(evaluated, selectFrom, random);
                 Genome parentB = selectParent(evaluated, selectFrom, random);
-                Genome child = Breeder.breed( parentA, parentB, target(), random );
-                if( i > purebreads ) {
+                Genome child = Breeder.breed(parentA, parentB, target(), random);
+                if (i > purebreads) {
                     child = mutate(child, random);
                 }
                 offspring.add(child);
@@ -2357,12 +2357,12 @@ public class Darwin {
         do {
             try {
                 mutated = mMutator.mutate(genome, mObjectRegistry, true, random, target());
-                assert( mSkipTargetCheck || mutated.findLastMatching(target()) != null );
-            } catch( Throwable ex ) {
+                assert(mSkipTargetCheck || mutated.findLastMatching(target()) != null);
+            } catch(Throwable ex) {
                 System.out.println("Failure during mutation: " + ex.toString());
                 mStatus.notify("Failure during mutation.");
             }
-        } while( mutated == null );
+        } while(mutated == null);
         return mutated;
     }
 
@@ -2373,7 +2373,7 @@ public class Darwin {
     }
 
     public Evaluation evolve(Population population, int generations, Random random) {
-        if( !population.isTarget(target()) ) {
+        if (!population.isTarget(target())) {
             mStatus.notify("Incompatible population.");
             return null;
         }
@@ -2392,18 +2392,18 @@ public class Darwin {
                 try {
                     mStatus.push("Evaluating");
                     evaluated = evaluate(population,random);
-                    if( isStopped() ) {
+                    if (isStopped()) {
                         // If we were stopped during evaluation, evaluate will return null
                         // So for simplicity, just jump out here.
                         return best;
                     }
                     Evaluation currentBest = evaluated.get(0);
-                    if( best == null || currentBest.score > best.score ) {
+                    if (best == null || currentBest.score > best.score) {
                         best = currentBest;
                         mStatus.updateBest(best);
                     }
                     mStatus.currentPopulation(evaluated);
-                    if( best.score == mRunner.maxScore() ) {
+                    if (best.score == mRunner.maxScore()) {
                         // If we've hit the max score, we'll never replace it, so stop now.
                         return best;
                     }
@@ -2414,18 +2414,18 @@ public class Darwin {
                 mStatus.updateProgress(1, 2);
                 do {
                     population = nextPopulation(evaluated, random);
-                } while( population == null );
+                } while(population == null);
             } finally {
                 mStatus.pop();
             }
             ++i;
             mStatus.updateProgress(i, generations);
-        } while( i < generations && !isStopped());
+        } while(i < generations && !isStopped());
         return best;
     }
 
     private void storePopulation(Population pop) {
-        if( mLastPopulationPath != null) {
+        if (mLastPopulationPath != null) {
             pop.store(mLastPopulationPath);
         }
     }
