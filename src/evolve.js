@@ -1,58 +1,7 @@
-package evolve;
-
-import java.util.Random;
-import java.io.Serializable;
-import java.io.FileOutputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import functional.Obj;
-import functional.Symbol;
-import functional.Environment;
-import functional.Frame;
-
-import functional.type.BaseType;
-import functional.type.ConsType;
-import functional.type.CompareTypes;
-import functional.type.FunctionType;
-import functional.type.ListType;
-import functional.type.Match;
-import functional.type.Maybe;
-import functional.type.Parameter;
-import functional.type.ParameterUtils;
-import functional.type.Type;
-
-import util.Probability;
-import util.WeightedSet;
-import util.ReweightedSet;
-import util.StringRandom;
-
-import evolve.ObjectRegistry.TypedSymbol;
-import evolve.genes.ApplicationGene;
-import evolve.genes.BoolGenerator;
-import evolve.genes.ConsGene;
-import evolve.genes.DemaybeGene;
-import evolve.genes.FixNumGenerator;
-import evolve.genes.FunctionGene;
-import evolve.genes.IfGene;
-import evolve.genes.ListGene;
-import evolve.genes.LookupGene;
-import evolve.genes.NullGene;
-import evolve.genes.PassMaybeGene;
-import evolve.genes.RealGenerator;
-import evolve.genes.StringGenerator;
-import evolve.genes.SymbolGenerator;
-import evolve.genes.TrueGene;
-import evolve.GeneBuilder.BuildType;
-import evolve.genes.FixNumGenerator;
-import evolve.genes.RealGenerator;
-
+var EVOLVE = (function () {
+    "use strict";
+    
+/*
 public interface Gene {
 	public Obj express( Context context );
 	public Type type();
@@ -2495,3 +2444,7 @@ public class Darwin {
 		mStop = false;
 	}
 }
+*/
+    return {
+    };
+}());
