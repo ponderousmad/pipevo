@@ -99,8 +99,107 @@ var ENTROPY = (function () {
         return new Entropy(Math.floor(Math.random() * 193401701));
     }
     
+    // The set is implemented as a binary tree where each node knows the sum
+    // of the weights in the left and right branches, so given a seed it either
+	// returns the value from the left branch, the right branch, or the node itself.
+    function WeightedNode(value, weight) {
+		this.value = value;
+		this.weight = weight;
+
+		this.balanced = true;
+		this.left = null;
+		this.right = null;
+    }
+    
+    WeightedNode.prototype.add = function (value, weight) {
+		this.weight += weight;
+        if (this.balanced) {
+            this.balanced = false;
+            if (this.left === null) {
+                this.left = new WeightedNode(value, weight);
+            } else {
+                this.left.add(value, weight);
+            }
+        } else {
+            this.balanced = true;
+            if (this.right === null) {
+                this.ight = new WeightedNode(value, weight);
+            } else {
+                this.right.add(value, weight);
+            }
+        }
+    };
+
+    // Given a seed within the sum of the weights of the set, return the value
+    // where the sum of the weights to the left is less than the seed, but by
+    // including the value's weight makes the sum greater or equal to the seed.
+    WeightedNode.prototype.selectSeed = function(seed) {
+        if (seed >= this.weight) {
+            throw "seed out of bounds";
+        }
+        if (this.left !== null && seed < this.left.weight ) {
+            return this.left.select(seed);
+        }
+        if (this.right !== null ) {
+            var rightBorder = this.weight - this.right.weight;
+            if (seed >= rightBorder) {
+                return this.right.select(seed - rightBorder);
+            }
+        }
+        return this.value;
+    };
+
+    // Gets a value at random, biased by the weight.
+    WeightedNode.prototype.select = function (entropy) {
+        return this.selectSeed(entropy.randomInt(0, this.weight));
+    };
+    
+    // Allows selection of items from a set where each item has an associated weight.
+    function WeightedSet() {
+        this.root = null;
+    }
+
+	// Add a value with associated weight.
+	WeightedSet.prototype.add = function (value, weight) {
+        if (weight <= 0 || value === null) {
+            throw "Invalid parameters";
+        }
+		if (this.root === null) {
+			this.root = new WeightedNode(value, weight);
+		} else {
+			this.root.add(value, weight);
+		}
+	};
+
+	// Gets the sum of the weights of all the values.
+	WeightedSet.prototype.total = function () {
+		return this.root ? this.root.weight : 0;
+	};
+
+	// Select a value based on a seed in the range zero (inclusive) to total() (exclusive).
+	// If larger then total, will exagerate the bias of the last value added.
+	WeightedSet.prototype.selectSeed = function (seed) {
+		if (this.root !== null) {
+			return this.root.selectSeed(seed);
+		}
+		return null;
+	};
+
+	WeightedSet.prototype.isEmpty = function () {
+		return this.total() === 0;
+	};
+
+	// Select a value randomly, biased by the weights.
+	WeightedSet.prototype.select = function(entropy) {
+		if (this.root !== null) {
+			return this.root.select(entropy);
+		}
+		return null;
+	};
+    
     return {
         Entropy: Entropy,
-        makeRandom: makeRandom
+        makeRandom: makeRandom,
+        WeightedSet: WeightedSet
     };
 }());
