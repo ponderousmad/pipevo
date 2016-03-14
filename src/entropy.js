@@ -76,6 +76,25 @@ var ENTROPY = (function () {
         return this.random() < bias;
     };
     
+    // Produce a random string consisting of characters from the extended ascii code points.
+    Entropy.prototype.randomAscii = function (length) {
+        var text = "";
+        for (var i = 0; i < length; ++i) {
+            text += String.fromCharCode(this.randomInt(1, 256));
+        }
+        return text;
+    };
+
+	// Produce a random string consisting of letters from the lower case latin alphabet.
+	Entropy.prototype.alphaString = function (length) {
+        var text = "",
+            start = "a".charCodeAt(0);
+        for (var i = 0; i < length; ++i) {
+            text += String.fromCharCode(start + this.randomInt(0, 26));
+        }
+        return text;
+	};
+    
     function makeRandom() {
         return new Entropy(Math.floor(Math.random() * 193401701));
     }
