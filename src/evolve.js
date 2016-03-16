@@ -1,131 +1,88 @@
 var EVOLVE = (function () {
     "use strict";
 
-/*
-public interface Gene {
-    public Obj express(Context context);
-    public Type type();
-
-    public Gene mutate(Mutation mutation, Context context, Random random);
-}
-
-public class Chromasome implements Serializable {
-    private static final long serialVersionUID = -1621188220491889894L;
-    String mName;
-    List<Gene> mGenes = new ArrayList<Gene>();
-
-    public Chromasome(String name) {
-        mName = name;
+    function Gene(type, express, mutate) {
+        this.type = type;
+        this.express = express;
+        this.mutate = mutate;
     }
-
-    public String name() {
-        return mName;
+    
+    function Chromosome(name) {
+        this.name = name;
+        this.genes = [];
     }
-
-    public int size() {
-        return mGenes.size();
-    }
-
-    public class NamedGene {
-        NamedGene(Gene aGene, String itsName) {
-            gene = aGene;
-            name = itsName;
+    
+    Chromosome.prototype.size = function () {
+        return this.genes.length;
+    };
+    
+    Chromosome.prototype.nextGeneName = function () {
+        return this.geneName(this.size());
+    };
+    
+    Chromosome.prototype.geneName = function (i) {
+        return this.name + i;
+    };
+    
+    Chromosome.prototype.namedGenes = function () {
+        var named = [];
+        for (var g = 0; g < this.genes.length; ++g) {
+            named.push({ name: this.geneName(g), gene: this.genes[g] });
         }
-        public Gene gene;
-        public String name;
-    }
-
-    public String nextGeneName() {
-        return geneName(mGenes.size());
-    }
-
-    private String geneName(int i) {
-        return mName + Integer.toString(i+1);
-    }
-
-    public NamedGene[] genes() {
-        NamedGene[] genes = new NamedGene[mGenes.size()];
-        int i = 0;
-        for (Gene gene : mGenes) {
-            genes[i] = new NamedGene(gene, geneName(i));
-            ++i;
-        }
-        return genes;
-    }
-
-    public void addGene(Gene gene) {
-        mGenes.add(gene);
-    }
-
-    public static class Phene {
-        public String name;
-        public Obj expression;
-
-        Phene(String name, Obj expression) {
-            this.name = name;
-            this.expression = expression;
-        }
-    }
-
-    public Phene[] express(Context context) {
-        Phene[] phenes = new Phene[mGenes.size()];
-        for (int i = 0; i < mGenes.size(); ++i) {
-            phenes[i] = new Phene(geneName(i), mGenes.get(i).express(context));
+        return named;
+    };
+    
+    Chromosome.prototype.add = function (gene) {
+        this.genes.push(gene);
+    };
+    
+    Chromosome.prototype.express = function (context) {
+        var phenes = [];
+        for (var g = 0; g < this.genes.length; ++g) {
+            phenes.push({ name: this.geneName(g), gene: this.genes[g].express(context) });
         }
         return phenes;
-    }
-
-    public Chromasome.NamedGene findLastMatching(Type targetType) {
-        NamedGene[] genes = genes();
-        for (int j = genes.length - 1; j >= 0; --j) {
-            if (genes[j].gene.type().equals(targetType)) {
-                return genes[j];
+    };
+    
+    Chromosome.prototype.findLastMatching = function (type) {        
+        for (var g = this.genes.length - 1; g >= 0; --g) {
+            var gene = this.genes[g];
+            if (gene.type.equals(type)) {
+                return { name: this.geneName(g), gene: gene };
             }
         }
         return null;
+    };
+    
+    function Genome() {
+        this.chromosomes = [];
     }
-}
-
-public class Genome implements Serializable {
-    private static final long serialVersionUID = 126738355774268224L;
-    private List<Chromasome> mChromasomes = new ArrayList<Chromasome>();
-
-    public Genome() {
-    }
-
-    public void add(Chromasome chromasome) {
-        assert(chromasome != null);
-        mChromasomes.add(chromasome);
-    }
-
-    public List<Chromasome> chromasomes() {
-        return mChromasomes;
-    }
-
-    public List<Phene> express(Context context) {
-        List<Phene> phenome = new ArrayList<Phene>();
-        for (Chromasome chromasome : mChromasomes) {
-            context.addChromasome(chromasome);
-            Phene[] phenes = chromasome.express(context);
-            for (Phene phene : phenes) {
-                phenome.add(phene);
-            }
+    
+    Genome.prototype.add = function (chromosome) {
+        this.chromosomes.push(chromosome);
+    };
+    
+    Geneome.prototype.express = function (context) {
+        var phenome = [];
+        for (var c = 0; c < this.chromosomes.length; ++c) {
+            var chromosome = this.chromosomes[c];
+            context.addChromosome(chromosome);
+            phenome = phenome.concat(chromosome.express(context));
         }
         return phenome;
-    }
-
-    public Symbol findLastMatching(Type targetType) {
-        for (int i = mChromasomes.size() - 1; i >= 0; --i) {
-            Chromasome c = mChromasomes.get(i);
-            Chromasome.NamedGene matching = c.findLastMatching(targetType);
-            if (matching != null) {
+    };
+    
+    Genome.prototype.findLastMatching = function (type) {
+        for (var c = this.chromosomes.length - 1; c >= 0; --c) {
+            var matching = this.chromosomes[c].findLastMatching(type);
+            if (matching !== null) {
                 return new Symbol(matching.name);
             }
         }
         return null;
-    }
-}
+    };
 
+/*
 public class TypeBuilder {
     public interface Builder {
         public Type build(Random random);
@@ -526,7 +483,7 @@ public class TypeBuilder {
 
 public class Context {
     private ObjectRegistry mRegistry;
-    private List<Chromasome> mChromasomes = new ArrayList<Chromasome>();
+    private List<Chromosome> mChromosomes = new ArrayList<Chromosome>();
 
     private static class SymbolEntry {
         SymbolEntry(String name, Type type) {
@@ -543,15 +500,15 @@ public class Context {
         mRegistry = registry;
     }
 
-    public void addChromasome(Chromasome chromasome) {
-        mChromasomes.add(chromasome);
+    public void addChromosome(Chromosome chromosome) {
+        mChromosomes.add(chromosome);
     }
 
     public List<Symbol> findMatching(Type type) {
         type = ParameterUtils.uniqueParameters(type);
         List<Symbol> matching = mRegistry.findMatching(type, ObjectRegistry.PromiseUniqueParameter);
-        for (Chromasome chromasome : mChromasomes) {
-            for (Chromasome.NamedGene gene : chromasome.genes()) {
+        for (Chromosome chromosome : mChromosomes) {
+            for (Chromosome.NamedGene gene : chromosome.genes()) {
                 if (gene.gene.type().match(type).matches()) {
                     matching.add(new Symbol(gene.name));
                 }
@@ -581,8 +538,8 @@ public class Context {
     public List<TypedSymbol> findFunctionTypeReturning(Type returnType) {
         returnType = ParameterUtils.uniqueParameters(returnType);
         List<TypedSymbol> matching = mRegistry.findFunctionTypeReturning(returnType, ObjectRegistry.PromiseUniqueParameter);
-        for (Chromasome chromasome : mChromasomes) {
-            for (Chromasome.NamedGene gene : chromasome.genes()) {
+        for (Chromosome chromosome : mChromosomes) {
+            for (Chromosome.NamedGene gene : chromosome.genes()) {
                 Type type = gene.gene.type();
                 if (type instanceof FunctionType) {
                     FunctionType funcType = (FunctionType)type;
@@ -684,7 +641,7 @@ public class Population implements java.lang.Iterable<Genome>{
 
 public class Context {
     private ObjectRegistry mRegistry;
-    private List<Chromasome> mChromasomes = new ArrayList<Chromasome>();
+    private List<Chromosome> mChromosomes = new ArrayList<Chromosome>();
 
     private static class SymbolEntry {
         SymbolEntry(String name, Type type) {
@@ -701,15 +658,15 @@ public class Context {
         mRegistry = registry;
     }
 
-    public void addChromasome(Chromasome chromasome) {
-        mChromasomes.add(chromasome);
+    public void addChromosome(Chromosome chromosome) {
+        mChromosomes.add(chromosome);
     }
 
     public List<Symbol> findMatching(Type type) {
         type = ParameterUtils.uniqueParameters(type);
         List<Symbol> matching = mRegistry.findMatching(type, ObjectRegistry.PromiseUniqueParameter);
-        for (Chromasome chromasome : mChromasomes) {
-            for (Chromasome.NamedGene gene : chromasome.genes()) {
+        for (Chromosome chromosome : mChromosomes) {
+            for (Chromosome.NamedGene gene : chromosome.genes()) {
                 if (gene.gene.type().match(type).matches()) {
                     matching.add(new Symbol(gene.name));
                 }
@@ -739,8 +696,8 @@ public class Context {
     public List<TypedSymbol> findFunctionTypeReturning(Type returnType) {
         returnType = ParameterUtils.uniqueParameters(returnType);
         List<TypedSymbol> matching = mRegistry.findFunctionTypeReturning(returnType, ObjectRegistry.PromiseUniqueParameter);
-        for (Chromasome chromasome : mChromasomes) {
-            for (Chromasome.NamedGene gene : chromasome.genes()) {
+        for (Chromosome chromosome : mChromosomes) {
+            for (Chromosome.NamedGene gene : chromosome.genes()) {
                 Type type = gene.gene.type();
                 if (type instanceof FunctionType) {
                     FunctionType funcType = (FunctionType)type;
@@ -779,7 +736,7 @@ public class GeneRandomizer {
         public List<Pair<BuildType,Integer>> buildTypeWeights = defaultBuildTypeWeights();
         public int[] stringLengthWeights = new int[] {0,1,3,5,10,20,10,5,3,1,1,1,1,1,1,1,1,1,1,1};
         public int[] listLengthWeights = new int[] {0,10,20,10,5,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-        public int[] chromasomeLengthWeights = new int[] {0,1,2,3,2,1};
+        public int[] chromosomeLengthWeights = new int[] {0,1,2,3,2,1};
         public int[] genomeSizeWeights = new int[] {0,1,2,3,2,1};
         public List<Pair<FixNumGenerator.Range,Integer>> fixnumRangeWeights = defaultFixnumRangeWeights();
         public List<Pair<RealGenerator.Range,Integer>> realRangeWeights = defaultRealRangeWeights();
@@ -825,7 +782,7 @@ public class GeneRandomizer {
     private Probabilities mProbabilities = null;
     private WeightedSet<Integer> mStringLengthDistribution = null;
     private WeightedSet<Integer> mListLengthDistribution = null;
-    private WeightedSet<Integer> mChromasomeLengthDistribution = null;
+    private WeightedSet<Integer> mChromosomeLengthDistribution = null;
     private WeightedSet<Integer> mGenomeSizeDistribution = null;
     private WeightedSet<FixNumGenerator.Range> mFixnumRangeDistribution;
     private WeightedSet<RealGenerator.Range> mRealRangeDistribution;
@@ -834,7 +791,7 @@ public class GeneRandomizer {
         mProbabilities = probabilities;
         mStringLengthDistribution = distribution(mProbabilities.stringLengthWeights);
         mListLengthDistribution = distribution(mProbabilities.listLengthWeights);
-        mChromasomeLengthDistribution = distribution(mProbabilities.chromasomeLengthWeights);
+        mChromosomeLengthDistribution = distribution(mProbabilities.chromosomeLengthWeights);
         mGenomeSizeDistribution = distribution(mProbabilities.genomeSizeWeights);
         mFixnumRangeDistribution = new Constructor<FixNumGenerator.Range>().distribution(mProbabilities.fixnumRangeWeights);
         mRealRangeDistribution = new Constructor<RealGenerator.Range>().distribution(mProbabilities.realRangeWeights);
@@ -870,8 +827,8 @@ public class GeneRandomizer {
         return mRealRangeDistribution.select(random);
     }
 
-    public int selectChromasomeLength(Random random) {
-        return mChromasomeLengthDistribution.select(random);
+    public int selectChromosomeLength(Random random) {
+        return mChromosomeLengthDistribution.select(random);
     }
 
     public int selectGenomeSize(Random random) {
@@ -1238,19 +1195,19 @@ public class GenomeBuilder {
         mProbs = probs;
     }
 
-    public class ChromasomeStructure
+    public class ChromosomeStructure
     {
         public String name;
         public FunctionType[] geneTypes;
     }
 
-    public ChromasomeStructure[] buildGenomeStructure(FunctionType target, Random random)
+    public ChromosomeStructure[] buildGenomeStructure(FunctionType target, Random random)
     {
         mTypeBuilder.allowAllConstrained();
         try {
-            ChromasomeStructure[] structure = new ChromasomeStructure[mProbs.selectGenomeSize(random)];
+            ChromosomeStructure[] structure = new ChromosomeStructure[mProbs.selectGenomeSize(random)];
             for (int i = 0; i < structure.length - 1; ++i) {
-                structure[i] = buildChromasomeStructure(random);
+                structure[i] = buildChromosomeStructure(random);
             }
 
             structure[structure.length-1] = buildTargetStructure(target);
@@ -1260,20 +1217,20 @@ public class GenomeBuilder {
         }
     }
 
-    public Genome build(ChromasomeStructure[] genomeStructure, Random random) {
+    public Genome build(ChromosomeStructure[] genomeStructure, Random random) {
         Genome genome = new Genome();
         Context context = new Context(mRegistry);
         GeneBuilder geneBuilder = new GeneBuilder(mTypeBuilder, mProbs, context);
-        for (ChromasomeStructure structure : genomeStructure) {
-            genome.add(buildChromasome(context,geneBuilder,structure,random));
+        for (ChromosomeStructure structure : genomeStructure) {
+            genome.add(buildChromosome(context,geneBuilder,structure,random));
         }
         return genome;
     }
 
-    private ChromasomeStructure buildChromasomeStructure(Random random) {
-        ChromasomeStructure structure = new ChromasomeStructure();
+    private ChromosomeStructure buildChromosomeStructure(Random random) {
+        ChromosomeStructure structure = new ChromosomeStructure();
         structure.name = "cr" + StringRandom.alphaString(random, 5);
-        structure.geneTypes = new FunctionType[mProbs.selectChromasomeLength(random)];
+        structure.geneTypes = new FunctionType[mProbs.selectChromosomeLength(random)];
         for (int i = 0; i < structure.geneTypes.length; ++i) {
             Type returnType = mTypeBuilder.createType(random);
             structure.geneTypes[i] = mTypeBuilder.createFunction(returnType, random);
@@ -1281,20 +1238,20 @@ public class GenomeBuilder {
         return structure;
     }
 
-    private ChromasomeStructure buildTargetStructure(FunctionType target) {
-        ChromasomeStructure targetStructure = new ChromasomeStructure();
+    private ChromosomeStructure buildTargetStructure(FunctionType target) {
+        ChromosomeStructure targetStructure = new ChromosomeStructure();
         targetStructure.name = "crTarget";
         targetStructure.geneTypes = new FunctionType[] { target };
         return targetStructure;
     }
 
-    private Chromasome buildChromasome(Context context, GeneBuilder geneBuilder, ChromasomeStructure structure, Random random) {
-        Chromasome chromasome = new Chromasome(structure.name);
-        context.addChromasome(chromasome);
+    private Chromosome buildChromosome(Context context, GeneBuilder geneBuilder, ChromosomeStructure structure, Random random) {
+        Chromosome chromosome = new Chromosome(structure.name);
+        context.addChromosome(chromosome);
         for (FunctionType geneType : structure.geneTypes) {
-            chromasome.addGene(geneBuilder.buildFunction(geneType, chromasome.nextGeneName(), random));
+            chromosome.addGene(geneBuilder.buildFunction(geneType, chromosome.nextGeneName(), random));
         }
-        return chromasome;
+        return chromosome;
     }
 }
 
@@ -1314,9 +1271,9 @@ public class Mutation {
         public double replaceSubgene = 1/25.0;
 
         public double mutateAddGene = 1/250.0;
-        public double mutateSkipChromasome = 1/1000.0;
-        public double mutateAddChromasome = 1/1000.0;
-        public double mutateAddTargetChromasome = 1/5000.0;
+        public double mutateSkipChromosome = 1/1000.0;
+        public double mutateAddChromosome = 1/1000.0;
+        public double mutateAddTargetChromosome = 1/5000.0;
     }
 
     private Probabilities mProbabilities;
@@ -1473,39 +1430,39 @@ public class Mutation {
         return random.nextLong();
     }
 
-    public boolean skipChromasome(Random random) {
-        return Probability.select(random, mProbabilities.mutateSkipChromasome);
+    public boolean skipChromosome(Random random) {
+        return Probability.select(random, mProbabilities.mutateSkipChromosome);
     }
 
-    public boolean addChromasome(Random random) {
-        return Probability.select(random, mProbabilities.mutateAddChromasome);
+    public boolean addChromosome(Random random) {
+        return Probability.select(random, mProbabilities.mutateAddChromosome);
     }
 
-    public Chromasome createChromasome(Context context, Random random) {
+    public Chromosome createChromosome(Context context, Random random) {
         TypeBuilder typeBuilder = typeBuilder();
         GeneBuilder builder = new GeneBuilder(typeBuilder, geneBuilderProbabilities(), context);
-        int chromasomeLength = mGeneRandomizer.selectChromasomeLength(random);
-        Chromasome chromasome = new Chromasome("crA_" + util.StringRandom.alphaString(random, 5));
-        context.addChromasome(chromasome);
-        for (int i = 0; i < chromasomeLength; ++i) {
+        int chromosomeLength = mGeneRandomizer.selectChromosomeLength(random);
+        Chromosome chromosome = new Chromosome("crA_" + util.StringRandom.alphaString(random, 5));
+        context.addChromosome(chromosome);
+        for (int i = 0; i < chromosomeLength; ++i) {
             typeBuilder.allowAllConstrained();
             Type returnType = typeBuilder.createType(random);
             typeBuilder.clearDependentTypes();
             FunctionType function = typeBuilder.createFunction(returnType, random);
-            chromasome.addGene(builder.buildFunction(function, chromasome.nextGeneName(), random));
+            chromosome.addGene(builder.buildFunction(function, chromosome.nextGeneName(), random));
         }
-        return chromasome;
+        return chromosome;
     }
 
-    public boolean addTargetChromasome(Random random) {
-        return Probability.select(random, mProbabilities.mutateAddTargetChromasome);
+    public boolean addTargetChromosome(Random random) {
+        return Probability.select(random, mProbabilities.mutateAddTargetChromosome);
     }
 
-    public Chromasome createChromasome(Context context, Random random, FunctionType target) {
+    public Chromosome createChromosome(Context context, Random random, FunctionType target) {
         GeneBuilder builder = new GeneBuilder(typeBuilder(), geneBuilderProbabilities(), context);
-        Chromasome chromasome = new Chromasome("crT_" + util.StringRandom.alphaString(random, 5));
-        chromasome.addGene(builder.buildFunction(target, chromasome.nextGeneName(), random));
-        return chromasome;
+        Chromosome chromosome = new Chromosome("crT_" + util.StringRandom.alphaString(random, 5));
+        chromosome.addGene(builder.buildFunction(target, chromosome.nextGeneName(), random));
+        return chromosome;
     }
 
     public boolean addGene(Random random) {
@@ -1540,31 +1497,31 @@ public class Mutator {
         boolean isMutated = false;
         Genome mutated = new Genome();
 
-        boolean addChromasome = allowMacroMutation && mMutation.addChromasome(random);
+        boolean addChromosome = allowMacroMutation && mMutation.addChromosome(random);
         int i = 0;
 
-        for (Chromasome chromasome : genome.chromasomes()) {
+        for (Chromosome chromosome : genome.chromosomes()) {
             ++i;
-            boolean isLast = i == genome.chromasomes().size();
-            boolean skipChromasome = !isLast && allowMacroMutation && mMutation.skipChromasome(random);
-            if (isLast && addChromasome) {
-                mutated.add(mMutation.createChromasome(context, random));
+            boolean isLast = i == genome.chromosomes().size();
+            boolean skipChromosome = !isLast && allowMacroMutation && mMutation.skipChromosome(random);
+            if (isLast && addChromosome) {
+                mutated.add(mMutation.createChromosome(context, random));
                 isMutated = true;
             }
-            if (!(skipChromasome)) {
-                context.addChromasome(chromasome);
-                Chromasome mutatedChromasome = mutate(chromasome, context, isLast, allowMacroMutation, random);
-                mutated.add(mutatedChromasome);
-                if (mutatedChromasome != chromasome) {
+            if (!(skipChromosome)) {
+                context.addChromosome(chromosome);
+                Chromosome mutatedChromosome = mutate(chromosome, context, isLast, allowMacroMutation, random);
+                mutated.add(mutatedChromosome);
+                if (mutatedChromosome != chromosome) {
                     isMutated = true;
                 }
             } else {
                 isMutated = true;
             }
         }
-        if (allowMacroMutation && mMutation.addTargetChromasome(random)) {
+        if (allowMacroMutation && mMutation.addTargetChromosome(random)) {
             isMutated = true;
-            mutated.add(mMutation.createChromasome(context, random, target));
+            mutated.add(mMutation.createChromosome(context, random, target));
         }
 
         if (isMutated) {
@@ -1574,10 +1531,10 @@ public class Mutator {
         }
     }
 
-    public Chromasome mutate(Chromasome chromasome, Context context, boolean isLast, boolean allowMacroMutation, Random random) {
+    public Chromosome mutate(Chromosome chromosome, Context context, boolean isLast, boolean allowMacroMutation, Random random) {
         boolean isMutated = false;
-        Chromasome mutated = new Chromasome(chromasome.name());
-        for (Chromasome.NamedGene gene : chromasome.genes()) {
+        Chromosome mutated = new Chromosome(chromosome.name());
+        for (Chromosome.NamedGene gene : chromosome.genes()) {
             if (mMutation.mutateTopLevelGene(random)) {
                 Gene mutatedGene = gene.gene.mutate(mMutation, context, random);
                 mutated.addGene(mutatedGene);
@@ -1595,7 +1552,7 @@ public class Mutator {
         if (isMutated) {
             return mutated;
         } else {
-            return chromasome;
+            return chromosome;
         }
     }
 }
@@ -1603,26 +1560,26 @@ public class Mutator {
 public class Breeder {
     // Given two Genomes, produce an offspring
     static public Genome breed(Genome a, Genome b, FunctionType target, Random random) {
-        // Avoid making the problem O(n*n) by creating a hash of one set of chromasomes
-        Map<String, Chromasome> lookup = new java.util.HashMap<String, Chromasome>();
-        for (Chromasome chromasome : a.chromasomes()) {
-            lookup.put(chromasome.name(), chromasome);
+        // Avoid making the problem O(n*n) by creating a hash of one set of chromosomes
+        Map<String, Chromosome> lookup = new java.util.HashMap<String, Chromosome>();
+        for (Chromosome chromosome : a.chromosomes()) {
+            lookup.put(chromosome.name(), chromosome);
         }
 
-        // Keep track of the chromasomes in b which we haven't paired.
-        List<Chromasome> bUnpaired = new java.util.ArrayList<Chromasome>();
+        // Keep track of the chromosomes in b which we haven't paired.
+        List<Chromosome> bUnpaired = new java.util.ArrayList<Chromosome>();
 
-        // Assume all 'a' chromasomes unpaired to start with.
+        // Assume all 'a' chromosomes unpaired to start with.
         Set<String> aUnpaired = new java.util.HashSet<String>(lookup.keySet());
 
-        List<Chromasome> child = new java.util.ArrayList<Chromasome>();
-        // Keep track of the last chromasome matching the target.
-        Chromasome crTarget = null;
+        List<Chromosome> child = new java.util.ArrayList<Chromosome>();
+        // Keep track of the last chromosome matching the target.
+        Chromosome crTarget = null;
 
-        for (Chromasome chromasome : b.chromasomes()) {
-            Chromasome pair = lookup.get(chromasome.name());
+        for (Chromosome chromosome : b.chromosomes()) {
+            Chromosome pair = lookup.get(chromosome.name());
             if (pair != null) {
-                Chromasome result = breed(pair, chromasome, random);
+                Chromosome result = breed(pair, chromosome, random);
                 if (result.findLastMatching(target) != null) {
                     crTarget = result;
                 }
@@ -1632,26 +1589,26 @@ public class Breeder {
                 aUnpaired.remove(pair.name());
             } else {
                 // If we didn't find a matching one in a, then the b one is marked as unpaired.
-                bUnpaired.add(chromasome);
+                bUnpaired.add(chromosome);
             }
         }
         if (!bUnpaired.isEmpty()) {
             // Pair unpaired ones in order.
-            for (Chromasome chromasome : bUnpaired) {
+            for (Chromosome chromosome : bUnpaired) {
                 if (aUnpaired.isEmpty()) {
-                    if (chromasome.findLastMatching(target) != null) {
-                        crTarget = chromasome;
+                    if (chromosome.findLastMatching(target) != null) {
+                        crTarget = chromosome;
                     }
-                    child.add(chromasome);
+                    child.add(chromosome);
                 } else {
-                    // Retrieve the next unpaired a chromasome
+                    // Retrieve the next unpaired a chromosome
                     String next = aUnpaired.iterator().next();
                     aUnpaired.remove(next);
-                    Chromasome pair = lookup.get(next);
+                    Chromosome pair = lookup.get(next);
 
                     assert(pair != null);
-                    Chromasome result = breed(chromasome, pair, random);
-                    if (chromasome.findLastMatching(target) != null) {
+                    Chromosome result = breed(chromosome, pair, random);
+                    if (chromosome.findLastMatching(target) != null) {
                         crTarget = result;
                     }
                     child.add(result);
@@ -1659,11 +1616,11 @@ public class Breeder {
             }
         }
         Genome result = new Genome();
-        // Make sure that a chromasome matching the target is last, by skipping it as we add, then
+        // Make sure that a chromosome matching the target is last, by skipping it as we add, then
         // adding it explicitly afterwards.
-        for (Chromasome chromasome : child) {
-            if (chromasome != crTarget) {
-                result.add(chromasome);
+        for (Chromosome chromosome : child) {
+            if (chromosome != crTarget) {
+                result.add(chromosome);
             }
         }
         if (crTarget == null) {
@@ -1673,7 +1630,7 @@ public class Breeder {
         return result;
     }
 
-    static public Chromasome breed(Chromasome a, Chromasome b, Random random) {
+    static public Chromosome breed(Chromosome a, Chromosome b, Random random) {
         if (a.name() != b.name()) {
             if (random.nextBoolean()) {
                 return a;
@@ -1681,7 +1638,7 @@ public class Breeder {
                 return b;
             }
         }
-        Chromasome result = new Chromasome(a.name());
+        Chromosome result = new Chromosome(a.name());
         int i = 0;
         int j = 0;
         List<Gene> aGenes = a.mGenes;
@@ -2258,7 +2215,7 @@ public class Darwin {
         start();
         Population population = new Population(target());
         GenomeBuilder builder = new GenomeBuilder(mObjectRegistry, mTypeBuilder, mGeneRandomizer);
-        GenomeBuilder.ChromasomeStructure[] structure = builder.buildGenomeStructure(target(), random);
+        GenomeBuilder.ChromosomeStructure[] structure = builder.buildGenomeStructure(target(), random);
 
         mStatus.push("Generate Population");
         for (int i = 0; i < size && !isStopped(); ++i) {
