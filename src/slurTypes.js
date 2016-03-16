@@ -49,9 +49,19 @@ var SLUR_TYPES = (function (SLUR) {
         result.push(this);
     };
 
+    Parameter.prototype.findConcrete = function (result) {
+    };
+
     Parameter.prototype.toString = function () {
         return "P[" + this.id + "]";
     };
+    
+    function isParameter(type) {
+        if (type.id) {
+            return true;
+        }
+        return false;
+    }
 
     function ParameterMapping(parameter, type) {
         if (!parameter || !type) {
@@ -108,6 +118,10 @@ var SLUR_TYPES = (function (SLUR) {
     BaseType.prototype.findParameters = function (result) {
     };
 
+    BaseType.prototype.findConcrete = function (result) {
+        result.push(this);
+    };
+
     BaseType.prototype.toString = function () {
         return this.name ? this.name : "BaseType" + this.type;
     };
@@ -161,6 +175,11 @@ var SLUR_TYPES = (function (SLUR) {
         this.cdrType.findParameters(result);
     };
 
+    ConsType.prototype.findConcrete = function (result) {
+        this.carType.findConcrete(result);
+        this.cdrType.findConcrete(result);
+    };
+
     ConsType.prototype.toString = function () {
         return "Cons[" + this.carType.toString() + ", " + this.cdrType.toString() + "]";
     };
@@ -200,7 +219,11 @@ var SLUR_TYPES = (function (SLUR) {
     };
 
     ListType.prototype.findParameters = function (result) {
-        return this.elementType.findParameters(result);
+        this.elementType.findParameters(result);
+    };
+
+    ListType.prototype.findConcrete = function (result) {
+        this.elementType.findConcrete(result);
     };
 
     ListType.prototype.toString = function () {
@@ -251,7 +274,11 @@ var SLUR_TYPES = (function (SLUR) {
     };
 
     Maybe.prototype.findParameters = function (result) {
-        return this.maybeType.findParameters(result);
+        this.maybeType.findParameters(result);
+    };
+
+    Maybe.prototype.findConcrete = function (result) {
+        this.maybeType.findConcrete(result);
     };
 
     Maybe.prototype.toString = function () {
@@ -349,7 +376,15 @@ var SLUR_TYPES = (function (SLUR) {
         for (var a = 0; a < this.argumentTypes.length; ++a) {
             this.argumentTypes[a].findParameters(result);
         }
-        return false;
+    };
+
+    FunctionType.prototype.findConcrete = function (result, includeArguments) {
+        this.returnType.findConcrete(result);
+        if (includeArguments) {
+            for (var a = 0; a < this.argumentTypes.length; ++a) {
+                this.argumentTypes[a].findConcrete(result);
+            }
+        }
     };
 
     FunctionType.prototype.toString = function() {

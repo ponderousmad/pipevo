@@ -81,496 +81,310 @@ var EVOLVE = (function () {
         }
         return null;
     };
-
-/*
-public class TypeBuilder {
-    public interface Builder {
-        public Type build(Random random);
+    
+    function Constraint(type, sources) {
+        this.type = type;
+        this.sources = sources;
     }
-
-    public static class Constraint {
-        private Type mConstrained;
-        private List<Type> mSources;
-
-        // If a type cannot be constructed from any source type,
-        // the sources list is allowed to be empty (but must not be null).
-        public Constraint(Type constrained, List<Type> sources) {
-            mConstrained = constrained;
-            mSources = sources;
-        }
-
-        public Type constrained() {
-            return mConstrained;
-        }
-
-        List<Type> sources() {
-            return mSources;
-        }
-
-        public boolean available(List<Type> inContext)
-        {
-            if (inContext.contains(mConstrained)) {
+    
+    Constraint.prototype.available = function (inContext) {
+        for (var c = 0; c < inContext.length; ++c) {
+            var contextType = inContext[c];
+            if (contextType.equals(this.type)) {
                 return true;
             }
-            for (Type type : inContext) {
-                if (mSources.contains(type)) {
+            
+            for (var s = 0; s < this.sources.length; ++s) {
+                if (this.sources[s].equals(contextType)) {
                     return true;
                 }
             }
-            return false;
         }
+        return false;
+    };
+    
+    function TypeProbabilities() {
+        this.functionWeight = 1;
+        this.listWeight = 10;
+        this.maybeWeight = 50;
+        this.consWeight = 1;
+        this.parameterWeight = 1;
+        this.newParameterProbability = 0.2;
+        
+        this.argCountDistribution = [10, 10, 5, 2, 1, 1, 1];
+        
+        this.concreteWeights = this.setupDefault();
     }
-
-    public static class Probabilities implements Serializable {
-        private static final long serialVersionUID = -6175849706108373092L;
-
-        private List<Pair<Type,Integer>> mConcreteWeights;
-        private int[] mArgCountDistribution;
-
-        public int functionWeight = 1;
-        public int listWeight = 10;
-        public int maybeWeight = 50;
-        public int consWeight = 1;
-        public int parameterWeight = 1;
-        public double newParameterProbability = 0.2;
-
-        private static List<Pair<Type,Integer>> defaultWeights() {
-            List<Pair<Type,Integer>> typeWeights = new ArrayList<Pair<Type,Integer>>();
-            typeWeights.add(new Pair<Type,Integer>(BaseType.FIXNUM, 100));
-            typeWeights.add(new Pair<Type,Integer>(BaseType.REAL,100));
-            typeWeights.add(new Pair<Type,Integer>(BaseType.NULL,100));
-            typeWeights.add(new Pair<Type,Integer>(BaseType.TRUE,100));
-            typeWeights.add(new Pair<Type,Integer>(BaseType.BOOL,100));
-            typeWeights.add(new Pair<Type,Integer>(BaseType.STRING,100));
-            return typeWeights;
+    
+    TypeProbabilities.prototype.setupDefault = function () {
+        var P = SLUR_TYPES.Primitives;
+            weights = [];
+        weights.push({type: P.FIX_NUM, weight: 100});
+        weights.push({type: P.REAL, weight: 100});
+        weights.push({type: P.NULL, weight: 100});
+        weights.push({type: P.TRUE, weight: 100});
+        weights.push({type: P.BOOL, weight: 100});
+        weights.push({type: P.STRING, weight: 100});
+        return weights;
+    };
+    
+    TypeProbabilities.prototype.functionArgCountDistribution = function () {
+        var dist = new ENTROY.WeightedSet();
+        for (var i = 0; i < this.argCountDistribution.length; ++i) {
+            dist.add(i, this.argCountDistribution[i]);
         }
+        return dist;
+    };
 
-        public Probabilities() {
-            mConcreteWeights = defaultWeights();
-            mArgCountDistribution = new int[]{10, 10, 5, 2, 1, 1, 1};
-        }
-
-        public List<Pair<Type,Integer>> concreteWeights() {
-            return mConcreteWeights;
-        }
-
-        public void setConcreteWeights(List<Pair<Type,Integer>> weights) {
-            assert(weights != null);
-            mConcreteWeights = weights;
-        }
-
-        public int[] argCountDistribution() {
-            return mArgCountDistribution;
-        }
-
-        public void setArgCountDistribution(int[] distribution) {
-            assert(distribution != null);
-            mArgCountDistribution = distribution;
-        }
-
-        public WeightedSet<Integer> functionArgCountDistribution() {
-            WeightedSet<Integer> dist = new WeightedSet<Integer>();
-            for (int i = 0; i < mArgCountDistribution.length; ++i) {
-                dist.add(i, mArgCountDistribution[i]);
-            }
-            return dist;
-        }
-    }
-
-    private ReweightedSet<Builder> mBuilders;
-    private List<Parameter> mParameters = new ArrayList<Parameter>();
-    private boolean mAllowParameterized;
-    private Probabilities mProbabilities;
-    private Map<Type, Constraint> mConstraints;
-    private Map<Type, List<Type>> mAllowances;
-
-    public TypeBuilder(boolean allowParameterized, Probabilities probs) {
-        initialize(allowParameterized, probs, new ArrayList<Constraint>());
-    }
-
-    public TypeBuilder(boolean allowParameterized, Probabilities probs, List<Constraint> constraints) {
-        initialize(allowParameterized, probs, constraints);
-    }
-
-    private void initialize(boolean allowParameterized, Probabilities probs, List<Constraint> constraints) {
-        mProbabilities = probs;
-        mAllowParameterized = allowParameterized;
-
-        for (Constraint constraint : constraints) {
-            addConstraint(constraint);
-        }
-
-        WeightedSet<Builder> builders = new WeightedSet<Builder>();
-        addConcreteBuilders(builders);
-        addFunctionBuilder(builders);
-        addListBuilder(builders);
-        addMaybeBuilder(builders);
-        addConsBuilder(builders);
-        if (mAllowParameterized) {
-            addParameterBuilder(builders);
-        }
-        mBuilders = new ReweightedSet<Builder>(builders);
-    }
-
-    private void addConstraint(Constraint constraint) {
-        if (mConstraints == null) {
-            mConstraints = new java.util.HashMap<Type, Constraint>();
-            mAllowances = new java.util.HashMap<Type, List<Type>>();
-        }
-        mConstraints.put(constraint.constrained(), constraint);
-        for (Type type : constraint.sources()) {
-            List<Type> allowed = mAllowances.get(type);
-            if (allowed == null) {
-                allowed = new ArrayList<Type>();
-                mAllowances.put(type, allowed);
-            }
-            allowed.add(constraint.constrained());
-        }
-    }
-
-    public boolean isConstrained(Type type) {
-        return mConstraints != null && mConstraints.containsKey(type);
-    }
-
-    List<Type> mSourceStack;
-    List<Pair<Type,Builder>> mConstrainedStack = new ArrayList<Pair<Type,Builder>>();
-    public void allowDependentTypes(java.util.Set<Type> sources) {
-        assert(mSourceStack == null);
-        if (mAllowances == null) {
-            return;
-        }
-        mSourceStack = new ArrayList<Type>();
-        for (Type type : sources) {
-            mSourceStack.add(type);
-            List<Type> dependents = mAllowances.get(type);
-            addConstrained(type);
-            if (dependents != null) {
-                for (Type constrained : dependents) {
-                    addConstrained(constrained);
+    function TypeBuilder(allowParameterized, probabilities, constraints) {
+        this.probabilities = probabilities;
+        this.allowParameterized = allowParameterized;
+        this.parameters = [];
+        
+        this.constraints = {};
+        this.allowances = null;
+        if (constraints) {
+            for (var c = 0; c < constraints.length; ++c) {
+                var constraint = constraints[c];
+                this.constraints[constraint.type] = constraint;
+                if (this.allowances === null) {
+                    this.allowances = {};
+                }
+                
+                for (var s = 0; s < constraint.sources.length; ++s) {
+                    var sourceType = constraint.sources[s],
+                        allowed = this.allowances[sourceType];
+                    if (!allowed) {
+                        allowed = [];
+                    }
+                    allowed.push(constraint.type);
+                    this.allowances[sourceType] = allowed;                  
                 }
             }
         }
-    }
+        
+        var builders = new ENTROPY.WeightedSet(),
+            self = this;
 
-    private void addConstrained(Type constrained) {
-        if (!onConstrainedStack(constrained)) {
-            Builder builder = addConstrainedBuilder(constrained);
-            if (builder != null) {
-                mConstrainedStack.add(new Pair<Type,Builder>(constrained, builder));
+        function addConcreteBuilder(type, weight) {
+            if (weight > 0) {
+                builders.add(function (entropy) { return type; }, weight);
             }
         }
-    }
 
-    public void allowAllConstrained() {
-        if (mAllowances != null) {
-            allowDependentTypes(mAllowances.keySet());
+        for (var w = 0; w < this.probabilities.concreteWeights.length; ++w) {
+            var entry = this.probabilities.concreteWeights[w];
+            if (!this.isConstrained(entry.type)) {
+                addConcreteBuilder(entry.type, entry.weight);
+            }
         }
+        
+        if (this.probabilities.functionWeight > 0) {
+            builders.add(function (entropy) {
+                return self.createFunction(self.createType(entropy), entropy); }, this.probabilities.functionWeight);
+        }
+        if (this.probabilities.listWeight > 0) {
+            builders.add(function (entropy) { return self.createList(entropy); }, this.probabilities.listWeight);
+        }
+        if (this.probabilities.maybeWeight > 0) {
+            builders.add(function (entropy) { return self.createMaybe(entropy); }, this.probabilities.maybeWeight);
+        }
+        if (this.probabilities.consWeight > 0) {
+            builders.add(function (entropy) { return self.createCons(entropy); }, this.probabilities.consWeight);
+        }
+        
+        if (this.allowParameterized && this.probabilities.parameterWeight > 0) {
+            builders.add(function (entropy) { return self.createParameter(entropy); }, this.probabilities.parameterWeight);
+        }
+        this.builders = new ENTROY.ReweightedSet(builders);
+        
+        this.sourceStack = [];
+        this.constraintedStack = [];
+        this.nesting = 0;
+        
+        this.functionArgCountDist = this.probabilities.functionArgCountDistribution();
     }
-
-    private boolean onConstrainedStack(Type constrained) {
-        for (Pair<Type,Builder> entry : mConstrainedStack) {
-            if (entry.first.equals(constrained)) {
+    
+    TypeBuilder.prototype.isConstrained = function (type) {
+        return this.constraints.hasOwnProperty(type);
+    };
+    
+    TypeBuilder.prototype.allowDependentTypes = function (sources) {
+        if (this.sourceStack.length > 0) {
+            throw "Source stack already present";
+        }
+        
+        if (this.allowances === null) {
+            return;
+        }
+        
+        for (var s = 0; s < this.sources.length; ++s) {
+            var type = this.sources[s],
+                dependents = this.allowances[type];
+            this.sourceStack.push(type);
+            this.addConstrained(type);
+            if (dependents) {
+                for (var d = 0; d < dependents.length; ++d) {
+                    this.addConstrained(dependents[d]);
+                }
+            }            
+        }
+    };
+    
+    TypeBuilder.prototype.addConstrained = function (constrained) {
+        if (!this.onConstrainedStack(constrained)) {
+            var builder = this.addConstrainedBuilder(constrained);
+            if (builder !== null) {
+                this.constrainedStack.push({type:constrained, builder: builder});
+            }
+        }
+    };
+    
+    TypeBuilder.prototype.onConstrainedStack = function (constrained) {
+        for (var e = 0; e < this.constrainedStack.length; ++e) {
+            var entry = this.constrainedStack[e];
+            if (entry.type.equals(constrained)) {
                 return true;
             }
         }
         return false;
-    }
-
-    private Builder addConstrainedBuilder(final Type constrained) {
-        for (Pair<Type,Integer> entry : mProbabilities.concreteWeights()) {
-            if (entry.first.equals(constrained)) {
-                Builder builder = new Builder() {public Type build(Random random) {return constrained;}};
-                mBuilders.add(builder, entry.second);
-                return builder;
+    };
+    
+    TypeBuilder.prototype.addConstrainedBuilder = function (constrained) {
+        var weight = null;
+        for (var p = 0; p < this.probabilities.concreteWeights.length; ++p) {
+            var entry = this.probabilities.concreteWeights[p];
+            if (entry.type.equals(constrained)) {
+                weight = entry.weight;
+                break;
             }
+        }
+        if (weight !== null) {
+            var builder = function (entropy) { return constrained; };
+            this.builders.add(builder, weight);
+            return builder;
         }
         return null;
-    }
-
-    public void clearDependentTypes() {
-        mSourceStack = null;
-        for (Pair<Type,Builder> entry : mConstrainedStack) {
-            mBuilders.remove(entry.second);
-        }
-    }
-
-    private void addParameterBuilder(WeightedSet<Builder> builders) {
-        builders.add(
-            new Builder() { public Type build(Random random) { return createParameter(random); } },
-            mProbabilities.parameterWeight
-      );
-    }
-
-    private void addConcreteBuilders(WeightedSet<Builder> builders) {
-        for (Pair<Type,Integer> entry : mProbabilities.concreteWeights()) {
-            if (!isConstrained(entry.first)) {
-                addConcreteBuilder(builders, entry.first, entry.second);
-            }
-        }
-    }
-
-    private void addConcreteBuilder(WeightedSet<Builder> builders, final Type type, final int weight) {
-        if (weight == 0) return;
-        builders.add(
-            new Builder() { public Type build(Random random) { return type; } }, weight
-      );
-    }
-
-    private void addFunctionBuilder(WeightedSet<Builder> builders) {
-        if (mProbabilities.functionWeight == 0) return;
-        builders.add(
-            new Builder() { public Type build(Random random) { return createFunction(random); }},
-            mProbabilities.functionWeight
-      );
-    }
-
-    private void addListBuilder(WeightedSet<Builder> builders) {
-        if (mProbabilities.listWeight == 0) return;
-        builders.add(
-            new Builder() { public Type build(Random random) { return createList(random); }},
-            mProbabilities.listWeight
-      );
-    }
-
-    private void addMaybeBuilder(WeightedSet<Builder> builders) {
-        if (mProbabilities.maybeWeight == 0) return;
-        builders.add(
-            new Builder() { public Type build(Random random) { return createMaybe(random); }},
-            mProbabilities.maybeWeight
-      );
-    }
-
-    private void addConsBuilder(WeightedSet<Builder> builders) {
-        if (mProbabilities.consWeight == 0) return;
-        builders.add(
-            new Builder() {
-                public Type build(Random random) {
-                    return new ConsType(createType(random), createType(random));
+    };
+    
+    TypeBuilder.prototype.allowAllConstrained = function () {
+        if (this.allowances !== null) {
+            var types = [];
+            for (var type in this.allowances) {
+                if (this.allowances.hasOwnProperty(type)) {
+                    types.push(type);
                 }
-            },
-            mProbabilities.consWeight
-      );
-    }
-
-    int mNesting = 0;
-    public Type createType(Random random) {
-        ++mNesting;
+            }
+            this.allowDependentTypes(types);
+        }
+    };
+    
+    TypeBuilder.prototype.clearDependentTypes = function () {
+        this.sourceStack = [];
+        for (var e = 0; e < this.constrainedStack.length; ++e) {
+            this.builders.remove(this.constrainedStack[e].builder);
+        }
+        // TODO: Shouldn't this also clear constraintedStack ?
+    };
+    
+    TypeBuilder.prototype.createType = function (entropy) {
+        this.nesting += 1;
         try {
-            Builder builder = mBuilders.select(random);
-            Type result = builder.build(random);
-            return result;
+            var builder = this.builders.select(entropy);
+            return builder.build(entropy);
         } finally {
-            --mNesting;
-            if (mNesting == 0) {
-                mParameters.clear();
+            this.nesting -= 1;
+            if (this.nesting === 0) {
+                this.parameters.clear();
             }
         }
-    }
-
-    private FunctionType createFunction(Random random) {
-        return createFunction(createType(random), random);
-    }
-
-    public FunctionType createFunction(Type returnType, Random random) {
-        boolean clearParameters = false;
+    };
+    
+    TypeBuilder.prototype.createFunction = function (returnType, entropy) {
+        var clearParameters = false;
         try {
-            if (mParameters.isEmpty() && returnType instanceof Parameter) {
+            if (this.parameters.length === 0 && SLUR_TYPES.isParamater(returnType)) {
                 clearParameters = true;
-                mParameters.add((Parameter)returnType);
+                this.parameters.push(returnType);
             }
-            int arguments = functionArgCount(random);
-            Type[] argTypes = new Type[arguments];
-            for (int i = 0; i < arguments; ++i) {
-                argTypes[i] = createType(random);
+            var argCount = this.functionArgCountDist.select(entropy),
+                argTypes = [];
+            for (var c = 0; c < argCount; ++c) {
+                argTypes[c] = this.createType(entropy);
             }
-            if (isConstrained(returnType)) {
-                boolean satisfied = false;
-                Constraint constraint = mConstraints.get(returnType);
-                for (Type type : argTypes) {
-                    if (constraint.sources().contains(type) || type.equals(returnType)) {
-                        satisfied = true;
+            
+            if (this.isConstrained(returnType)) {
+                var satisfied = false,
+                    constraint = this.constraints[returnType];
+                for (var a = 0; a < argCount && !satisfied; ++a) {
+                    var argType = argTypes[a];
+                    if (argType.equals(returnType)) {
+                        statisfied = true;
                         break;
+                    }
+                    for (var s = 0; s < constraint.sources.length; ++s) {
+                        if (constraint.sources[s].equals(argType)) {
+                            satisfied = true;
+                            break;
+                        }
                     }
                 }
                 // If we don't have one of the source types for this constrained type, then force the issue.
                 if (!satisfied) {
-                    if (arguments == 0) {
-                        arguments = 1;
-                        argTypes = new Type[arguments];
+                    if (argCount === 0) {
+                        argCount = 1;
                     }
-                    Type source;
-                    int index = random.nextInt(constraint.sources().size() + 1);
-                    if (index == constraint.sources().size()) {
-                        source = returnType;
-                    } else {
-                        source = constraint.sources().get(index);
+                    var source = returnType,
+                        index = entropy.randomInt(constraint.sources.length + 1);
+                    if (index < constraint.sources.length) {
+                        source = constraint.sources[index];
                     }
-                    argTypes[random.nextInt(argTypes.length)] = source;
+                    argTypes[entropy.randomInt(0, argTypes.length)] = source;
                 }
             }
-            return new FunctionType(returnType, argTypes);
+            return new SLUR_TYPES.FunctionType(returnType, argTypes);
         } finally {
             if (clearParameters) {
-                mParameters.clear();
+                this.parameters = [];
             }
         }
-    }
-
-    private WeightedSet<Integer> mFunctionArgCountDist = null;
-    private int functionArgCount(Random random) {
-        if (mFunctionArgCountDist == null) {
-            mFunctionArgCountDist = mProbabilities.functionArgCountDistribution();
-        }
-        return mFunctionArgCountDist.select(random);
-    }
-
-    private ListType createList(Random random) {
-        return new ListType(createType(random));
-    }
-
-    private Type createMaybe(Random random) {
-        Type type = createType(random);
-        if (type.equals(BaseType.NULL)) {
+    };
+    
+    TypeBuilder.prototype.createList = function (entropy) {
+        return new SLUR_TYPES.ListType(this.createType(entropy));
+    };
+    
+    TypeBuilder.prototype.createMaybe = function (entropy) {
+        var type = this.createType(entropy);
+        if (type.equals(SLUR_TYPES.Primitives.NULL)) {
+            // Won't hurt anything to force to NULL, avoids potential (but extremely unlikely) infinite loop.
             return type;
         }
         return new Maybe(type);
-    }
-
-    private boolean createNewParameter(Random random) {
-        return util.Probability.select(random, mProbabilities.newParameterProbability);
-    }
-
-    protected Type createParameter(Random random) {
-        if (mParameters.isEmpty() || createNewParameter(random)) {
-            Parameter p = new Parameter();
-            mParameters.add(p);
+    };
+    
+    TypeBuilder.prototype.createCons = function (entropy) {
+        return new SLUR_TYPES.ConsType(this.createType(entropy), this.createType(entropy));
+    };
+    
+    TypeBuilder.prototype.createParameter = function (entropy) {
+        if (this.parameters.length === 0 || entropy.select(this.probabilities.newParameterProbability)) {
+            var p = new SLUR_TYPES.Parameter();
+            this.parameters.push(p);
             return p;
         }
-        return mParameters.get(random.nextInt(mParameters.size()));
-    }
+        return this.parameters[entropy.randomInt(0, this.parameters.length)];
+    };
 
-    public static void findConcreteTypes(Type type, java.util.Set<Type> result) {
-        if (type instanceof Maybe) {
-            findConcreteTypes(((Maybe)type).type(), result);
-        }
-        else if (type instanceof Parameter) {
-        } else if (type instanceof ConsType) {
-            ConsType cons = (ConsType)type;
-            findConcreteTypes(cons.carType(), result);
-            findConcreteTypes(cons.cdrType(), result);
-        } else if (type instanceof ListType) {
-            findConcreteTypes(((ListType)type).elementType(), result);
-        } else if (type instanceof FunctionType) {
-            // Only allowed the return type - and in theory we need all the
-            // argument types to do it, but we're not going to worry about that here.
-            findConcreteTypes(((FunctionType)type).returnType(), result);
-        } else if (type instanceof BaseType) {
-            result.add(type);
-        } else {
-            // We missed a type class.
-            assert(false);
-        }
-    }
-
-    public Type createConstructableType(Random random) {
-        Type result;
+    TypeBuilder.prototype.createConstructableType = function (entropy) {
+        var result = null;
         do {
-            result = createType(random);
-        } while(isConstrained(result));
+            result = this.createType(entropy);
+        } while(this.isConstrained(result));
         return result;
-    }
-}
+    };
 
-public class Context {
-    private ObjectRegistry mRegistry;
-    private List<Chromosome> mChromosomes = new ArrayList<Chromosome>();
-
-    private static class SymbolEntry {
-        SymbolEntry(String name, Type type) {
-            mSymbol = new Symbol(name);
-            mType = type;
-        }
-        public Symbol mSymbol;
-        public Type mType;
-    }
-
-    private ArrayList<SymbolEntry> mSymbolTable = new ArrayList<SymbolEntry>();
-
-    public Context(ObjectRegistry registry) {
-        mRegistry = registry;
-    }
-
-    public void addChromosome(Chromosome chromosome) {
-        mChromosomes.add(chromosome);
-    }
-
-    public List<Symbol> findMatching(Type type) {
-        type = ParameterUtils.uniqueParameters(type);
-        List<Symbol> matching = mRegistry.findMatching(type, ObjectRegistry.PromiseUniqueParameter);
-        for (Chromosome chromosome : mChromosomes) {
-            for (Chromosome.NamedGene gene : chromosome.genes()) {
-                if (gene.gene.type().match(type).matches()) {
-                    matching.add(new Symbol(gene.name));
-                }
-            }
-        }
-        for (SymbolEntry entry : mSymbolTable) {
-            if (type.match(entry.mType).matches()) {
-                matching.add(entry.mSymbol);
-            }
-        }
-        return matching;
-    }
-
-    public void pushSymbol(String name, Type type)
-    {
-        mSymbolTable.add(new SymbolEntry(name, type));
-    }
-
-    public void popSymbols(final int count) {
-        final int last = mSymbolTable.size() - 1;
-        assert(count == 0 || last >= 0);
-        for (int i = last; i > (last - count); --i) {
-            mSymbolTable.remove(i);
-        }
-    }
-
-    public List<TypedSymbol> findFunctionTypeReturning(Type returnType) {
-        returnType = ParameterUtils.uniqueParameters(returnType);
-        List<TypedSymbol> matching = mRegistry.findFunctionTypeReturning(returnType, ObjectRegistry.PromiseUniqueParameter);
-        for (Chromosome chromosome : mChromosomes) {
-            for (Chromosome.NamedGene gene : chromosome.genes()) {
-                Type type = gene.gene.type();
-                if (type instanceof FunctionType) {
-                    FunctionType funcType = (FunctionType)type;
-                    Match match = returnType.match(funcType.returnType());
-                    if (match.matches()) {
-                        matching.add(new TypedSymbol(new Symbol(gene.name), funcType.substitute(match.mappings())));
-                    }
-                }
-            }
-        }
-        for (SymbolEntry entry : mSymbolTable) {
-            if (entry.mType instanceof FunctionType) {
-                FunctionType funcType = (FunctionType)entry.mType;
-                Match match = returnType.match(funcType.returnType());
-                if (match.matches()) {
-                    matching.add(new TypedSymbol(entry.mSymbol, funcType.substitute(match.mappings())));
-                }
-            }
-        }
-        return matching;
-    }
-
-    public java.util.Set<Type> findConcreteTypes() {
-        java.util.Set<Type> result = new java.util.HashSet<Type>();
-        for (SymbolEntry entry : mSymbolTable) {
-            TypeBuilder.findConcreteTypes(entry.mType, result);
-        }
-        return result;
-    }
-};
-
+/*
 public class Population implements java.lang.Iterable<Genome>{
     FunctionType mTarget;
     List<Genome> mCrowd = new java.util.ArrayList<Genome>();
