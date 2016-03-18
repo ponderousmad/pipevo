@@ -383,76 +383,32 @@ var EVOLVE = (function () {
         } while(this.isConstrained(result));
         return result;
     };
+    
+    function Population(target) {
+        this.target = target;
+        this.crowd = [];
+    }
+    
+    Population.prototype.isTarget = function (target) {
+        return SLUR_TYPES.typesEqualModuloParamaters(this.target, target);
+    };
+    
+    Population.prototype.add = function (genome) {
+        this.crowd.push(genome);
+    };
 
+    Population.prototype.serialize = function () {
+        return JSON.stringify(this);
+    };
+    
+    function loadPopulation(serialization) {
+        var data = JSON.parse(serialization),
+            population = new Population(data.target);
+        population.crowd = data.crowd;
+        return population;
+    }
+    
 /*
-public class Population implements java.lang.Iterable<Genome>{
-    FunctionType mTarget;
-    List<Genome> mCrowd = new java.util.ArrayList<Genome>();
-
-    public Population(FunctionType target) {
-        mTarget = target;
-    }
-
-    public boolean isTarget(FunctionType target) {
-        return CompareTypes.equalModuloParameters(mTarget, target);
-    }
-
-    public Iterator<Genome> iterator() {
-        return mCrowd.iterator();
-    }
-
-    public void add(Genome genome) {
-        mCrowd.add(genome);
-    }
-
-    public Genome get(int i) {
-        return mCrowd.get(i);
-    }
-
-    public int size() {
-        return mCrowd.size();
-    }
-
-    public void store(String path) {
-        FileOutputStream f;
-        try {
-            f = new FileOutputStream(path);
-            ObjectOutput s = new ObjectOutputStream(f);
-            s.writeObject(mTarget);
-            s.writeInt(mCrowd.size());
-            for (Genome genome : mCrowd) {
-                s.writeObject(genome);
-            }
-            s.flush();
-            s.close();
-        } catch (IOException e) {
-            e.printStackTrace(System.out);
-        }
-    }
-
-    static public Population load(String path) {
-        FileInputStream f;
-        try {
-            f = new FileInputStream(path);
-            ObjectInputStream s = new ObjectInputStream(f);
-            Population pop = new Population((FunctionType)s.readObject());
-            int count = s.readInt();
-            for (int i = 0; i < count; ++i) {
-                pop.mCrowd.add((Genome)s.readObject());
-            }
-            s.close();
-            return pop;
-        } catch (IOException e) {
-            e.printStackTrace(System.out);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace(System.out);
-        } catch (ClassCastException e) {
-            e.printStackTrace(System.out);
-        }
-        return null;
-    }
-}
-
 public class Context {
     private ObjectRegistry mRegistry;
     private List<Chromosome> mChromosomes = new ArrayList<Chromosome>();
