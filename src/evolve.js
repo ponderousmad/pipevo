@@ -408,97 +408,81 @@ var EVOLVE = (function () {
         return population;
     }
     
-/*
-public class Context {
-    private ObjectRegistry mRegistry;
-    private List<Chromosome> mChromosomes = new ArrayList<Chromosome>();
-
-    private static class SymbolEntry {
-        SymbolEntry(String name, Type type) {
-            mSymbol = new Symbol(name);
-            mType = type;
-        }
-        public Symbol mSymbol;
-        public Type mType;
+    function Context(registry) {
+        this.registry = registry;
+        this.chromosomes = [];
+        this.symbolTable = [];
     }
-
-    private ArrayList<SymbolEntry> mSymbolTable = new ArrayList<SymbolEntry>();
-
-    public Context(ObjectRegistry registry) {
-        mRegistry = registry;
-    }
-
-    public void addChromosome(Chromosome chromosome) {
-        mChromosomes.add(chromosome);
-    }
-
-    public List<Symbol> findMatching(Type type) {
-        type = ParameterUtils.uniqueParameters(type);
-        List<Symbol> matching = mRegistry.findMatching(type, ObjectRegistry.PromiseUniqueParameter);
-        for (Chromosome chromosome : mChromosomes) {
-            for (Chromosome.NamedGene gene : chromosome.genes()) {
-                if (gene.gene.type().match(type).matches()) {
-                    matching.add(new Symbol(gene.name));
+    
+    Context.prototype.addChromosome = function (chromosome) {
+        this.chromosomes.push(chromosome);
+    };
+    
+    Context.prototype.findMatching = function (type) {
+        type = SLUR_TYPES.makeParametersUnique(type);
+        var matching = this.registry.findMatch(type);
+        for (var c = 0; c < this.chromosomes.length; ++c) {
+            var genes = this.chromosomes[c].namedGenes();
+            for (var g = 0; g < genes.length; ++g) {
+                var gene = genes[g];
+                if (gene.gene.type.match(type).matches()) {
+                    matching.push(new SLUR.Symbol(gene.name));
                 }
             }
         }
-        for (SymbolEntry entry : mSymbolTable) {
-            if (type.match(entry.mType).matches()) {
-                matching.add(entry.mSymbol);
+        for (var s = 0; s < this.symbolTable.length; ++s) {
+            var entry = this.symbolTable[s];
+            if (type.match(entry.type).matches()) {
+                matching.addEntry(entry.symbol);
             }
         }
         return matching;
-    }
-
-    public void pushSymbol(String name, Type type)
-    {
-        mSymbolTable.add(new SymbolEntry(name, type));
-    }
-
-    public void popSymbols(final int count) {
-        final int last = mSymbolTable.size() - 1;
-        assert(count == 0 || last >= 0);
-        for (int i = last; i > (last - count); --i) {
-            mSymbolTable.remove(i);
-        }
-    }
-
-    public List<TypedSymbol> findFunctionTypeReturning(Type returnType) {
-        returnType = ParameterUtils.uniqueParameters(returnType);
-        List<TypedSymbol> matching = mRegistry.findFunctionTypeReturning(returnType, ObjectRegistry.PromiseUniqueParameter);
-        for (Chromosome chromosome : mChromosomes) {
-            for (Chromosome.NamedGene gene : chromosome.genes()) {
-                Type type = gene.gene.type();
-                if (type instanceof FunctionType) {
-                    FunctionType funcType = (FunctionType)type;
-                    Match match = returnType.match(funcType.returnType());
-                    if (match.matches()) {
-                        matching.add(new TypedSymbol(new Symbol(gene.name), funcType.substitute(match.mappings())));
+    };
+    
+    Context.prototype.pushSymbol = function (name, type) {
+        this.symbolTable.push({symbol: new SLUR.Symbol(name), type: type});
+    };
+    
+    Context.prototype.popSymbols = function (count) {
+        this.symbolTable.splice(this.symbolTable.length - count, count);
+    };
+    
+    Context.prototype.findFunctionReturning = function (returnType) {
+        returnType = SLUR_TYPES.makeParametersUnique(returnType);
+        var matching = this.registry.findFunctionReturning(returnType);
+        for (var c = 0; c < this.chromosomes.length; ++c) {
+            var genes = this.chromosomes[c].namedGenes();
+            for (var g = 0; g < genes.length; ++g) {
+                var gene = genes[g];
+                if (gene.gene.type.returnType) {
+                    var match = returnType.match(gene.gene.type.returnType);
+                    if(match.matches()) {
+                        matching.push({symbol: new SLUR.Symbol(gene.name), type: gene.gene.type.substitute(match.mappings)});
                     }
                 }
             }
         }
-        for (SymbolEntry entry : mSymbolTable) {
-            if (entry.mType instanceof FunctionType) {
-                FunctionType funcType = (FunctionType)entry.mType;
-                Match match = returnType.match(funcType.returnType());
-                if (match.matches()) {
-                    matching.add(new TypedSymbol(entry.mSymbol, funcType.substitute(match.mappings())));
+        for (var s = 0; s < this.symbolTable.length; ++s) {
+            var entry = this.symbolTable[s];
+            if (entry.type.returnType) {
+                var entryMatch = returnType.match(entry.type.returnType);
+                if (entryMatch.matches()) {
+                    matching.push({symbol: entry.symbol, type: entry.type.substitute(entryMatch.mappings)});
                 }
             }
         }
-        return matching;
-    }
-
-    public java.util.Set<Type> findConcreteTypes() {
-        java.util.Set<Type> result = new java.util.HashSet<Type>();
-        for (SymbolEntry entry : mSymbolTable) {
-            TypeBuilder.findConcreteTypes(entry.mType, result);
+    };
+    
+    Context.prototype.findConcreteTypes = function() {
+        var result = [];
+        for (var s = 0; s < this.symbolTable.length; ++s) {
+            var entry = this.symbolTable[s];
+            entry.type.findConcrete(result);
         }
         return result;
-    }
-};
-
+    };
+    
+/*
 public class GeneRandomizer {
     public static class Probabilities implements java.io.Serializable {
         private static final long serialVersionUID = -3323802227179728259L;
