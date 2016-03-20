@@ -131,7 +131,7 @@ var EVOLVE = (function () {
     };
     
     TypeProbabilities.prototype.functionArgCountDistribution = function () {
-        var dist = new ENTROY.WeightedSet();
+        var dist = new ENTROPY.WeightedSet();
         for (var i = 0; i < this.argCountDistribution.length; ++i) {
             dist.add(i, this.argCountDistribution[i]);
         }
@@ -198,7 +198,7 @@ var EVOLVE = (function () {
         if (this.allowParameterized && this.probabilities.parameterWeight > 0) {
             builders.add(function (entropy) { return self.createParameter(entropy); }, this.probabilities.parameterWeight);
         }
-        this.builders = new ENTROY.ReweightedSet(builders);
+        this.builders = new ENTROPY.ReweightedSet(builders);
         
         this.sourceStack = [];
         this.constraintedStack = [];
@@ -456,7 +456,7 @@ var EVOLVE = (function () {
             var genes = this.chromosomes[c].namedGenes();
             for (var g = 0; g < genes.length; ++g) {
                 var gene = genes[g];
-                if (gene.gene.type.returnType) {
+                if (SLUR_TYPES.isFunctionType(gene.gene.type)) {
                     var match = returnType.match(gene.gene.type.returnType);
                     if(match.matches()) {
                         matching.push({symbol: new SLUR.Symbol(gene.name), type: gene.gene.type.substitute(match.mappings)});
@@ -466,7 +466,7 @@ var EVOLVE = (function () {
         }
         for (var s = 0; s < this.symbolTable.length; ++s) {
             var entry = this.symbolTable[s];
-            if (entry.type.returnType) {
+            if (SLUR_TYPES.isFunctionType(entry.type)) {
                 var entryMatch = returnType.match(entry.type.returnType);
                 if (entryMatch.matches()) {
                     matching.push({symbol: entry.symbol, type: entry.type.substitute(entryMatch.mappings)});
@@ -533,7 +533,7 @@ var EVOLVE = (function () {
         this.probabilities = probabilities;
         
         function distribution(weights, itemBuilder, weightLookup, skipFunction) {
-            var set = new ENTROY.WeightedSet();
+            var set = new ENTROPY.WeightedSet();
             for(var i = 0; i < weights.length; ++i) {
                 if (!skipFunction || !skipFunction(weights, i)) {
                     set.add(itemBuilder(weights, i), weightLookup(weigths, i));
@@ -595,319 +595,267 @@ var EVOLVE = (function () {
         return this.genomeSizeDistribution.select(entropy);
     };
     
-/*
-public class GeneBuilder {
-    public static class GeneBuildException extends RuntimeException {
-        public GeneBuildException(String message) {
-            super(message);
+    function GeneBuilder(typeBuilder, randomizer, context) {
+        this.typeBuilder = typeBuilder;
+        this.randomizer = randomizer;
+        this.context = context;
+        this.depthAllowed = 5;
+    }
+    
+    GeneBuilder.prototype.canConstruct = function (type) {
+        return !this.typeBuilder.isConstrained(type);
+    };
+    
+    GeneBuilder.prototype.builtItem = function (geneType, entropy) {
+        var builders = new ENTROPY.WeightedSet(),
+            self = this;
+        
+        if (this.canLookup(geneType)) {
+            builders.add(function () { self.lookup(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.LOOKUP));
         }
-
-        private static final long serialVersionUID = -8289351831205023242L;
-    }
-
-    private interface Builder
-    {
-        Gene build(Random random);
-    }
-
-    private TypeBuilder mTypeBuilder;
-    private Context mContext;
-    private GeneRandomizer mRandomizer;
-    private int mDepthAllowed = 5;
-
-    public GeneBuilder(TypeBuilder typeBuilder, GeneRandomizer randomizer, Context context) {
-        mTypeBuilder = typeBuilder;
-        mRandomizer = randomizer;
-        mContext = context;
-    }
-
-    boolean isConstructable(Type type) {
-        return !mTypeBuilder.isConstrained(type);
-    }
-
-    public Gene buildItem(final Type geneType, Random random) {
-        WeightedSet<Builder> builders = new WeightedSet<Builder>();
-
-        if (canLookup(geneType)) {
-            builders.add(new Builder() {
-                public Gene build(Random random) {
-                    return lookup(geneType, random);
-                }},
-                mRandomizer.buildTypeWeight(BuildType.LOOKUP)
-          );
+        
+        if (this.canConstruct(geneType)) {
+            builders.add(function () { self.constructItem(geneType, entropy); }, this.randomizer.builtTypeWeight(BuildType.CONSTRUCT));
         }
-
-        if (isConstructable(geneType)) {
-            builders.add(new Builder() {
-                public Gene build(Random random) {
-                    return constructItem(geneType, random);
-                }},
-                mRandomizer.buildTypeWeight(BuildType.CONSTRUCT)
-          );
-        }
-
-        if (canApply(geneType, mDepthAllowed)) {
-            builders.add(new Builder() {
-                public Gene build(Random random) {
-                    return buildApplication(geneType, random);
-                }},
-                mRandomizer.buildTypeWeight(BuildType.CONSTRUCT)
-          );
-
-            if (geneType instanceof Maybe) {
-                builders.add(new Builder() {
-                    public Gene build(Random random) {
-                        return buildPassMaybe((Maybe)geneType, random);
-                    }},
-                    mRandomizer.buildTypeWeight(BuildType.MAYBE)
-              );
+        
+        if (this.canApply(geneType, this.depthAllowed)) {
+            builders.add(function () { self.buildApplication(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.APPLICATION));
+            if (SLUR_TYPES.isMaybe(geneType)) {
+                builders.add(function () { self.buildPassMaybe(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.MAYBE));
             }
         }
-
-        if (!builders.isEmpty()) {
-            if (mDepthAllowed > 0) {
-                if (!(geneType instanceof Maybe || geneType.equals(BaseType.NULL))) {
-                    builders.add(new Builder() {
-                        public Gene build(Random random) {
-                            return buildDemaybe(geneType, random);
-                        }},
-                        mRandomizer.buildTypeWeight(BuildType.MAYBE)
-                  );
+        
+        if (builders.length > 0) {
+            if (this.depthAllowed > 0) {
+                if (!(SLUR_TYPES.isMaybe(geneType) || geneType.equals(SLUR_TYPES.Primitives.NULL))) {
+                    builders.add(function () { self.buildDemaybe(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.MAYBE));
                 }
-                builders.add(new Builder() {
-                    public Gene build(Random random) {
-                        return buildBranch(geneType, random);
-                    }},
-                    mRandomizer.buildTypeWeight(BuildType.BRANCH)
-              );
+                
+                builders.add(function () { self.buildBranch(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.BRANCH));
             }
-
-            try
-            {
-                --mDepthAllowed;
-                return builders.select(random).build(random);
-            }
-            finally {
-                ++mDepthAllowed;
+            
+            try {
+                this.depthAllowed -= 1;
+                builders.select(entropy)();
+            } finally {
+                this.depthAllowed += 1;
             }
         }
-        throw new GeneBuildException("No way to construct gene within allowed depth.");
-    }
-
-    private boolean canApply(Type type, int depth) {
+        throw "No way to construct gene within allowed depth.";
+    };
+    
+    GeneBuilder.prototype.canApply = function(type, depth) {
         if (depth > 0) {
-            List<TypedSymbol> matching = mContext.findFunctionTypeReturning(type);
-            for (TypedSymbol function : matching) {
-                if (canInvoke((FunctionType)function.type, depth)) {
+            var matching = this.context.findFunctionReturning(type);
+            for (var m = 0; m < matching.length; ++m) {
+                var match = matching[m];
+                if (this.canInvoke(match.type, depth)) {
                     return true;
                 }
             }
         }
         return false;
-    }
-
-    private boolean canInvoke(FunctionType type, int depth) {
-        for (Type argType : type.argumentTypes()) {
-            if (isConstructable(argType)) {
+    };
+    
+    GeneBuilder.prototype.canInvoke = function (type, depth) {
+        for (var a = 0; a < type.argumentTypes.length; ++a) {
+            var argType = type.argumentTypes[a];
+            if (this.canConstruct(argType)) {
                 continue;
             }
-            if (canLookup(argType)) {
+            if (this.canLookup(argType)) {
                 continue;
             }
-            if (canApply(argType, depth-1)) {
+            if (this.canApply(argType, depth-1)) {
                 continue;
             }
         }
-        return true;
-    }
-
-    private boolean canLookup(Type geneType) {
-        return !mContext.findMatching(geneType).isEmpty();
-    }
-
-    private Gene buildBranch(Type geneType, Random random) {
-        Gene predicate = buildItem(BaseType.BOOL, random);
-        Gene thenGene = buildItem(geneType, random);
-        Gene elseGene = buildItem(geneType, random);
-        return new IfGene(geneType,predicate,thenGene,elseGene);
-    }
-
-    private Gene buildDemaybe(Type geneType, Random random) {
-        String name = StringRandom.alphaString(random, 3);
-        Gene maybeGene = null;
+    };
+    
+    GeneBuilder.prototype.canLookup = function (geneType) {
+        return this.context.findMatching(geneType).length > 0;
+    };
+    
+    GeneBuilder.prototype.buildBranch = function (geneType, entropy) {
+        var predicate = this.buildItem(SLUR_TYPES.Primitives.BOOL, entropy),
+            thenGene = this.buildItem(geneType, entropy),
+            elseGene = this.buildItem(geneType, entropy);
+        return new GENES.IfGene(geneType, predicate, thenGene, elseGene);
+    };
+    
+    GeneBuilder.prototype.buildDemaybe = function (geneType, entropy) {
+        var name = entropy.alphaString(3),
+            maybeGene = null;
         // Check if we built a null directly, and if so, reject it.
         do {
-            maybeGene = buildItem(new Maybe(geneType), random);
-        } while(maybeGene.type().equals(BaseType.NULL));
+            maybeGene = this.buildItem(new SLUR_TYPES.Maybe(geneType), entropy);
+        } while(maybeGene.type().equals(SLUR_TYPES.Primitives.NULL));
         // If we didn't build a maybe, then just return the gene,
         // rather then forcing the issue.
-        if (!(maybeGene.type() instanceof Maybe)) {
+        if (!(SLUR_TYPES.isMaybe(maybeGene.type))) {
             return maybeGene;
         }
-        Gene concreteGene = buildItem(geneType, random);
-        return new DemaybeGene(maybeGene, concreteGene, name);
-    }
-
-    private Gene buildPassMaybe(Maybe geneType, Random random) {
-        Gene function = buildInvokeable(geneType,random);
-        Type argumentTypes[] = ((FunctionType)function.type()).argumentTypes();
-        Gene arguments[] = new Gene[argumentTypes.length];
-        boolean addedMaybe = false;
-        for (int i = 0; i < argumentTypes.length; ++i) {
-            Type type = argumentTypes[i];
-            if (!(type instanceof Maybe || type.equals(BaseType.NULL))) {
-                type = new Maybe(type);
+        var concreteGene = this.buildItem(geneType, entropy);
+        return new GENES.DemaybeGene(maybeGene, concreteGene, name);
+    };
+    
+    GeneBuilder.prototype.buildPassMaybe = function (geneType, entropy) {
+        var func = this.buildInvokeable(geneType, entropy),
+            args = [],
+            addedMaybe = false;
+        for (var i = 0; i < func.argumentTypes.length; ++i) {
+            var type = argumentTypes[i];
+            if (!(SLUR_TYPES.isMaybe(type) || type.equals(SLUR_TYPES.Primitives.NULL))) {
+                type = new SLUR_TYPES.Maybe(type);
                 addedMaybe = true;
             }
-            arguments[i] = buildItem(type,random);
+            args[i] = this.buildItem(type, entropy);
         }
         if (addedMaybe) {
-            return new PassMaybeGene(geneType, function, arguments, StringRandom.alphaString(random, 3));
+            return new GENES.PassMaybeGene(geneType, func, args, entropy.alphaString(3));
         } else {
-            return new ApplicationGene(function, arguments);
+            return new GENES.ApplicationGene(func, args);
         }
-    }
-
-    private Gene buildApplication(Type geneType, Random random) {
-        Gene function = buildInvokeable(geneType, random);
-        Type argumentTypes[] = ((FunctionType)function.type()).argumentTypes();
-        Gene arguments[] = new Gene[argumentTypes.length];
-        for (int i = 0; i < argumentTypes.length; ++i) {
-            arguments[i] = buildItem(argumentTypes[i],random);
+    };
+    
+    GeneBuilder.prototype.buildApplication = function (geneType, entropy) {
+        var func = this.buildInvokeable(geneType, entropy),
+            args = [];
+        for (var i = 0; i < func.argumentTypes.length; ++i) {
+            args[i] = this.buildItem(func.argumentTypes[i], entropy);
         }
-        return new ApplicationGene(function, arguments);
-    }
-
-    private Gene buildInvokeable(Type geneType, Random random) {
-        List<TypedSymbol> matching = mContext.findFunctionTypeReturning(geneType);
-        assert(!matching.isEmpty());
-        TypedSymbol function = matching.get(random.nextInt(matching.size()));
-        return new LookupGene(ParameterUtils.uniqueParameters(function.type), function.symbol.name(), random.nextLong());
-    }
-
-    private Gene lookup(Type geneType, Random random) {
-        List<Symbol> matching = mContext.findMatching(geneType);
-        if (matching.isEmpty()) {
+        return new GENES.ApplicationGene(func, args);
+    };
+    
+    GeneBuilder.prototype.buildInvokeable = function (geneType, entropy) {
+        var matching = this.context.findFunctionReturning(geneType);
+        if (matching.length === 0) {
+            throw "Expected matching";
+        }
+        var func = entropy.randomElement(matching);
+        return new GENES.LookupGene(SLUR_TYPES.makeParametersUnique(func.type), func.symbol.name, entropy.randomSeed());
+    };
+    
+    GeneBuilder.prototype.lookup = function (geneType, entropy) {
+        var matching = this.context.findMatching(geneType);
+        if (matching.length === 0) {
             return null;
         }
-        Symbol symbol = matching.get(random.nextInt(matching.size()));
-        return new LookupGene(geneType, symbol.name(), random.nextLong());
-    }
-
-    private Gene constructItem(Type geneType, Random random) {
-        while(geneType instanceof Parameter) {
-            geneType = mTypeBuilder.createConstructableType(random);
+        var symbol = entropy.randomElement(matching);
+        return new GENES.LookupGene(geneType, symbol.name, entropy.randomSeed());
+    };
+    
+    GeneBuilder.prototype.constructItem = function (geneType, entropy) {
+        while (SLUR_TYPES.isParamater(geneType)) {
+            geneType = this.typeBuilder.createConstructableType(entropy);
         }
-
-        if (geneType.equals(BaseType.FIXNUM)) {
-            return buildFixNum(random);
-        } else if (geneType.equals(BaseType.REAL)) {
-            return buildReal(random);
-        } else if (geneType.equals(BaseType.BOOL)) {
-            return buildBool(random);
-        } else if (geneType.equals(BaseType.NULL)) {
-            return new NullGene();
-        } else if (geneType.equals(BaseType.TRUE)) {
-            return new TrueGene();
-        } else if (geneType.equals(BaseType.STRING)) {
-            return buildString(random);
-        } else if (geneType.equals(BaseType.SYMBOL)) {
-            return buildSymbol(random);
-        } else if (geneType instanceof ConsType) {
-            return buildCons((ConsType)geneType,random);
-        } else if (geneType instanceof ListType) {
-            return buildList(((ListType)geneType),random);
-        } else if (geneType instanceof Maybe) {
-            return buildMaybe((Maybe)geneType, random);
-        } else if (geneType instanceof FunctionType) {
-            return buildLambda((FunctionType)geneType, random);
+        
+        var P = SLUR_TYPES.Primitives;
+        
+        if (geneType.equals(P.FIX_NUM)) {
+            return this.buildFixNum(entropy);
+        } else if (geneType.equals(P.REAL)) {
+            return this.buildReal(entropy);
+        } else if (geneType.equals(P.BOOL)) {
+            return this.buildBool(entropy);
+        } else if (geneType.equals(P.NULL)) {
+            return new GENES.NullGene();
+        } else if (geneType.equals(P.TRUE)) {
+            return new GENES.TrueGene();
+        } else if (geneType.equals(P.STRING)) {
+            return this.buildString(entropy);
+        } else if (geneType.equals(P.SYMBOL)) {
+            return this.buildSymbol(entropy);
+        } else if (SLUR_TYPES.isConsType(geneType)) {
+            return this.buildCons(geneType,entropy);
+        } else if (SLUR_TYPES.isListType(geneType)) {
+            return this.buildList(geneType,entropy);
+        } else if (SLUR_TYPES.isMaybe(geneType)) {
+            return this.buildMaybe(geneType, entropy);
+        } else if (SLUR_TYPES.isFunctionType(geneType)) {
+            return this.buildLambda(geneType, entropy);
         }
-        assert(false); // Unknown type
-        return null;
-    }
-
-    private Gene buildMaybe(Maybe maybe, Random random) {
-        if (mRandomizer.maybeIsNull(random)) {
-            return new NullGene();
+    };
+    
+    
+    GeneBuilder.prototype.buildMaybe = function (maybe, entropy) {
+        if (this.randomizer.maybeIsNull(entropy)) {
+            return new GENES.NullGene();
         }
-        return buildItem(maybe.type(),random);
-    }
-
-    private Gene buildList(ListType listType, Random random) {
-        int length = mRandomizer.selectListLength(random);
-        ListGene list = new ListGene(listType);
-        while(length > 0) {
-            list.add(buildItem(listType.elementType(),random));
-            --length;
+        return this.buildItem(maybe.maybeType, entropy);
+    };    
+    
+    GeneBuilder.prototype.buildList = function (listType, entropy) {
+        var length = this.randomizer.selectListLength(entropy),
+            list = new GENES.ListGene(listType);
+        while (length > 0) {
+            list.push(this.buildItem(listType.elementType, entropy));
+            length -= 1;
         }
         return list;
-    }
-
-    private Gene buildCons(ConsType type, Random random) {
-        return new ConsGene(type,
-                buildItem(type.carType(),random),
-                buildItem(type.cdrType(),random)
-      );
-    }
-
-    private Gene buildSymbol(Random random) {
-        return new SymbolGenerator(random.nextLong(), mRandomizer.selectStringLength(random));
-    }
-
-    private Gene buildBool(Random random) {
-        return new BoolGenerator(random.nextLong());
-    }
-
-    private Gene buildString(Random random) {
-        return new StringGenerator(random.nextLong(), mRandomizer.selectStringLength(random));
-    }
-
-    private RealGenerator buildReal(Random random) {
-        RealGenerator.Range range = mRandomizer.selectRealRange(random);
-        return new RealGenerator(random.nextLong(), range);
-    }
-
-    private Gene buildFixNum(Random random) {
-        FixNumGenerator.Range range = mRandomizer.selectFixnumRange(random);
-        return new FixNumGenerator(random.nextLong(), range);
-    }
-
-    public Gene buildFunction(FunctionType type, String name, Random random) {
-        java.util.Set<Type> allowTypes = new java.util.HashSet<Type>();
-        for (Type argType : type.argumentTypes()) {
-            TypeBuilder.findConcreteTypes(argType, allowTypes);
+    };    
+    
+    GeneBuilder.prototype.buildCons = function (type, entropy) {
+        return new GENES.ConsGene(type, this.buildItem(type.carType, entropy), this.buildItem(type.cdrType, entropy));
+    };    
+    
+    GeneBuilder.prototype.buildSymbol = function (entropy) {
+        return new GENES.SymbolGenerator(entropy.randomSeed(), this.randomizer.selectStringLength(entropy));
+    };
+    
+    GeneBuilder.prototype.buildBool = function (entropy) {
+        return new GENES.BoolGenerator(entropy.randomSeed());
+    };    
+    
+    GeneBuilder.prototype.buildString = function (entropy) {
+        return new GENE.StringGenerator(entropy.randomSeed(), this.randomizer.selectStringLength(entropy));
+    };
+    
+    GeneBuilder.prototype.buildReal = function (entropy) {
+        var range = this.randomizer.selectRealRange(entropy);
+        return new GENE.RealGenerator(entropy.randomSeed(),  range);
+    };
+    
+    GeneBuilder.prototype.buildFixnum = function (entropy) {
+        var range = this.randomizer.selectFixnumRange(entropy);
+        return new GENE.RealGenerator(entropy.randomSeed(),  range);
+    };
+    
+    GeneBuilder.prototype.buildFunction = function (type, name, entropy) {
+        var allowTypes = [];
+        for (var a = 0; a < type.argumentTypes.length; ++a) {
+            type.argumentTypes[a].findConcrete(allowTypes);
         }
-        mTypeBuilder.allowDependentTypes(allowTypes);
+        this.typeBuilder.allowDependentTypes(allowTypes);
         try {
-            return buildFunctionGene(type, random, name, false);
-
+            return this.buildFunctionGene(type, entropy, name, false);
         } finally {
-            mTypeBuilder.clearDependentTypes();
+            this.typeBuilder.clearDependentTypes();
         }
-    }
+    };
+    
+    GeneBuilder.prototype.pushArguments = function (names, types) {
+        for (var i = 0; i < names.length; ++i) {
+            this.context.pushSymbol(names[i], types[i]);
+        }
+    };
+    
+    GeneBuilder.prototype.buildFunctionGene = function (type, entropy, name, isLambda) {
+        var names = GENES.functionArgumentNames(type, name);
+        this.pushArguments(names, type.argumentTypes);
 
-    private Gene buildFunctionGene(FunctionType type, Random random, String name, boolean isLambda) {
-        String names[] = FunctionGene.argumentNames(type, name);
-        pushArguments(names, type.argumentTypes());
+        var body = this.buildItem(type.returnType, entropy),
+            result = new GENES.FunctionGene(type, name, body, isLambda);
 
-        Gene body = buildItem(type.returnType(), random);
-        Gene result = new FunctionGene(type, name, body, isLambda);
-
-        mContext.popSymbols(names.length);
+        this.context.popSymbols(names.length);
         return result;
-    }
+    };
+    
+    GeneBuilder.prototype.buildLambda = function (type, entropy) {
+        return this.buildFunctionGene(type, entropy, "l" + entropy.alphaString(5), true);
+    };
 
-    private void pushArguments(String[] names, Type[] types) {
-        for (int i = 0; i < names.length; ++i) {
-            mContext.pushSymbol(names[i], types[i]);
-        }
-    }
-
-    private Gene buildLambda(FunctionType type, Random random) {
-        return buildFunctionGene(type, random, "l" + StringRandom.alphaString(random, 5), true);
-    }
-}
-
+/*
 public class GenomeBuilder {
     ObjectRegistry mRegistry;
     TypeBuilder mTypeBuilder;

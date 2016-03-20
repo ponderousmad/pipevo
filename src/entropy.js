@@ -67,6 +67,10 @@ var ENTROPY = (function () {
     Entropy.prototype.randomInt = function (min, max) {
         return Math.min(Math.floor(min + this.random() * (max - min)), max - 1);
     };
+    
+    Entropy.prototype.randomSeed = function() {
+        return this.twister.next();
+    };
 
     Entropy.prototype.randomElement = function (list) {
         return list[this.randomInt(0, list.length)];

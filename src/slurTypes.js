@@ -56,13 +56,6 @@ var SLUR_TYPES = (function (SLUR) {
         return "P[" + this.id + "]";
     };
     
-    function isParameter(type) {
-        if (type.id) {
-            return true;
-        }
-        return false;
-    }
-
     function ParameterMapping(parameter, type) {
         if (!parameter || !type) {
             throw "Null arguments";
@@ -397,7 +390,6 @@ var SLUR_TYPES = (function (SLUR) {
         }
         return result + "]->[" + this.returnType.toString() + "]";
     };
-
 
     function Match(parameter, type) {
         this.matches = true;
@@ -1354,7 +1346,7 @@ var SLUR_TYPES = (function (SLUR) {
     }
 
     testSuite();
-
+    
     return {
         Primitives: Primitives,
         Parameter: Parameter,
@@ -1363,6 +1355,11 @@ var SLUR_TYPES = (function (SLUR) {
         ListType: ListType,
         Maybe: Maybe,
         FunctionType: FunctionType,
+        isParameter: function (type) { return type instanceof Parameter; },
+        isConsType: function (type) { return type instanceof ConsType; },
+        isListType: function (type) { return type instanceof ListType; },
+        isMaybe: function (type) { return type instanceof Maybe; },
+        isFunctionType: function (type) { return type instanceof FunctionType; },
         Match: Match,
         typesEqualModuloParamaters: typesEqualModuloParamaters,
         makeParametersUnique: makeParametersUnique,
