@@ -116,15 +116,17 @@ var EVOLVE = (function () {
         this.concreteWeights = this.setupDefault();
     }
     
+    function weightType(type, weight) { return { type: type, weight: weight }; }
+    
     TypeProbabilities.prototype.setupDefault = function () {
         var P = SLUR_TYPES.Primitives;
             weights = [];
-        weights.push({type: P.FIX_NUM, weight: 100});
-        weights.push({type: P.REAL, weight: 100});
-        weights.push({type: P.NULL, weight: 100});
-        weights.push({type: P.TRUE, weight: 100});
-        weights.push({type: P.BOOL, weight: 100});
-        weights.push({type: P.STRING, weight: 100});
+        weights.push(weightType(P.FIX_NUM, 100));
+        weights.push(weightType(P.REAL, 100));
+        weights.push(weightType(P.NULL, 100));
+        weights.push(weightType(P.TRUE, 100));
+        weights.push(weightType(P.BOOL, 100));
+        weights.push(weightType(P.STRING, 100));
         return weights;
     };
     
@@ -482,141 +484,118 @@ var EVOLVE = (function () {
         return result;
     };
     
-/*
-public class GeneRandomizer {
-    public static class Probabilities implements java.io.Serializable {
-        private static final long serialVersionUID = -3323802227179728259L;
-
-        public List<Pair<BuildType,Integer>> buildTypeWeights = defaultBuildTypeWeights();
-        public int[] stringLengthWeights = new int[] {0,1,3,5,10,20,10,5,3,1,1,1,1,1,1,1,1,1,1,1};
-        public int[] listLengthWeights = new int[] {0,10,20,10,5,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-        public int[] chromosomeLengthWeights = new int[] {0,1,2,3,2,1};
-        public int[] genomeSizeWeights = new int[] {0,1,2,3,2,1};
-        public List<Pair<FixNumGenerator.Range,Integer>> fixnumRangeWeights = defaultFixnumRangeWeights();
-        public List<Pair<RealGenerator.Range,Integer>> realRangeWeights = defaultRealRangeWeights();
-        public double maybeIsNullProbability = .25;
-
-        public static List<Pair<BuildType,Integer>> defaultBuildTypeWeights() {
-            List<Pair<BuildType,Integer>> weights = new java.util.ArrayList<Pair<BuildType,Integer>>();
-            weights.add(new Pair<BuildType,Integer>(BuildType.BRANCH, 5));
-            weights.add(new Pair<BuildType,Integer>(BuildType.APPLICATION, 20));
-            weights.add(new Pair<BuildType,Integer>(BuildType.CONSTRUCT,20));
-            weights.add(new Pair<BuildType,Integer>(BuildType.LOOKUP,50));
-            weights.add(new Pair<BuildType,Integer>(BuildType.MAYBE,1));
-            return weights;
-        }
-
-        public static List<Pair<FixNumGenerator.Range,Integer>> defaultFixnumRangeWeights() {
-            List<Pair<FixNumGenerator.Range,Integer>> weights = new java.util.ArrayList<Pair<FixNumGenerator.Range,Integer>>();
-            weights.add(new Pair<FixNumGenerator.Range,Integer>(new FixNumGenerator.Range(0,1), 1));
-            weights.add(new Pair<FixNumGenerator.Range,Integer>(new FixNumGenerator.Range(0,2), 2));
-            weights.add(new Pair<FixNumGenerator.Range,Integer>(new FixNumGenerator.Range(0,10), 4));
-            weights.add(new Pair<FixNumGenerator.Range,Integer>(new FixNumGenerator.Range(-1,1), 3));
-            weights.add(new Pair<FixNumGenerator.Range,Integer>(new FixNumGenerator.Range(0,20), 4));
-            weights.add(new Pair<FixNumGenerator.Range,Integer>(new FixNumGenerator.Range(0,100), 5));
-            weights.add(new Pair<FixNumGenerator.Range,Integer>(new FixNumGenerator.Range(0,1000), 3));
-            weights.add(new Pair<FixNumGenerator.Range,Integer>(new FixNumGenerator.Range(Integer.MIN_VALUE, Integer.MAX_VALUE), 1));
-            return weights;
-        }
-
-        public static List<Pair<RealGenerator.Range,Integer>> defaultRealRangeWeights() {
-            List<Pair<RealGenerator.Range,Integer>> weights = new java.util.ArrayList<Pair<RealGenerator.Range,Integer>>();
-            weights.add(new Pair<RealGenerator.Range,Integer>(new RealGenerator.Range(0,1), 1));
-            weights.add(new Pair<RealGenerator.Range,Integer>(new RealGenerator.Range(0,2), 2));
-            weights.add(new Pair<RealGenerator.Range,Integer>(new RealGenerator.Range(0,10), 4));
-            weights.add(new Pair<RealGenerator.Range,Integer>(new RealGenerator.Range(-1,1), 3));
-            weights.add(new Pair<RealGenerator.Range,Integer>(new RealGenerator.Range(0,20), 4));
-            weights.add(new Pair<RealGenerator.Range,Integer>(new RealGenerator.Range(0,100), 5));
-            weights.add(new Pair<RealGenerator.Range,Integer>(new RealGenerator.Range(0,1000), 3));
-            weights.add(new Pair<RealGenerator.Range,Integer>(new RealGenerator.Range(Double.MIN_VALUE, Double.MAX_VALUE), 1));
-            return weights;
-        }
+    var BuildType = {
+        BRANCH: 1,
+        APPLICATION: 2,
+        LOOKUP: 3,
+        CONSTRUCT: 4,
+        MAYBE: 5
+    };
+    
+    function weightRange(min, max, weight) { return { min: min, max: max, weight: weight}; }
+    
+    function GenePropabilites() {
+        this.stringLengthWeights = [0,1,3,5,10,20,10,5,3,1,1,1,1,1,1,1,1,1,1,1];
+        this.listLengthWeights = [0,10,20,10,5,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1];
+        this.chromosomeLengthWeights = [0,1,2,3,2,1];
+        this.genomeSizeWeights = [0,1,2,3,2,1];
+        this.maybeIsNullProbability = 0.25;
+        this.buildTypeWeights = [
+            weightType(BuildType.BRANCH, 5),
+            weightType(BuildType.APPLICATION, 20),
+            weightType(BuildType.CONSTRUCT, 20),
+            weightType(BuildType.LOOKUP, 50),
+            weightType(BuildType.MAYBE, 1),
+        ];
+        this.fixnumRangeWeights = [
+            weightRange(0, 1, 1),
+            weightRange(0, 2, 2),
+            weightRange(0, 10, 4),
+            weightRange(-1, 1, 3),
+            weightRange(0, 20, 4),
+            weightRange(0, 100, 5),
+            weightRange(0, 1000, 3),
+            weightRange(-2147483648, 2147483647, 1)
+        ];
+        this.realRangeWeights = [
+            weightRange(0, 1, 1),
+            weightRange(0, 2, 2),
+            weightRange(0, 10, 4),
+            weightRange(-1, 1, 3),
+            weightRange(0, 20, 4),
+            weightRange(0, 100, 5),
+            weightRange(0, 1000, 3),
+            weightRange(-1e100, 1e100, 1)
+        ];
     }
-
-    private Probabilities mProbabilities = null;
-    private WeightedSet<Integer> mStringLengthDistribution = null;
-    private WeightedSet<Integer> mListLengthDistribution = null;
-    private WeightedSet<Integer> mChromosomeLengthDistribution = null;
-    private WeightedSet<Integer> mGenomeSizeDistribution = null;
-    private WeightedSet<FixNumGenerator.Range> mFixnumRangeDistribution;
-    private WeightedSet<RealGenerator.Range> mRealRangeDistribution;
-
-    public GeneRandomizer(Probabilities probabilities) {
-        mProbabilities = probabilities;
-        mStringLengthDistribution = distribution(mProbabilities.stringLengthWeights);
-        mListLengthDistribution = distribution(mProbabilities.listLengthWeights);
-        mChromosomeLengthDistribution = distribution(mProbabilities.chromosomeLengthWeights);
-        mGenomeSizeDistribution = distribution(mProbabilities.genomeSizeWeights);
-        mFixnumRangeDistribution = new Constructor<FixNumGenerator.Range>().distribution(mProbabilities.fixnumRangeWeights);
-        mRealRangeDistribution = new Constructor<RealGenerator.Range>().distribution(mProbabilities.realRangeWeights);
+    
+    function GeneRandomizer(probabilities) {
+        this.probabilities = probabilities;
+        
+        function distribution(weights, itemBuilder, weightLookup, skipFunction) {
+            var set = new ENTROY.WeightedSet();
+            for(var i = 0; i < weights.length; ++i) {
+                if (!skipFunction || !skipFunction(weights, i)) {
+                    set.add(itemBuilder(weights, i), weightLookup(weigths, i));
+                }
+            }
+            return set;
+        }
+        function returnIndex(weights, index) { return index; }
+        function returnAtIndex(weights, index) { return weights[index]; }
+        function returnWeight(weights, index) { return weights[index].weight; }
+        function returnRange(weights, index) {
+            var item = weights[index];
+            return { min: item.min, max: item.max };
+        }
+        
+        this.stringLengthDistribution = distribution(probabilities.stringLengthWeights, returnIndex, returnAtIndex);
+        this.listLengthDistribution = distribution(probabilities.listLengthWeights, returnIndex, returnAtIndex);
+        this.chromosomeLengthDistribution = distribution(probabilities.chromosomeLengthWeights, returnIndex, returnAtIndex);
+        this.genomeSizeDistribution = distribution(probabilities.genomeSizeWeights, returnIndex, returnAtIndex);
+        this.fixnumRangeDistribution = distribution(probabilities.fixnumRangeWeights, returnRange, returnWeight);
+        this.realRangeDistribution = distribution(probabilities.realRangeWeights, returnRange, returnWeight);
     }
-
-    public int buildTypeWeight(BuildType type) {
-        for (Pair<BuildType,Integer> entry : mProbabilities.buildTypeWeights) {
-            if (entry.first == type) {
-                return entry.second;
+    
+    GeneRandomizer.prototype.buildTypeWeight = function (type) {
+        for (var i = 0; i < this.probabilities.buildTypeWeights.length; ++i) {
+            var entry = this.probabilities.buildTypeWeights[i];
+            if (entry.type === type) {
+                return entry.weight;
             }
         }
         return 0;
-    }
-
-    public int selectStringLength(Random random) {
-        return mStringLengthDistribution.select(random);
-    }
-
-    public int selectListLength(Random random) {
-        return mListLengthDistribution.select(random);
-    }
-
-    public boolean maybeIsNull(Random random) {
-        return util.Probability.select(random, mProbabilities.maybeIsNullProbability);
-    }
-
-    public FixNumGenerator.Range selectFixnumRange(Random random) {
-        return mFixnumRangeDistribution.select(random);
-    }
-
-
-    public RealGenerator.Range selectRealRange(Random random) {
-        return mRealRangeDistribution.select(random);
-    }
-
-    public int selectChromosomeLength(Random random) {
-        return mChromosomeLengthDistribution.select(random);
-    }
-
-    public int selectGenomeSize(Random random) {
-        return mGenomeSizeDistribution.select(random);
-    }
-
-    static class Constructor<T> {
-        public WeightedSet<T> distribution(List<Pair<T,Integer>> weights){
-            return distribution(weights,null);
-        }
-
-        public WeightedSet<T> distribution(List<Pair<T,Integer>> weights, T skip){
-            WeightedSet<T> dist = new WeightedSet<T>();
-            for (Pair<T, Integer> entry : weights) {
-                if (entry.first != skip && entry.second > 0) {
-                    dist.add(entry.first, entry.second);
-                }
-            }
-            return dist;
-        }
-    }
-
-    private static WeightedSet<Integer> distribution(int[] weights) {
-        WeightedSet<Integer> dist = new WeightedSet<Integer>();
-        for (int i = 0; i  < weights.length; ++i) {
-            int weight = weights[i];
-            if (weight > 0)  {
-                dist.add(i, weight);
-            }
-        }
-        return dist;
-    }
-}
-
+    };
+    
+    GeneRandomizer.prototype.selectStringLength = function (entropy) {
+        return this.stringLengthDistribution.select(entropy);
+    };
+    
+    GeneRandomizer.prototype.selectListLength = function (entropy) {
+        return this.listLengthDistribution.select(entropy);
+    };
+    
+    GeneRandomizer.prototype.maybeIsNull = function (entropy) {
+        return entropy.select(this.probabilities.maybeIsNullProbability);
+    };
+    
+    GeneRandomizer.prototype.selectFixnumRange = function (entropy) {
+        return this.fixnumRangeDistribution.select(entropy);
+    };
+    
+    GeneRandomizer.prototype.selectRealRange = function (entropy) {
+        return this.realRangeDistribution.select(entropy);
+    };
+    
+    GeneRandomizer.prototype.selectChromosomeLength = function (entropy) {
+        return this.chromosomeLengthDistribution.select(entropy);
+    };
+    
+    GeneRandomizer.prototype.selectGenomeSize = function (entropy) {
+        return this.genomeSizeDistribution.select(entropy);
+    };
+    
+/*
 public class GeneBuilder {
     public static class GeneBuildException extends RuntimeException {
         public GeneBuildException(String message) {
@@ -629,15 +608,6 @@ public class GeneBuilder {
     private interface Builder
     {
         Gene build(Random random);
-    }
-
-    public enum BuildType
-    {
-        BRANCH,
-        APPLICATION,
-        LOOKUP,
-        CONSTRUCT,
-        MAYBE
     }
 
     private TypeBuilder mTypeBuilder;
