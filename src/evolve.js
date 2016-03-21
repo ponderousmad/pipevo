@@ -854,79 +854,62 @@ var EVOLVE = (function () {
     GeneBuilder.prototype.buildLambda = function (type, entropy) {
         return this.buildFunctionGene(type, entropy, "l" + entropy.alphaString(5), true);
     };
-
-/*
-public class GenomeBuilder {
-    ObjectRegistry mRegistry;
-    TypeBuilder mTypeBuilder;
-    GeneRandomizer mProbs;
-
-    public GenomeBuilder(ObjectRegistry registry, TypeBuilder typeBuilder, GeneRandomizer probs) {
-        mRegistry = registry;
-        mTypeBuilder = typeBuilder;
-        mProbs = probs;
+    
+    function GenomeBuilder(registry, typeBuilder, randomizer) {
+        this.registry = registry;
+        this.typeBuilder = typeBuilder;
+        this.randomizer = randomizer;
     }
-
-    public class ChromosomeStructure
-    {
-        public String name;
-        public FunctionType[] geneTypes;
-    }
-
-    public ChromosomeStructure[] buildGenomeStructure(FunctionType target, Random random)
-    {
-        mTypeBuilder.allowAllConstrained();
+    
+    GenomeBuilder.prototype.buildGenomeStructure = function (target, entropy) {
+        this.typeBuilder.allowAllConstrained();
         try {
-            ChromosomeStructure[] structure = new ChromosomeStructure[mProbs.selectGenomeSize(random)];
-            for (int i = 0; i < structure.length - 1; ++i) {
-                structure[i] = buildChromosomeStructure(random);
+            var structureSize = this.randomizer.selectGenomeSize(entropy),
+                structure = [];
+            for (var i = 0; i < structureSize - 1; ++i) {
+                structure[i] = this.buildChromosomeStructure(entropy);
             }
 
-            structure[structure.length-1] = buildTargetStructure(target);
+            structure.push({ name: "crTarget", geneTypes: [target] });
             return structure;
         } finally {
-            mTypeBuilder.clearDependentTypes();
+            this.typeBuilder.clearDependentTypes();
         }
-    }
-
-    public Genome build(ChromosomeStructure[] genomeStructure, Random random) {
-        Genome genome = new Genome();
-        Context context = new Context(mRegistry);
-        GeneBuilder geneBuilder = new GeneBuilder(mTypeBuilder, mProbs, context);
-        for (ChromosomeStructure structure : genomeStructure) {
-            genome.add(buildChromosome(context,geneBuilder,structure,random));
+    };
+    
+    GenomeBuilder.prototype.build = function (genomeStructure, entropy) {
+        var genome = new Genome(),
+            context = new Context(this.registry),
+            geneBuilder = new GeneBuilder(this.typeBuilder, this.randomizer, context);
+        for (var c = 0; c < genomeStructure.length; ++c) {
+            genome.add(this.buildChromosome(context, geneBuilder, genomeStructure[c], entropy));
         }
         return genome;
-    }
-
-    private ChromosomeStructure buildChromosomeStructure(Random random) {
-        ChromosomeStructure structure = new ChromosomeStructure();
-        structure.name = "cr" + StringRandom.alphaString(random, 5);
-        structure.geneTypes = new FunctionType[mProbs.selectChromosomeLength(random)];
-        for (int i = 0; i < structure.geneTypes.length; ++i) {
-            Type returnType = mTypeBuilder.createType(random);
-            structure.geneTypes[i] = mTypeBuilder.createFunction(returnType, random);
+    };
+    
+    GenomeBuilder.prototype.buildChromosomeStructure = function (entropy) {
+        var structure = {
+                name: "cr" + entropy.alphaString(5),
+                geneTypes: []
+            },
+            length = this.randomizer.selectChromosomeLength(entropy);
+        for (var i = 0; i < length; ++i) {
+            var returnType = this.typeBuilder.createType(entropy);
+            structure.geneTypes[i] = this.typeBuilder.createFunction(returnType, entropy);
         }
         return structure;
-    }
-
-    private ChromosomeStructure buildTargetStructure(FunctionType target) {
-        ChromosomeStructure targetStructure = new ChromosomeStructure();
-        targetStructure.name = "crTarget";
-        targetStructure.geneTypes = new FunctionType[] { target };
-        return targetStructure;
-    }
-
-    private Chromosome buildChromosome(Context context, GeneBuilder geneBuilder, ChromosomeStructure structure, Random random) {
-        Chromosome chromosome = new Chromosome(structure.name);
+    };
+    
+    GenomeBuilder.prototype.buildChromosome = function (context, geneBuilder, structure, entropy) {
+        var chromosome = new Chromosome(structure.name);
         context.addChromosome(chromosome);
-        for (FunctionType geneType : structure.geneTypes) {
-            chromosome.addGene(geneBuilder.buildFunction(geneType, chromosome.nextGeneName(), random));
+        for (var g = 0; g < structure.geneTypes.length; ++g) {
+            chromosome.addGene(geneBuilder.buildFunction(structure.geneTypes[g], chromosome.nextGeneName(), entropy));
         }
         return chromosome;
-    }
-}
+    };
 
+/*
 public class Mutation {
     public static class Probabilities implements Serializable {
         private static final long serialVersionUID = 7986408705696720856L;
