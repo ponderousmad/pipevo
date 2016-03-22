@@ -777,7 +777,6 @@ var EVOLVE = (function () {
         }
     };
     
-    
     GeneBuilder.prototype.buildMaybe = function (maybe, entropy) {
         if (this.randomizer.maybeIsNull(entropy)) {
             return new GENES.NullGene();
@@ -908,238 +907,215 @@ var EVOLVE = (function () {
         }
         return chromosome;
     };
+    
+    function MutationProbabilities() {
+        this.mutateTopLevel = 0.5;
+        this.mutateSeed = 1/25.0;
+        this.mutateStringLength = 1/25.0;
+        this.mutateSymbolLength = 1/25.0;
+        this.mutateListLength = 1/25.0;
+        this.mutateSwapListItems = 1/25.0;
+        this.mutateReorderList = 1/25.0;
+        this.mutateFixnumRange = 1/25.0;
+        this.mutateRealRange = 1/25.0;
+        this.replaceSubgene = 1/25.0;
 
-/*
-public class Mutation {
-    public static class Probabilities implements Serializable {
-        private static final long serialVersionUID = 7986408705696720856L;
-
-        public double mutateTopLevel = 0.5;
-        public double mutateSeed = 1/25.0;
-        public double mutateStringLength = 1/25.0;
-        public double mutateSymbolLength = 1/25.0;
-        public double mutateListLength = 1/25.0;
-        public double mutateSwapListItems = 1/25.0;
-        public double mutateReorderList = 1/25.0;
-        public double mutateFixnumRange = 1/25.0;
-        public double mutateRealRange = 1/25.0;
-        public double replaceSubgene = 1/25.0;
-
-        public double mutateAddGene = 1/250.0;
-        public double mutateSkipChromosome = 1/1000.0;
-        public double mutateAddChromosome = 1/1000.0;
-        public double mutateAddTargetChromosome = 1/5000.0;
+        this.mutateAddGene = 1/250.0;
+        this.mutateSkipChromosome = 1/1000.0;
+        this.mutateAddChromosome = 1/1000.0;
+        this.mutateAddTargetChromosome = 1/5000.0;
     }
-
-    private Probabilities mProbabilities;
-    private GeneRandomizer mGeneRandomizer;
-    private TypeBuilder mTypeBuilder;
-
-    public Mutation(Probabilities probabilities, TypeBuilder typeBuilder, GeneRandomizer geneRandomizer) {
-        mProbabilities = probabilities;
-        mTypeBuilder = typeBuilder;
-        mGeneRandomizer = geneRandomizer;
+    
+    function Mutation(probabilities, typeBuilder, randomizer) {
+        this.probabilities = probabilities;
+        this.typeBuilder = typeBuilder;
+        this.randomizer = randomizer;
     }
-
-    public TypeBuilder typeBuilder() {
-        return mTypeBuilder;
-    }
-
-    public GeneRandomizer geneBuilderProbabilities() {
-        return mGeneRandomizer;
-    }
-
-    public boolean mutateTopLevelGene(Random random) {
-        return Probability.select(random, mProbabilities.mutateTopLevel);
-    }
-
-    public boolean mutateSeed(Random random) {
-        return Probability.select(random, mProbabilities.mutateSeed);
-    }
-
-    public boolean mutateStringLength(Random random) {
-        return Probability.select(random, mProbabilities.mutateStringLength);
-    }
-
-    public int newStringLength(int length, Random random) {
-        int mutateType = random.nextInt(5);
+    
+    Mutation.prototype.mutateTopLevelGene = function (entropy) {
+        return entropy.select(this.probabilities.mutateTopLevel);
+    };
+    
+    Mutation.prototype.mutateSeed = function (entropy) {
+        return entropy.select(this.probabilities.mutateSeed);
+    };
+    
+    Mutation.prototype.mutateStringLength = function (entropy) {
+        return entropy.select(this.probabilities.mutateStringLength);
+    };
+    
+    Mutation.prototype.newStringLength = function (length, entropy) {
+        var mutateType = entropy.randomInt(0, 5);
         if (mutateType < 2) {
             return length > 0 ? length - 1 : length;
         }
         if (mutateType < 4) {
             return length + 1;
         }
-        return mGeneRandomizer.selectStringLength(random);
-    }
-
-    public boolean mutateSymbolLength(Random random) {
-        return Probability.select(random, mProbabilities.mutateSymbolLength);
-    }
-
-    public int newSymbolLength(int length, Random random) {
-        int mutateType = random.nextInt(5);
+        return this.randomizer.selectStringLength(entropy);
+    };
+    
+    Mutation.prototype.mutateStringLength = function (entropy) {
+        return entropy.select(this.probabilities.mutateSymbolLength);
+    };
+    
+    Mutation.prototype.newSymbolLength = function (length, entropy) {
+        var mutateType = entropy.randomInt(0, 5);
         if (mutateType < 2) {
             return length > 0 ? length - 1 : length;
         }
         if (mutateType < 4) {
             return length + 1;
         }
-        return mGeneRandomizer.selectStringLength(random);
-    }
+        return this.randomizer.selectStringLength(entropy);
+    };
+    
+    Mutation.prototype.replaceSubgene = function (entropy) {
+        return entropy.select(this.probabilities.replaceSubgene);
+    };
 
-    public boolean replaceSubgene(Random random) {
-        return Probability.select(random, mProbabilities.replaceSubgene);
-    }
+    Mutation.prototype.createNewGene = function (type, context, entropy) {
+        var builder = new GeneBuilder(this.typeBuilder, this.randomizer, context);
+        return builder.buildItem(type, entropy);
+    };
 
-    public Gene createNewGene(Type type, Context context, Random random) {
-        GeneBuilder builder = new GeneBuilder(typeBuilder(), geneBuilderProbabilities(), context);
-        return builder.buildItem(type, random);
-    }
-
-    public Gene mutateGene(Type type, Gene gene, Context context, Random random) {
-        if (replaceSubgene(random)) {
-            return createNewGene(type, context, random);
+    Mutation.prototype.mutateGene = function (type, gene, context, entropy) {
+        if (this.replaceSubgene(entropy)) {
+            return this.createNewGene(type, context, entropy);
         } else {
-            gene.mutate(this, context, random);
+            gene.mutate(this, context, entropy);
             return gene;
         }
-    }
+    };
+    
+    Mutation.prototype.reorderList = function (entropy) {
+        return entropy.select(this.probabilities.mutateReorderList);
+    };
+    
+    Mutation.prototype.mutateListLength = function (entropy) {
+        return entropy.select(this.probabilities.mutateListLength);
+    };
 
-    public boolean reorderList(Random random) {
-        return Probability.select(random, mProbabilities.mutateReorderList);
-    }
-
-    public boolean mutateListLength(Random random) {
-        return Probability.select(random, mProbabilities.mutateListLength);
-    }
-
-    public int newListLength(int length, Random random) {
-        int mutateType = random.nextInt(5);
+    Mutation.prototype.newListLength = function (length, entropy) {
+        var mutateType = entropy.randomInt(0, 5);
         if (mutateType < 2) {
             return length > 0 ? length - 1 : length;
         }
         if (mutateType < 4) {
             return length + 1;
         }
-        return mGeneRandomizer.selectListLength(random);
-    }
+        return this.randomizer.selectListLength(entropy);
+    };
+    
+    Mutation.prototype.swapListItems = function (entropy) {
+        return entropy.select(this.probabilities.mutateSwapListItems);
+    };
+    
+    Mutation.prototype.mutateFixnumRange = function (entropy) {
+        return entropy.select(this.probabilities.mutateFixnumRange);
+    };
 
-    public boolean swapListItems(Random random) {
-        return Probability.select(random, mProbabilities.mutateSwapListItems);
-    }
-
-    public boolean mutateFixnumRange(Random random) {
-        return Probability.select(random, mProbabilities.mutateFixnumRange);
-    }
-
-    public FixNumGenerator.Range newRange(FixNumGenerator.Range range, Random random) {
-        int min = range.min;
-        int max = range.max;
-        int mutateType = random.nextInt(5);
-        int rangeSizeDelta = random.nextInt(20);
-        if (mutateType == 0) {
-            min = min > Integer.MIN_VALUE + rangeSizeDelta ? min - rangeSizeDelta : Integer.MIN_VALUE;
-        } else if (mutateType == 1) {
+    Mutation.prototype.newRange = function (range, entropy) {
+        var min = range.min,
+            max = range.max,
+            mutateType = entropy.randomInt(0, 5),
+            rangeSizeDelta = entropy.randomInt(0, 20);
+        if (mutateType === 0) {
+            min = min - rangeSizeDelta;
+        } else if (mutateType === 1) {
             min = min < max - rangeSizeDelta ? min + rangeSizeDelta : max;
-        } else if (mutateType == 2) {
+        } else if (mutateType === 2) {
             max = max > min + rangeSizeDelta ? max - rangeSizeDelta : min;
-        } else if (mutateType == 3) {
-            max = max < Integer.MAX_VALUE - rangeSizeDelta ? max + rangeSizeDelta : Integer.MAX_VALUE;
+        } else if (mutateType === 3) {
+            max = max + rangeSizeDelta;
         } else {
-            return mGeneRandomizer.selectFixnumRange(random);
+            return this.randomizer.selectFixnumRange(entropy);
         }
-        return new FixNumGenerator.Range(min, max);
-    }
+        return { min: min, max: max };
+    };
+    
+    Mutation.prototype.mutateRealRange = function (entropy) {
+        return entropy.select(this.probabilities.mutateRealRange);
+    };
 
-    public boolean mutateRealRange(Random random) {
-        return Probability.select(random, mProbabilities.mutateRealRange);
-    }
-
-    public RealGenerator.Range newRange(RealGenerator.Range range, Random random) {
-        double min = range.min;
-        double max = range.max;
-        int mutateType = random.nextInt(5);
-        int rangeSizeDelta = random.nextInt(20);
-        if (mutateType == 0) {
-            min = min > Double.MIN_VALUE + rangeSizeDelta ? min - rangeSizeDelta : Integer.MIN_VALUE;
-        } else if (mutateType == 1) {
+    Mutation.prototype.newRange = function (range, entropy) {
+        var min = range.min,
+            max = range.max,
+            mutateType = entropy.randomInt(0, 5),
+            rangeSizeDelta = entropy.randomInt(0, 20);
+        if (mutateType === 0) {
+            min = min - rangeSizeDelta;
+        } else if (mutateType === 1) {
             min = min < max - rangeSizeDelta ? min + rangeSizeDelta : max;
-        } else if (mutateType == 2) {
+        } else if (mutateType === 2) {
             max = max > min + rangeSizeDelta ? max - rangeSizeDelta : min;
-        } else if (mutateType == 3) {
-            max = max < Double.MAX_VALUE - rangeSizeDelta ? max + rangeSizeDelta : Integer.MAX_VALUE;
+        } else if (mutateType === 3) {
+            max = max + rangeSizeDelta;
         } else {
-            return mGeneRandomizer.selectRealRange(random);
+            return this.randomizer.selectRealRange(entropy);
         }
-        return new RealGenerator.Range(min, max);
-    }
-
-    public Long newSeed(Long seed, Random random) {
-        int mutateType = random.nextInt(5);
+        return { min: min, max: max };
+    };
+    
+    Mutation.prototype.newSeed = function (seed, entropy) {
+        var mutateType = entropy.randomInt(0, 5);
         if (mutateType < 2) {
-            return seed > Long.MIN_VALUE ? seed - 1 : Long.MIN_VALUE;
+            return Math.max(1, seed - 1);
         }
         if (mutateType < 4) {
-            return seed < Long.MAX_VALUE ? seed + 1 : Long.MAX_VALUE;
+            return Math.min(seed + 1, entropy.maxValue);
         }
-        return random.nextLong();
-    }
-
-    public boolean skipChromosome(Random random) {
-        return Probability.select(random, mProbabilities.mutateSkipChromosome);
-    }
-
-    public boolean addChromosome(Random random) {
-        return Probability.select(random, mProbabilities.mutateAddChromosome);
-    }
-
-    public Chromosome createChromosome(Context context, Random random) {
-        TypeBuilder typeBuilder = typeBuilder();
-        GeneBuilder builder = new GeneBuilder(typeBuilder, geneBuilderProbabilities(), context);
-        int chromosomeLength = mGeneRandomizer.selectChromosomeLength(random);
-        Chromosome chromosome = new Chromosome("crA_" + util.StringRandom.alphaString(random, 5));
+        return entropy.randomSeed();
+    };
+    
+    Mutation.prototype.skipChromosome = function (entropy) {
+        return entropy.select(this.probabilities.mutateSkipChromosome);
+    };
+    
+    Mutation.prototype.addChromosome = function (entropy) {
+        return entropy.select(this.probabilities.mutateAddChromosome);
+    };
+    
+    Mutation.prototype.createChromosome = function (context, entropy) {
+        var builder = new GeneBuilder(this.typeBuilder, this.randomizer, context),
+            chromosomeLength = this.randomizer.selectChromosomeLength(entropy),
+            chromosome = new Chromosome("crA_" + entropy.alphaString(5));
         context.addChromosome(chromosome);
-        for (int i = 0; i < chromosomeLength; ++i) {
-            typeBuilder.allowAllConstrained();
-            Type returnType = typeBuilder.createType(random);
-            typeBuilder.clearDependentTypes();
-            FunctionType function = typeBuilder.createFunction(returnType, random);
-            chromosome.addGene(builder.buildFunction(function, chromosome.nextGeneName(), random));
+        for (var i = 0; i < chromosomeLength; ++i) {
+            this.typeBuilder.allowAllConstrained();
+            var returnType = this.typeBuilder.createType(entropy);
+            this.typeBuilder.clearDependentTypes();
+            var func = this.typeBuilder.createFunction(returnType, entropy);
+            chromosome.addGene(builder.buildFunction(func, chromosome.nextGeneName(), entropy));
         }
         return chromosome;
-    }
-
-    public boolean addTargetChromosome(Random random) {
-        return Probability.select(random, mProbabilities.mutateAddTargetChromosome);
-    }
-
-    public Chromosome createChromosome(Context context, Random random, FunctionType target) {
-        GeneBuilder builder = new GeneBuilder(typeBuilder(), geneBuilderProbabilities(), context);
-        Chromosome chromosome = new Chromosome("crT_" + util.StringRandom.alphaString(random, 5));
-        chromosome.addGene(builder.buildFunction(target, chromosome.nextGeneName(), random));
+    };
+    
+    Mutation.prototype.addTargetChromosome = function (entropy) {
+        return entropy.select(this.probabilities.mutateAddTargetChromosome);
+    };
+    
+    Mutation.prototype.createChromosome = function (context, entropy, target) {
+        var builder = new GeneBuilder(this.typeBuilder, this.randomizer, context),
+            chromosome = new Chromosome("crT_" + entropy.alphaString(5));
+        chromosome.addGene(builder.buildFunction(target, chromosome.nextGeneName(), entropy));
         return chromosome;
-    }
+    };
+    
+    Mutation.prototype.addGene = function (entropy) {
+        return entropy.select(this.probabilities.mutateAddGene);
+    };
+    
+    Mutation.prototype.createGene = function (context, name, entropy) {
+        var builder = new GeneBuilder(this.typeBuilder, this.randomizer, context);
+        this.typeBuilder.allowDependentTypes(context.findConcreteTypes());
+        var returnType = this.typeBuilder.createType(entropy);
+        this.typeBuilder.clearDependentTypes();
+        var type = this.typeBuilder.createFunction(returnType, entropy);        
+        return builder.buildFunction(type, name, entropy);
+    };
 
-    public boolean addGene(Random random) {
-        return Probability.select(random, mProbabilities.mutateAddGene);
-    }
-
-    public Gene createGene(Context context, String name, Random random) {
-        TypeBuilder typeBuilder = typeBuilder();
-        GeneBuilder builder = new GeneBuilder(typeBuilder, geneBuilderProbabilities(), context);
-        typeBuilder.allowDependentTypes(context.findConcreteTypes());
-        Type returnType;
-        try {
-            returnType = typeBuilder.createType(random);
-        } finally {
-            typeBuilder.clearDependentTypes();
-        }
-        FunctionType type = typeBuilder.createFunction(returnType, random);
-        Gene gene = builder.buildFunction(type, name, random);
-        return gene;
-    }
-}
-
+/*
 public class Mutator {
     private Mutation mMutation;
 
