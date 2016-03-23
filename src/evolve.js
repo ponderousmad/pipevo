@@ -1115,33 +1115,29 @@ var EVOLVE = (function () {
         return builder.buildFunction(type, name, entropy);
     };
 
-/*
-public class Mutator {
-    private Mutation mMutation;
-
-    public Mutator(Mutation mutation) {
-        mMutation = mutation;
+    function Mutator(mutation) {
+        this.mutation = mutation;
     }
-
-    public Genome mutate(Genome genome, ObjectRegistry reg, boolean allowMacroMutation, Random random, FunctionType target) {
-        Context context = new Context(reg);
-        boolean isMutated = false;
-        Genome mutated = new Genome();
-
-        boolean addChromosome = allowMacroMutation && mMutation.addChromosome(random);
-        int i = 0;
-
-        for (Chromosome chromosome : genome.chromosomes()) {
-            ++i;
-            boolean isLast = i == genome.chromosomes().size();
-            boolean skipChromosome = !isLast && allowMacroMutation && mMutation.skipChromosome(random);
+    
+    Mutator.prototype.mutate = function (genome, registry, allowMacroMutation, entropy, target) {
+        var context = new Context(registry),
+            isMutated = false,
+            mutated = new Genome(),
+            addChromosome = allowMacroMutation && this.mutation.addChromosome(entropy),
+            i = 0;
+            
+        for (var c = 0; c < genome.chromosomes.length; ++c) {
+            i += 1;
+            var chromosome = genome.chromosomes[c],
+                isLast = i === genome.chromosomes.length,
+                skipChromosome = !isLast && allowMacroMutation && this.mutation.skipChromosome(entropy);
             if (isLast && addChromosome) {
-                mutated.add(mMutation.createChromosome(context, random));
+                mutated.add(this.mutation.createChromosome(context, entropy));
                 isMutated = true;
             }
-            if (!(skipChromosome)) {
+            if (!skipChromosome) {
                 context.addChromosome(chromosome);
-                Chromosome mutatedChromosome = mutate(chromosome, context, isLast, allowMacroMutation, random);
+                var mutatedChromosome = this.mutateChromasome(chromosome, context, isLast, allowMacroMutation, entropy);
                 mutated.add(mutatedChromosome);
                 if (mutatedChromosome != chromosome) {
                     isMutated = true;
@@ -1150,9 +1146,10 @@ public class Mutator {
                 isMutated = true;
             }
         }
-        if (allowMacroMutation && mMutation.addTargetChromosome(random)) {
+        
+        if (allowMacroMutation && this.mutation.addTargetChromosome(entropy)) {
             isMutated = true;
-            mutated.add(mMutation.createChromosome(context, random, target));
+            mutated.add(this.mutation.createChromosome(context, entropy, target));
         }
 
         if (isMutated) {
@@ -1160,14 +1157,16 @@ public class Mutator {
         } else {
             return genome;
         }
-    }
-
-    public Chromosome mutate(Chromosome chromosome, Context context, boolean isLast, boolean allowMacroMutation, Random random) {
-        boolean isMutated = false;
-        Chromosome mutated = new Chromosome(chromosome.name());
-        for (Chromosome.NamedGene gene : chromosome.genes()) {
-            if (mMutation.mutateTopLevelGene(random)) {
-                Gene mutatedGene = gene.gene.mutate(mMutation, context, random);
+    };
+    
+    Mutator.prototype.mutateChromasome = function (chromosome, context, isLast, allowMacroMutation, entropy) {
+        var isMutated = false,
+            mutated = new Chromosome(chromosome.name),
+            genes = chromosome.namedGenes();
+        for (var g = 0; g < genes.length; ++g) {
+            var gene = genes[g];
+            if (this.mutation.mutateTopLevelGene(entropy)) {
+                var mutatedGene = gene.gene.mutate(this.mutation, context, entropy);
                 mutated.addGene(mutatedGene);
                 if (gene != mutatedGene) {
                     isMutated = true;
@@ -1176,8 +1175,8 @@ public class Mutator {
                 mutated.addGene(gene.gene);
             }
         }
-        if (!isLast && allowMacroMutation && mMutation.addGene(random)) {
-            mutated.addGene(mMutation.createGene(context, mutated.nextGeneName(), random));
+        if (!isLast && allowMacroMutation && this.mutation.addGene(entropy)) {
+            mutated.addGene(this.mutation.createGene(context, mutated.nextGeneName(), entropy));
             isMutated = true;
         }
         if (isMutated) {
@@ -1185,9 +1184,9 @@ public class Mutator {
         } else {
             return chromosome;
         }
-    }
-}
+    };
 
+/*
 public class Breeder {
     // Given two Genomes, produce an offspring
     static public Genome breed(Genome a, Genome b, FunctionType target, Random random) {
