@@ -79,6 +79,10 @@ var ENTROPY = (function () {
     Entropy.prototype.select = function (bias) {
         return this.random() < bias;
     };
+    
+    Entropy.prototype.flip = function () {
+        return this.select(0.5);
+    };
 
     // Produce a random string consisting of characters from the extended ascii code points.
     Entropy.prototype.randomAscii = function (length) {

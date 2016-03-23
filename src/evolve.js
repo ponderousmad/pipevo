@@ -1185,134 +1185,132 @@ var EVOLVE = (function () {
             return chromosome;
         }
     };
-
-/*
-public class Breeder {
-    // Given two Genomes, produce an offspring
-    static public Genome breed(Genome a, Genome b, FunctionType target, Random random) {
-        // Avoid making the problem O(n*n) by creating a hash of one set of chromosomes
-        Map<String, Chromosome> lookup = new java.util.HashMap<String, Chromosome>();
-        for (Chromosome chromosome : a.chromosomes()) {
-            lookup.put(chromosome.name(), chromosome);
+    
+    function breedChromosomes(a, b, entropy) {
+        if (a.name != b.name) {
+            if (entropy.flip()) {
+                return a;
+            } else {
+                return b;
+            }
         }
-
-        // Keep track of the chromosomes in b which we haven't paired.
-        List<Chromosome> bUnpaired = new java.util.ArrayList<Chromosome>();
-
-        // Assume all 'a' chromosomes unpaired to start with.
-        Set<String> aUnpaired = new java.util.HashSet<String>(lookup.keySet());
-
-        List<Chromosome> child = new java.util.ArrayList<Chromosome>();
-        // Keep track of the last chromosome matching the target.
-        Chromosome crTarget = null;
-
-        for (Chromosome chromosome : b.chromosomes()) {
-            Chromosome pair = lookup.get(chromosome.name());
-            if (pair != null) {
-                Chromosome result = breed(pair, chromosome, random);
-                if (result.findLastMatching(target) != null) {
-                    crTarget = result;
+        var result = new Chromosome(a.name),
+            i = 0,
+            j = 0;
+        while(i < a.genes.length && j < b.genes.length) {
+            var useA = entropy.flip(),
+                aGene = a.genes[i],
+                bGene = b.genes[j];
+            if (aGene.type.equals(bGene.type)) {
+                if (useA) {
+                    result.addGene(aGene);
+                } else {
+                    result.addGene(bGene);
                 }
-                child.add(result);
+            } else if ((a.genes.length > i+1) && a.genes[i+1].type.equals(bGene.type)) {
+                result.addGene(aGene);
+                if (useA) {
+                    result.addGene(a.genes[i+1]);
+                } else {
+                    result.addGene(bGene);
+                }
+                i += 1;
+            } else if ((b.genes.length > j+1) && aGene.type.equals(b.genes[j+1].type)) {
+                result.addGene(bGene);
+                if (useA) {
+                    result.addGene(aGene);
+                } else {
+                    result.addGene(b.genes[j+1]);
+                }
+                j += 1;
+            } else {
+                if (useA) {
+                    result.addGene(aGene);
+                } else {
+                    result.addGene(bGene);
+                }
+            }
+            i += 1;
+            j += 1;
+        }
+        return result;
+    }
+    
+    // Given two Genomes, produce an offspring
+    function breedGenomes(a, b, target, entropy) {
+        // Avoid making the problem O(n*n) by creating a hash of one set of chromosomes
+        // Assume all 'a' chromosomes unpaired to start with.
+        var aUnpaired = {};
+        for (var c = 0; c  < a.chromosomes.length; ++c) {
+            var aChromo = a.chromosomes[c];
+            aUnpaired[aChromo.name()] = aChromo;
+        }
+        
+        var bUnpaired = [], // Keep track of the chromosomes in b which we haven't paired.
+            child = [],
+            crTarget = null; // Keep track of the last chromosome matching the target.
+
+        for (c = 0; c < b.chromosomes.length; ++c) {
+            var bChromo = b.chromosomes[c],
+                pair = aUnpaired[bChromo.name];
+            if (pair) {
+                var matchedPair = breedChromosomes(pair, bChromo, entropy);
+                if (matchedPair.findLastMatching(target) !== null) {
+                    crTarget = matchedPair;
+                }
+                child.push(matchedPair);
 
                 // If we found a matching one in a, then it is now paired.
-                aUnpaired.remove(pair.name());
+               delete aUnpaired[pair.name];
             } else {
                 // If we didn't find a matching one in a, then the b one is marked as unpaired.
-                bUnpaired.add(chromosome);
+                bUnpaired.push(chromosome);
             }
         }
-        if (!bUnpaired.isEmpty()) {
+        if (bUnpaired.length > 0) {
             // Pair unpaired ones in order.
-            for (Chromosome chromosome : bUnpaired) {
-                if (aUnpaired.isEmpty()) {
-                    if (chromosome.findLastMatching(target) != null) {
-                        crTarget = chromosome;
+            for (c = 0; c < bUnpaired.length; ++c) {
+                var unpaired = bUnpaired[c],
+                    matched = null;
+                    
+                // Retrieve the next unpaired a chromosome
+                for (var name in aUnpaired) {
+                    if (!aUnpaired.hasOwnProperty(name)) {
+                        matched = aUnpaired[name];
+                        delete aUnpaired[name];
                     }
-                    child.add(chromosome);
+                }
+                    
+                if (matched === null) {
+                    if (unpaired.findLastMatching(target) !== null) {
+                        crTarget = unpaired;
+                    }
+                    child.push(unpaired);
                 } else {
-                    // Retrieve the next unpaired a chromosome
-                    String next = aUnpaired.iterator().next();
-                    aUnpaired.remove(next);
-                    Chromosome pair = lookup.get(next);
-
-                    assert(pair != null);
-                    Chromosome result = breed(chromosome, pair, random);
-                    if (chromosome.findLastMatching(target) != null) {
-                        crTarget = result;
+                    var resultChromosome = breedChromosomes(unpaired, match, entropy);
+                    if (unpaired.findLastMatching(target) !== null) {
+                        crTarget = resultChromosome;
                     }
-                    child.add(result);
+                    child.push(resultChromosome);
                 }
             }
         }
-        Genome result = new Genome();
+        var result = new Genome();
         // Make sure that a chromosome matching the target is last, by skipping it as we add, then
         // adding it explicitly afterwards.
-        for (Chromosome chromosome : child) {
-            if (chromosome != crTarget) {
-                result.add(chromosome);
+        for (c = 0; c < child.length; ++c) {
+            if (child[c] != crTarget) {
+                result.add(child[c]);
             }
         }
-        if (crTarget == null) {
+        if (crTarget === null) {
             throw new RuntimeException("No target!");
         }
         result.add(crTarget);
         return result;
     }
 
-    static public Chromosome breed(Chromosome a, Chromosome b, Random random) {
-        if (a.name() != b.name()) {
-            if (random.nextBoolean()) {
-                return a;
-            } else {
-                return b;
-            }
-        }
-        Chromosome result = new Chromosome(a.name());
-        int i = 0;
-        int j = 0;
-        List<Gene> aGenes = a.mGenes;
-        List<Gene> bGenes = b.mGenes;
-        while(i < aGenes.size() && j < bGenes.size()) {
-            boolean useA = random.nextBoolean();
-            Gene aGene = aGenes.get(i);
-            Gene bGene = bGenes.get(j);
-            if (aGene.type().equals(bGene.type())) {
-                if (useA) {
-                    result.addGene(aGene);
-                } else {
-                    result.addGene(bGene);
-                }
-            } else if ((aGenes.size() > i+1) && aGenes.get(i+1).type().equals(bGene.type())) {
-                result.addGene(aGene);
-                if (useA) {
-                    result.addGene(aGenes.get(i+1));
-                } else {
-                    result.addGene(bGene);
-                }
-                ++i;
-            } else if ((bGenes.size() > j+1) && aGene.type().equals(bGenes.get(j+1).type())) {
-                result.addGene(bGene);
-                if (useA) {
-                    result.addGene(aGene);
-                } else {
-                    result.addGene(bGenes.get(j+1));
-                }
-                ++j;
-            } else {
-                if (useA) {
-                    result.addGene(aGene);
-                } else {
-                    result.addGene(bGene);
-                }
-            }
-            ++i;
-            ++j;
-        }
-        return result;
-    }
-}
-
+/*
 public interface Runner {
     public ObjectRegistry registry();
 
