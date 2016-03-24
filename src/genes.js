@@ -1,31 +1,7 @@
-package evolve.genes;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
-import util.StringRandom;
-
-import evolve.Context;
-import evolve.Gene;
-import evolve.Mutation;
-import functional.Cons;
-import functional.FixNum;
-import functional.Null;
-import functional.Obj;
-import functional.Real;
-import functional.StringObj;
-import functional.Symbol;
-import functional.True;
-import functional.special.If.IfExpression;
-import functional.type.BaseType;
-import functional.type.FunctionType;
-import functional.type.Maybe;
-import functional.type.ListType;
-import functional.type.Type;
-
-
+GENES = (function () {
+    "use strict";
+    
+/*
 public class NullGene implements Gene, Serializable {
 	private static final long serialVersionUID = 4062847001468592113L;
 
@@ -834,3 +810,7 @@ public class FunctionGene implements Gene, Serializable {
 		}
 	}
 }
+*/
+    return {
+    };
+}());
