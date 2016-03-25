@@ -39,6 +39,7 @@ GENES = (function () {
         this.type = P.FIX_NUM;
         this.seed = seed;
         this.range = range;
+    }
     
     FixNumGenerator.prototype.express = function (context) {
         var seedValue = this.seed / ENTROPY.MAX_SEED,
@@ -51,6 +52,7 @@ GENES = (function () {
     FixNumGenerator.prototype.mutate = function (mutation, context, entropy) {
         var seed = mutateSeed(mutation, entropy);
         var range = null;
+        if (mutation.mutateFixnumRange(entropy)) {
             range = mutation.newFixnumRange(this.range, entropy);
         }
         if (this.seed !== seed || range !== null) {
@@ -67,6 +69,7 @@ GENES = (function () {
         this.type = P.FIX_NUM;
         this.seed = seed;
         this.range = range;
+    }
     
     RealGenerator.prototype.express = function (context) {
         var seedValue = this.seed / ENTROPY.MAX_SEED,
@@ -79,6 +82,7 @@ GENES = (function () {
     RealGenerator.prototype.mutate = function (mutation, context, entropy) {
         var seed = mutateSeed(mutation, entropy);
         var range = null;
+        if (mutation.mutateRealRange(entropy)) {
             range = mutation.newRealRange(this.range, entropy);
         }
         if (this.seed !== seed || range !== null) {
