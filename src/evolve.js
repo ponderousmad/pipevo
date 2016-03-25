@@ -1015,7 +1015,7 @@ var EVOLVE = (function () {
         return entropy.select(this.probabilities.mutateFixnumRange);
     };
 
-    Mutation.prototype.newRange = function (range, entropy) {
+    Mutation.prototype.newFixnumRange = function (range, entropy) {
         var min = range.min,
             max = range.max,
             mutateType = entropy.randomInt(0, 5),
@@ -1038,7 +1038,7 @@ var EVOLVE = (function () {
         return entropy.select(this.probabilities.mutateRealRange);
     };
 
-    Mutation.prototype.newRange = function (range, entropy) {
+    Mutation.prototype.newRealRange = function (range, entropy) {
         var min = range.min,
             max = range.max,
             mutateType = entropy.randomInt(0, 5),
@@ -1063,7 +1063,7 @@ var EVOLVE = (function () {
             return Math.max(1, seed - 1);
         }
         if (mutateType < 4) {
-            return Math.min(seed + 1, entropy.maxValue);
+            return Math.min(seed + 1, ENTROPY.MAX_SEED);
         }
         return entropy.randomSeed();
     };

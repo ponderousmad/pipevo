@@ -1,180 +1,96 @@
 GENES = (function () {
     "use strict";
     
+    var P = SLUR_TYPES.Primitives;
+    
+    function NullGene() {
+        this.type = P.NULL;
+    }
+    
+    NullGene.prototype.express = function (context) {
+        return SLUR.NULL;
+    };
+    
+    NullGene.prototype.mutate = function (mutation, context, entropy) {
+        return this;
+    };
+    
+    NullGene.prototype.copy = function () {
+        return new NullGene();
+    };
+    
+    function TrueGene() {
+        this.type = P.NULL;
+    }
+    
+    TrueGene.prototype.express = function (context) {
+        return SLUR.TRUE;
+    };
+    
+    TrueGene.prototype.mutate = function (mutation, context, entropy) {
+        return this;
+    };
+    
+    TrueGene.prototype.copy = function () {
+        return new TrueGene();
+    };
+    
+    function FixNumGenerator(seed, range) {
+        this.type = P.FIX_NUM;
+        this.seed = seed;
+        this.range = range;
+    
+    FixNumGenerator.prototype.express = function (context) {
+        var seedValue = this.seed / ENTROPY.MAX_SEED,
+            min = this.range.min,
+            max = this.range.max,
+            value = max == min ? min : Math.min(Math.floor(min + seedValue * (max - min)), max - 1);
+        return new SLUR.FixNum(value);
+    };
+    
+    FixNumGenerator.prototype.mutate = function (mutation, context, entropy) {
+        var seed = mutateSeed(mutation, entropy);
+        var range = null;
+            range = mutation.newFixnumRange(this.range, entropy);
+        }
+        if (this.seed !== seed || range !== null) {
+            return new FixNumGenerator(seed, range ? range : this.range);
+        }
+        return this;
+    };
+    
+    FixNumGenerator.prototype.copy = function () {
+        return new FixNumGenerator(this.seed, this.range);
+    };
+    
+    function RealGenerator(seed, range) {
+        this.type = P.FIX_NUM;
+        this.seed = seed;
+        this.range = range;
+    
+    RealGenerator.prototype.express = function (context) {
+        var seedValue = this.seed / ENTROPY.MAX_SEED,
+            min = this.range.min,
+            max = this.range.max,
+            value = min + seedValue * (max - min);
+        return new SLUR.Real(value);
+    };
+    
+    RealGenerator.prototype.mutate = function (mutation, context, entropy) {
+        var seed = mutateSeed(mutation, entropy);
+        var range = null;
+            range = mutation.newRealRange(this.range, entropy);
+        }
+        if (this.seed !== seed || range !== null) {
+            return new RealGenerator(seed, range ? range : this.range);
+        }
+        return this;
+    };
+    
+    RealGenerator.prototype.copy = function () {
+        return new RealGenerator(this.seed, this.range);
+    };
 /*
-public class NullGene implements Gene, Serializable {
-	private static final long serialVersionUID = 4062847001468592113L;
-
-	public Obj express(Context context) {
-		return Null.NULL;
-	}
-
-	public Gene mutate(Mutation mutation, Context context, java.util.Random random) {
-		return this;
-	}
-
-	public Type type() {
-		return BaseType.NULL;
-	}
-
-	public Gene copy() {
-		return new NullGene();
-	}
-}
-
-public class TrueGene implements Gene, Serializable {
-	private static final long serialVersionUID = 8095791718163656229L;
-
-	public Obj express(Context context) {
-		return True.TRUE;
-	}
-
-	public Gene mutate(Mutation mutation, Context context, java.util.Random random) {
-		return this;
-	}
-
-	public Type type() {
-		return BaseType.TRUE;
-	}
-
-	public Gene copy() {
-		return new TrueGene();
-	}
-}
-
-public abstract class Generator implements Gene, Serializable {
-	private static final long serialVersionUID = 5322982214150695657L;
-
-	abstract Obj generate( Context context, long seed );
-
-	private Long mSeed;
-
-	public Generator( Long seed ) {
-		mSeed = seed;
-	}
-
-	public Obj express( Context context ) {
-		return generate(context, mSeed);
-	}
-
-	public Gene mutate(Mutation mutation, Context context, Random random) {
-		boolean mutateSeed = mutation.mutateSeed(random);
-		return mutate(mutation, context, random, mutateSeed ? mutation.newSeed(mSeed, random) : mSeed, mutateSeed);
-	}
-
-	abstract protected Gene mutate(Mutation mutation, Context context, Random random, Long seed, boolean mutated);
-}
-
-
-public class FixNumGenerator extends Generator implements Serializable {
-	public static class Range implements java.io.Serializable
-	{
-		private static final long serialVersionUID = -6215911768631332669L;
-		public int min;
-		public int max;
-
-		public Range( int min, int max ) {
-			assert( max >= min );
-			this.min = min;
-			this.max = max;
-		}
-	}
-
-	private static final long serialVersionUID = 4778701458495855287L;
-	private Range mRange;
-
-	public FixNumGenerator( long seed, Range range ) {
-		super( seed );
-		mRange = range;
-	}
-
-	public FixNumGenerator( long seed, int min, int max ) {
-		super( seed );
-		mRange = new Range(min, max);
-	}
-
-	public FixNumGenerator( long seed ) {
-		super( seed );
-		mRange = new Range(Integer.MIN_VALUE, Integer.MAX_VALUE);
-	}
-
-	public Obj generate(Context c, long seed) {
-		long min = mRange.min;
-		long max = mRange.max;
-		long range = max - min + 1;
-		long value = min + Math.abs(seed) % range;
-
-		return new FixNum( (int)value );
-	}
-
-	public Type type() {
-		return BaseType.FIXNUM;
-	}
-
-	public Gene mutate(Mutation mutation, Context context, Random random, Long seed, boolean mutated) {
-		FixNumGenerator.Range range = mRange;
-		if( mutation.mutateFixnumRange(random) ) {
-			range = mutation.newRange(range, random);
-			mutated = true;
-		}
-		if( mutated ) {
-			return new FixNumGenerator(seed, range);
-		} else {
-			return this;
-		}
-	}
-}
-
-public class RealGenerator extends Generator implements Serializable {
-	public static class Range implements java.io.Serializable
-	{
-		private static final long serialVersionUID = -3129409270771848845L;
-
-		public double min;
-		public double max;
-
-		public Range( double min, double max ) {
-			assert( max >= min );
-			this.min = min;
-			this.max = max;
-		}
-	}
-
-	private static final long serialVersionUID = -1780673200901782401L;
-	private Range mRange;
-
-	public RealGenerator( long seed, Range range ) {
-		super( seed );
-		mRange = range;
-	}
-
-	public RealGenerator( long seed ) {
-		super( seed );
-		mRange = new Range(-1e20, 1e20);
-	}
-
-	public Obj generate(Context c, long seed) {
-		double value = Math.abs(seed) / (double)Long.MAX_VALUE;
-		return new Real( mRange.min + (mRange.max - mRange.min) * value );
-	}
-
-	public Type type() {
-		return BaseType.REAL;
-	}
-
-	protected Gene mutate(Mutation mutation, Context context, Random random, Long seed, boolean mutated) {
-		RealGenerator.Range range = mRange;
-		if( mutation.mutateRealRange(random) ) {
-			range = mutation.newRange(range, random);
-			mutated = true;
-		}
-		if( mutated ) {
-			return new RealGenerator(seed, range);
-		} else {
-			return this;
-		}
-	}
-}
 
 public class SymbolGenerator extends Generator implements Serializable {
 	private static final long serialVersionUID = -1509367746874838812L;

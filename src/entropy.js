@@ -54,14 +54,15 @@ var ENTROPY = (function () {
         }
         this.index = 0;
     };
+    
+    var MAX_SEED = Math.pow(2, 31);
 
     function Entropy(seed) {
         this.twister = new MersenneTwister(seed);
-        this.maxValue = Math.pow(2, 31);
     }
 
     Entropy.prototype.random = function () {
-        return this.twister.next() / this.maxValue;
+        return this.twister.next() / MAX_SEED;
     };
 
     Entropy.prototype.randomInt = function (min, max) {
@@ -389,6 +390,7 @@ var ENTROPY = (function () {
     }
 
     return {
+        MAX_SEED: MAX_SEED,
         Entropy: Entropy,
         makeRandom: makeRandom,
         WeightedSet: WeightedSet,
