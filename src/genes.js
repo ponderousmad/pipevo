@@ -94,97 +94,83 @@ GENES = (function () {
     RealGenerator.prototype.copy = function () {
         return new RealGenerator(this.seed, this.range);
     };
-/*
-
-public class SymbolGenerator extends Generator implements Serializable {
-	private static final long serialVersionUID = -1509367746874838812L;
-	private int mLength;
-
-	public SymbolGenerator(Long seed, int length) {
-		super(seed);
-		mLength = length;
-	}
-
-	Obj generate(Context context, long seed) {
-		Random rand = new Random( seed );
-
-		return new Symbol( StringRandom.alphaString( rand, mLength ) );
-	}
-
-	public Type type() {
-		return BaseType.SYMBOL;
-	}
-
-	protected Gene mutate(Mutation mutation, Context context, Random random, Long seed, boolean mutated) {
-		int length = mLength;
-		if( mutation.mutateSymbolLength( random ) ) {
-			length = mutation.newSymbolLength( mLength, random );
-			mutated = true;
-		}
-		if( mutated ) {
-			return new SymbolGenerator(seed, length);
-		} else {
-			return this;
-		}
-	}
-}
-
-public class StringGenerator extends Generator implements Serializable {
-	private static final long serialVersionUID = 812058085772927206L;
-	private int mLength;
-
-	public StringGenerator(Long seed, int length) {
-		super(seed);
-		mLength = length;
-	}
-
-	Obj generate(Context context, long seed) {
-		Random rand = new Random( seed );
-		return new StringObj( StringRandom.asciiString( rand, mLength ) );
-	}
-
-	public Type type() {
-		return BaseType.STRING;
-	}
-
-	protected Gene mutate(Mutation mutation, Context context, Random random, Long seed, boolean mutated) {
-		int length = mLength;
-		if( mutation.mutateStringLength( random ) ) {
-			length = mutation.newStringLength( mLength, random );
-			mutated = true;
-		}
-		if( mutated ) {
-			return new StringGenerator(seed, length);
-		} else {
-			return this;
-		}
-	}
-}
-
-public class BoolGenerator extends Generator implements Serializable {
-	private static final long serialVersionUID = 7930710939815370656L;
-
-	public BoolGenerator(long seed) {
-		super( seed );
-	}
-
-	public Obj generate(Context context, long seed) {
+    
+    function SymbolGenerator(seed, length) {
+        this.type = P.STRING;
+        this.seed = seed;
+        this.length = length;
+    }   
+    
+    SymbolGenerator.prototype.express = function (context) {
+        var entropy = new ENTROPY.Entropy(this.seed);
+        return entropy.alphaString(this.length);
+    };
+    
+    SymbolGenerator.prototype.mutate = function (mutation, context, entropy) {
+        var seed = mutation.mutateSeed(entropy);
+        var length = this.length;
+        if (mutation.mutateSymbolLength(entropy)) {
+            length = mutation.newSymbolLength(length, entropy);
+        }
+        if (this.seed !== seed || this.length !== length) {
+            return new SymbolGenerator(seed, length);
+        }
+        return this;
+    };
+    
+    StringGenerator.prototype.copy = function () {
+        return new StringGenerator(this.seed, this.length);
+    };
+    
+    function StringGenerator(seed, length) {
+        this.type = P.STRING;
+        this.seed = seed;
+        this.length = length;
+    }   
+    
+    StringGenerator.prototype.express = function (context) {
+        var entropy = new ENTROPY.Entropy(this.seed);
+        return entropy.alphaString(this.length);
+    };
+    
+    StringGenerator.prototype.mutate = function (mutation, context, entropy) {
+        var seed = mutation.mutateSeed(entropy);
+        var length = this.length;
+        if (mutation.mutateStringLength(entropy)) {
+            length = mutation.newStringLength(length, entropy);
+        }
+        if (this.seed !== seed || this.length !== length) {
+            return new StringGenerator(seed, length);
+        }
+        return this;
+    };
+    
+    StringGenerator.prototype.copy = function () {
+        return new StringGenerator(this.seed, this.length);
+    };
+    
+    function BoolGenerator(seed) {
+        this.type = P.BOOL;
+        this.seed = seed;
+    }
+    
+    BoolGenerator.prototype.express = function (context) {
 		return seed % 2 == 1 ? True.TRUE : Null.NULL;
-	}
+    };
+    
+    BoolGenerator.prototype.mutate = function (mutation, context, entropy) {
+        var seed = mutation.mutateSeed(entropy);
+        if (this.seed !== seed) {
+            return new BoolGenerator(seed);
+        }
+        return this;
+    };
+    
+    BoolGenerator.prototype.copy = function () {
+        return new BoolGenerator(this.seed);
+    };
 
-	public Type type() {
-		return BaseType.BOOL;
-	}
-
-	protected Gene mutate(Mutation mutation, Context context, Random random, Long seed, boolean mutated) {
-		if( mutated ) {
-			return new BoolGenerator(seed);
-		} else {
-			return this;
-		}
-	}
-}
-
+/*
 public class ConsGene implements Gene, Serializable {
 	private static final long serialVersionUID = 1421679234788666512L;
 	private Gene mCarGene;
