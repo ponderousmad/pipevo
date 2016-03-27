@@ -11,7 +11,8 @@
             randomAI: function (game) { return new AI.makeDiscarder(game, true, new AI.RandomDiscarder(game, entropy)); },
             followAI: function (game) { return new AI.makeFollower(game, new AI.RandomDiscarder(game, entropy)); },
             susanAI:  function (game) { return new AI.Susan(game); },
-            bobAI:    function (game) { return new AI.Bob(game); }
+            bobAI:    function (game) { return new AI.Bob(game, false); },
+            billAI:   function (game) { return new AI.Bob(game, true); }
         };
         this.activePlayer = null;
         this.game = null;

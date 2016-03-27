@@ -33,8 +33,10 @@ var AI = (function () {
                 position: game.sourcePosition.to(sourceOutflow),
                 openEnd: false,
                 filled: 0,
-                length: 0
-            };
+                length: 0,
+                score: 0,
+            },
+            visited = []
 
         do {
             if (board.isEmpty(result.position)) {
@@ -49,6 +51,13 @@ var AI = (function () {
             }
 
             result.length += 1;
+            result.score += 1;
+            for (var v = 0; v < visited.length; ++v) {
+                if (visited[v] == piece) {
+                    result.score += 1;
+                }
+            }
+            visited.push(piece);
             if (piece.isFull(inflow)) {
                 result.filled += 1;
             }
@@ -254,20 +263,21 @@ var AI = (function () {
         return null;
     };
 
-    function Bob(game) {
+    function Bob(game, useScore) {
         this.game = game;
         this.version = 8;
         this.best = null;
         this.bestLength = null;
+        this.useScore = useScore ? true : false;
 
         this.ALL_PIECES = [];
         for (var t = 0; t < PIPES.NON_SOURCE_TYPES.length; ++t) {
             this.ALL_PIECES.push(new PIPES.Piece(PIPES.NON_SOURCE_TYPES[t]));
         }
-
     }
 
-    Bob.prototype.updateBest = function (position, length) {
+    Bob.prototype.updateBest = function (position, pipe, discards) {
+        var length = this.useScore ? pipe.score - discards : pipe.length;
         if (length > this.bestLength ) {
             this.best = position;
             this.bestLength = length;
@@ -297,7 +307,7 @@ var AI = (function () {
         return new Acetate(board, this.game.peek()[peek], target);
     };
 
-    Bob.prototype.tryPlaces = function (board, peeks, first, hint) {
+    Bob.prototype.tryPlaces = function (board, peeks, first, hint, discards) {
         if (!hint.valid() || !board.isEmpty(hint)) {
             return;
         }
@@ -318,12 +328,13 @@ var AI = (function () {
                 target = discard;
                 overlay = this.tryPlace(board, peek, target);
                 follow = followPipe(this.game, overlay);
+                discards += 1;
             }
             if (peek === 0) {
                 attempt = target;
             }
-            this.tryPlaces(overlay, this.remainingPeeks(peeks, peek), attempt, follow.position);
-            this.updateBest(attempt, follow.length);
+            this.tryPlaces(overlay, this.remainingPeeks(peeks, peek), attempt, follow.position, discards);
+            this.updateBest(attempt, follow, peeks.length, discards);
         }
     };
 
@@ -361,7 +372,7 @@ var AI = (function () {
 
         this.bestLength = 0;
         this.best = null;
-        this.tryPlaces(this.game.substrate, this.buildPeeks(), null, follow.position);
+        this.tryPlaces(this.game.substrate, this.buildPeeks(), null, follow.position, 0);
 
         if (this.best !== null) {
             return this.best;
