@@ -169,43 +169,33 @@ GENES = (function () {
     BoolGenerator.prototype.copy = function () {
         return new BoolGenerator(this.seed);
     };
+    
+    function ConsGene(type, car, cdr) {
+        this.type = type;
+        this.carGene = car;
+        this.cdrGene = cdr;
+    }
+    
+    ConsGene.prototype.express = function (context) {
+        var car = this.carGene.express(context),
+            cdr = this.cdrGene.express(context);
+        return SLUR.makeList([new SLUR.Symbol("cons"), car, cdr]);
+    };
+    
+    ConsGene.prototype.mutate = function (mutation, context, entropy) {
+        var mutantCar = mutation.mutateGene(this.type.carType, this.carGene, context, entropy),
+            mutantCdr = mutation.mutateGene(this.type.cdrType, this.cdrGene, context, entropy);
+        if (mutantCar != this.carGene || mutantCdr != this.cdrGene) {
+            return new ConsGene(this.type, mutantCar, mutantCdr);
+        }
+        return this;
+    };
+    
+    ConsGene.prototype.copy = function () {
+        return new ConsGene(this.type, this.carGene.copy(), this.cdrGene.copy());
+    };
 
 /*
-public class ConsGene implements Gene, Serializable {
-	private static final long serialVersionUID = 1421679234788666512L;
-	private Gene mCarGene;
-	private Gene mCdrGene;
-	private ConsType mType;
-
-	public ConsGene( ConsType type, Gene carGene, Gene cdrGene ) {
-		mType = type;
-		assert( mType.carType().match(carGene.type()).matches() );
-		assert( mType.cdrType().match(cdrGene.type()).matches() );
-		mCarGene = carGene;
-		mCdrGene = cdrGene;
-	}
-
-	public Obj express(Context context) {
-		Obj car = mCarGene.express(context);
-		Obj cdr = mCdrGene.express(context);
-		return Cons.list(new Symbol("cons"), car, cdr);
-	}
-
-	public Gene mutate(Mutation mutation, Context context, java.util.Random random) {
-		Gene mutatedCar = mutation.mutateGene(mType.carType(), mCarGene, context, random);
-		Gene mutatedCdr = mutation.mutateGene(mType.cdrType(), mCdrGene, context, random);
-		if( mutatedCar != mCarGene || mutatedCdr != mCdrGene ) {
-			return new ConsGene(mType, mutatedCar, mutatedCdr );
-		} else {
-			return this;
-		}
-	}
-
-	public Type type() {
-		return mType;
-	}
-}
-
 public class ListGene implements Gene, Serializable {
 	private static final long serialVersionUID = -6581933318180613868L;
 	private ListType mType;
