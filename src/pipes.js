@@ -217,7 +217,7 @@ var PIPES = (function () {
                 return true;
             }
         } else if (this.type.isSource()) {
-            if (side !== null) {
+            if (side === null) {
                 this.full[0] = true;
                 return true;
             }
@@ -752,13 +752,13 @@ var PIPES = (function () {
             TEST.isFalse(piece.isFull(null));
             TEST.isFalse(piece.isFull(Side.TOP));
 
-            var filled = piece.fill(null);
+            var filled = piece.fill(Side.BOTTOM);
             TEST.isFalse(filled);
 
             TEST.isFalse(piece.isFull(null));
             TEST.isFalse(piece.isFull(Side.BOTTOM));
 
-            filled = piece.fill(Side.BOTTOM);
+            filled = piece.fill(null);
             TEST.isTrue(filled);
 
             TEST.isTrue(piece.isFull(null));
