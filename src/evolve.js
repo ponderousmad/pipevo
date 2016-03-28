@@ -786,12 +786,12 @@ var EVOLVE = (function () {
     
     GeneBuilder.prototype.buildList = function (listType, entropy) {
         var length = this.randomizer.selectListLength(entropy),
-            list = new GENES.ListGene(listType);
+            list = [];
         while (length > 0) {
             list.push(this.buildItem(listType.elementType, entropy));
             length -= 1;
         }
-        return list;
+        return new GENES.ListGene(listType, list);
     };    
     
     GeneBuilder.prototype.buildCons = function (type, entropy) {

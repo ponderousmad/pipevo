@@ -194,107 +194,83 @@ GENES = (function () {
     ConsGene.prototype.copy = function () {
         return new ConsGene(this.type, this.carGene.copy(), this.cdrGene.copy());
     };
-
-/*
-public class ListGene implements Gene, Serializable {
-	private static final long serialVersionUID = -6581933318180613868L;
-	private ListType mType;
-	private List<Gene> mItems;
-
-	public ListGene( ListType type ) {
-		mType = type;
-		mItems = new ArrayList<Gene>();
-	}
-
-	public ListGene(ListType type, List<Gene> items) {
-		mType = type;
-		mItems = items;
-		for( Gene item : mItems ) {
-			assert( mType.elementType().match(item.type()).matches() );
+    
+    function ListGene(type, items) {
+        this.type = type;
+        this.items = items ? items : [];
+    }
+    
+    ListGene.prototype.express = function  (context) {
+		var list = Null.NULL;
+		for (var i = this.items.length - 1; i >= 0; --i) {
+			list = new SLUR.Cons(this.items[i].express(context), list);
 		}
-	}
-
-	public void add(Gene item) {
-		assert( mType.elementType().match(item.type()).matches() );
-		mItems.add(item);
-	}
-
-	public Obj express(Context context) {
-		Obj list = Null.NULL;
-		for( int i = mItems.size() - 1; i >= 0; --i) {
-			list = new Cons( mItems.get(i).express(context), list );
-		}
-		return Cons.prependList(new Symbol("list"), list);
-	}
-
-	public Gene mutate(Mutation mutation, Context context, java.util.Random random) {
-		List<Gene> mutatedItems = mItems;
-		if( mutation.reorderList(random) ) {
-			mutatedItems = new ArrayList<Gene>(mItems);
-			for( int i = 0; i < mutatedItems.size(); ++i ) {
-				int j = i + random.nextInt( mutatedItems.size() - i );
-				swapItems(mutatedItems, i, j);
+		return SLUR.prependList(new SLUR.Symbol("list"), list);
+	};
+    
+    ListGene.prototype.mutate = function (mutation, context, entropy) {
+        function swap(list, a, b) {
+            var atA = list[a];
+            list[a] = list[b];
+            list[b] = atA;
+        }
+        
+        var mutatedItems = this.items,
+            listLength = mutatedItems.length;
+        
+		if (mutation.reorderList(entropy)) {
+            mutatedItems = mutatedItems.slice();
+			for (var i = 0; i < mutatedItems.length; ++i ) {
+				var j = i + entropy.randomInt(0, mutatedItems.length - i );
+				swap(mutatedItems, i, j);
 			}
-			mutatedItems = mutateItems(mutation, context, random, mutatedItems);
-		} else if( !mItems.isEmpty() && mutation.swapListItems(random) ) {
-			mutatedItems = new ArrayList<Gene>(mItems);
-			int i = random.nextInt( mItems.size() );
-			int j = random.nextInt( mItems.size() );
-			swapItems(mutatedItems, i,j);
-			mutatedItems = mutateItems(mutation, context, random, mutatedItems);
-		} else if( mutation.mutateListLength(random) ) {
-			int listLength = mutation.geneBuilderProbabilities().selectListLength(random);
-			mutatedItems = mutateItems(mutation, context, random, mItems.subList(0, Math.min(listLength, mItems.size())));
-			for( int i = mItems.size(); i < listLength; ++i ) {
-				mutatedItems.add( mutation.createNewGene(mType.elementType(), context, random));
-			}
-		} else {
-			mutatedItems = mutateItems(mutation, context, random, mItems);
+		} else if ( mutatedItems.length > 0 && mutation.swapListItems(entropy)) {
+            mutatedItems = mutatedItems.slice();
+			var x = entropy.randomInt(0, mutatedItems.length),
+                y = entropy.randomInt(0, mutatedItems.length);
+			swap(mutatedItems, x, y);
+		} else if (mutation.mutateListLength(entropy)) {
+			listLength = mutation.geneBuilderProbabilities().selectListLength(entropy);
+            mutatedItems = mutatedItems.slice(0, Math.Min(listLength, mutatedItems.length));
 		}
-		if( mutatedItems != mItems ) {
-			return new ListGene(mType, mutatedItems);
-		} else {
-			return this;
+        mutatedItems = this.mutateItems(mutation, context, entropy, mutatedItems);
+        
+        for (var n = mutatedItems.length; n < listLength; ++n ) {
+            mutatedItems.push(mutation.createNewGene(this.type.elementType, context, entropy));
+        }
+        
+		if (mutatedItems != this.items) {
+			return new ListGene(this.type, mutatedItems);
 		}
-	}
-
-	private List<Gene> mutateItems(Mutation mutation, Context context, Random random, List<Gene> items) {
-		boolean isMutated = false;
-		List<Gene> mutated = new ArrayList<Gene>(items.size());
-		for( int i = 0; i < items.size(); ++i ) {
-			Gene item = mItems.get(i);
-			Gene mutatedItem = mutation.mutateGene(mType.elementType(), item, context, random);
-			if( mutatedItem != item ) {
+        return this;
+    };
+    
+    ListGene.prototype.mutateItems = function (mutation, context, entropy, items) {
+		var isMutated = false,
+            mutated = [];
+		for (var i = 0; i < items.length; ++i) {
+			var item = items[i],
+                mutatedItem = mutation.mutateGene(this.type.elementType, item, context, entropy);
+			if (mutatedItem != item) {
 				isMutated = true;
 			}
-			mutated.add(mutatedItem);
+			mutated.push(mutatedItem);
 		}
-		if( isMutated ) {
+		if (isMutated) {
 			return mutated;
-		} else {
-			return items;
 		}
-	}
+        return items;
+	}; 
 
-	private static void swapItems(List<Gene> items, int i, int j) {
-		Gene temp = items.get(i);
-		items.set(i, items.get(j));
-		items.set(j, temp);
-	}
-
-	public Type type() {
-		return mType;
-	}
-
-	public Gene copy() {
-		ListGene result = new ListGene( mType );
-		for( Gene item : mItems ) {
-			result.add(item);
+	ListGene.prototype.copy = function () {
+		var items = [];
+		for (var i = 0; i < this.items.length; ++i) {
+			items.push(this.items[i].copy());
 		}
-		return result;
-	}
-}
+		return new ListGene(this.type, items);
+	};
 
+/*
 public class LookupGene implements Gene, Serializable {
 	public class LookupException extends RuntimeException {
 		private static final long serialVersionUID = -7535861336578339187L;
