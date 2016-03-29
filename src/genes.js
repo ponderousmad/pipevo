@@ -1,4 +1,4 @@
-GENES = (function () {
+var GENES = (function () {
     "use strict";
     
     var P = SLUR_TYPES.Primitives;
@@ -50,7 +50,7 @@ GENES = (function () {
     };
     
     FixNumGenerator.prototype.mutate = function (mutation, context, entropy) {
-        var seed = mutateSeed(mutation, entropy);
+        var seed = mutation.mutateSeed(mutation, entropy);
         var range = null;
         if (mutation.mutateFixnumRange(entropy)) {
             range = mutation.newFixnumRange(this.range, entropy);
@@ -80,7 +80,7 @@ GENES = (function () {
     };
     
     RealGenerator.prototype.mutate = function (mutation, context, entropy) {
-        var seed = mutateSeed(mutation, entropy);
+        var seed = mutation.mutateSeed(mutation, entropy);
         var range = null;
         if (mutation.mutateRealRange(entropy)) {
             range = mutation.newRealRange(this.range, entropy);
@@ -155,7 +155,7 @@ GENES = (function () {
     }
     
     BoolGenerator.prototype.express = function (context) {
-		return seed % 2 == 1 ? True.TRUE : Null.NULL;
+		return this.seed % 2 == 1 ? SLUR.TRUE : SLUR.NULL;
     };
     
     BoolGenerator.prototype.mutate = function (mutation, context, entropy) {
@@ -201,7 +201,7 @@ GENES = (function () {
     }
     
     ListGene.prototype.express = function  (context) {
-		var list = Null.NULL;
+		var list = SLUR.NULL;
 		for (var i = this.items.length - 1; i >= 0; --i) {
 			list = new SLUR.Cons(this.items[i].express(context), list);
 		}
@@ -269,68 +269,50 @@ GENES = (function () {
 		}
 		return new ListGene(this.type, items);
 	};
+    
+    function LookupGene(type, symbolName, seed) {
+        this.type = type;
+        this.symbolName = symbolName;
+        this.seed = seed;
+    }
+    
+    LookupGene.prototype.express = function (context) {
+        var matching = context.findMatching(this.type),
+            result = this.findSymbol(matching, this.symbolName, this.type);
+        if (result !== null) {
+            return result;
+        }
+        
+        if (matching.length > 0) {
+            result = matching[this.seed % matching.length];
+            this.symbolName = result.name;
+            return result;
+        }
+        throw "No symbol matching type.";
+    };
+    
+    LookupGene.prototype.findSymbol = function (list, symbolName, type) {
+        for (var i = 0; i < list.length; ++i) {
+            var item = list[i];
+            if (item.name === symbolName) {
+                return item;
+            }
+        }
+        return null;
+    };
+    
+    LookupGene.prototype.mutate = function (mutation, context, entropy) {
+        if (mutation.mutateSeed(entropy)) {
+            return new LookupGene(this.type, null, entropy.randomSeed());
+        }
+        return this;
+    };
+    
+    LookupGene.prototype.copy = function () {
+        return new LookupGene(this.type, this.symbolName, this.seed);
+    };
 
 /*
-public class LookupGene implements Gene, Serializable {
-	public class LookupException extends RuntimeException {
-		private static final long serialVersionUID = -7535861336578339187L;
-
-		public LookupException( String message ) {
-			super( message );
-		}
-	}
-
-	private static final long serialVersionUID = -4519472702016212638L;
-	private String mSymbolName;
-	private long mSeed;
-	private Type mType;
-
-	public LookupGene(Type type, String symbolName, long seed) {
-		mType = type;
-		mSymbolName = symbolName;
-		mSeed = seed;
-	}
-
-	public Obj express(Context context) {
-		List<Symbol> matching = context.findMatching(mType);
-		Symbol result = findSymbol( matching, mSymbolName, mType );
-		if( result != null ) {
-			return result;
-		}
-		if( !matching.isEmpty() ) {
-			result = matching.get( (int) (Math.abs(mSeed) % matching.size()) );
-			mSymbolName = result.name();
-			return result;
-		}
-		throw new LookupException("Lookup type mismatch");
-	}
-
-	private Symbol findSymbol(List<Symbol> symbolTypes, String symbolName, Type type) {
-		for( Symbol s : symbolTypes ) {
-			if( s.name().equals(symbolName) ) {
-				return s;
-			}
-		}
-		return null;
-	}
-
-	public Type type() {
-		return mType;
-	}
-
-	public Gene mutate(Mutation mutation, Context context, java.util.Random random) {
-		if( mutation.mutateSeed(random) ) {
-			return new LookupGene(mType, "", random.nextLong());
-		} else {
-			return this;
-		}
-	}
-
-	public Gene copy() {
-		return new LookupGene( mType, mSymbolName, mSeed );
-	}
-}
-
 public class IfGene implements Gene, Serializable {
 	private static final long serialVersionUID = -5240925814305025173L;
 	Type mResultType;
