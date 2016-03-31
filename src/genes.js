@@ -341,70 +341,46 @@ var GENES = (function () {
     IfGene.prototype.copy = function () {
         return new IfGene(this.type, this.predicateGene, this.thenGene, this.elseGene);
     };
+    
+    function ApplicationGene(functionGene, args) {
+        this.type = functionGene.type;
+        this.functionGene = functionGene;
+        this.args = args;
+    }
+    
+    ApplicationGene.prototype.express = function (context) {
+        return new SLUR.Cons(
+            this.functionGene.express(context),
+            this.generateArguments(context, 0)
+        );
+    };
+    
+    ApplicationGene.prototype.generateArguments = function (context, offset) {
+        if (offset >= this.args.length) {
+            return SLUR.NULL;
+        }
+        return new SLUR.Cons(this.args[offset].express(context), this.generateArguments(context, offset + 1));
+    };
+    
+    ApplicationGene.prototype.mutate = function (mutation, context, entropy) {
+        var mutatedFunction = mutation.mutateGene(this.type, this.functionGene, context, entropy),
+            mutated = mutatedFunction != this.functionGene,
+            mutatedArgs = [];
+        for (var i = 0; i < this.args.length; ++i) {
+            var arg = this.args[i];
+            mutatedArgs.push(mutation.mutateGene(this.type.argumentTypes[i], arg, context, entropy));
+            if (mutatedArgs[i] != arg) {
+                mutated = true;
+            }
+        }
+        
+        if (mutated) {
+            return new ApplicationGene(mutatedFunction, mutatedArgs);
+        }
+        return this;
+    };
 
 /*
-public class ApplicationGene implements Gene, Serializable {
-	private static final long serialVersionUID = -5034193235992065191L;
-	FunctionType mType;
-	private Gene mFunction;
-	Gene[] mArguments;
-
-	public ApplicationGene( Gene function, Gene[] arguments ) {
-		assert( function.type() instanceof FunctionType );
-		mType = (FunctionType)function.type();
-		setup(function, arguments);
-	}
-
-	public ApplicationGene( FunctionType type, Gene function, Gene[] arguments ) {
-		assert( type.match(function.type()).matches() );
-		mType = type;
-		setup(function, arguments);
-	}
-
-	private void setup(Gene function, Gene[] arguments) {
-		mFunction = function;
-		mArguments = arguments;
-
-		// Make sure we have enough argument genes.
-		assert( mType.argumentTypes().length <= arguments.length );
-	}
-
-	public Obj express(Context context) {
-		return new Cons(
-			mFunction.express(context),
-			generateArguments(context,0)
-		);
-	}
-
-	private Obj generateArguments( Context context, int offset ) {
-		if(offset >= mArguments.length) {
-			return Null.NULL;
-		}
-		return new Cons(mArguments[offset].express(context), generateArguments(context, offset + 1));
-	}
-
-	public Type type() {
-		return mType.returnType();
-	}
-
-	public Gene mutate(Mutation mutation, Context context, java.util.Random random) {
-		Gene mutatedFunction = mutation.mutateGene(mType, mFunction, context, random);
-		boolean mutated = mutatedFunction != mFunction;
-		Gene[] mutatedArgs = new Gene[mArguments.length];
-		for( int i = 0; i < mArguments.length; ++i ) {
-			mutatedArgs[i] = mutation.mutateGene(mType.argumentTypes()[i], mArguments[i], context, random);
-			if( mutatedArgs[i] != mArguments[i] ) {
-				mutated = true;
-			}
-		}
-		if( mutated ) {
-			return new ApplicationGene(mType, mutatedFunction, mutatedArgs);
-		} else {
-			return this;
-		}
-	}
-}
-
 public class DemaybeGene implements Gene, Serializable {
 	private static final long serialVersionUID = 4908664511966073626L;
 	private Maybe mType;
