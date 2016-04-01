@@ -379,53 +379,39 @@ var GENES = (function () {
         }
         return this;
     };
+    
+    function DemaybeGene(maybeGene, concreteGene, varName) {
+		this.type = maybeGene.type;
+		this.maybeGene = maybeGene;
+		this.concreteGene = concreteGene;
+		this.varName = varName;
+    }
+    
+    DemaybeGene.prototype.express = function (context) {
+		var maybeSym = new SLUR.Symbol("dm_" + this.varName),
+            binding = SLUR.makeList([maybeSym, this.maybeGene.express(context)]),
+            body = new SLUR.IfExpression(maybeSym, maybeSym, this.concreteGene.express(context));
+		return SLUR.makeList(new SLUR.Symbol("let"), SLUR.makeList(binding), body);
+	};
+    
+    DemaybeGene.prototype.mutate = function (mutation, context, entropy) {
+        var mutatedMaybe = null;
+        do {
+            mutatedMaybe = mutation.mutateGene(this.type, this.maybeGene, context, entropy);
+        } while(!SLUR_TYPES.isMaybe(mutatedMaybe.type));
+        
+        var mutatedConcrete = mutation.mutateGene(this.type, this.concreteGene, context, entropy);
+        if (this.maybeGene != mutatedMaybe || this.concreteGene != mutatedConcrete) {
+            return new DemaybeGene(mutatedMaybe, mutatedConcrete, this.varName);
+        }
+        return this;
+    };
+    
+    DemaybeGene.prototype.copy = function() {
+        return new DemaybeGene(this.maybeGene, this.concreteGene, this.varName);
+    };
 
 /*
-public class DemaybeGene implements Gene, Serializable {
-	private static final long serialVersionUID = 4908664511966073626L;
-	private Maybe mType;
-	private Gene mMaybeGene;
-	private Gene mConcreteGene;
-	private String mVarName;
-
-	public DemaybeGene(Gene maybeGene, Gene concreteGene, String varName) {
-		assert( maybeGene.type() instanceof Maybe );
-		mType = (Maybe)maybeGene.type();
-		mMaybeGene = maybeGene;
-		mConcreteGene = concreteGene;
-		mVarName = varName;
-	}
-
-	public Obj express(Context context) {
-		Symbol maybeSym = maybeSymbol();
-		Cons binding = Cons.list(maybeSym, mMaybeGene.express(context));
-		Obj body = new IfExpression(maybeSym, maybeSym, mConcreteGene.express(context));
-		return Cons.list(new Symbol("let"), Cons.list(binding), body);
-	}
-
-	private Symbol maybeSymbol() {
-		return new Symbol("dm_" + mVarName);
-	}
-
-	public Gene mutate(Mutation mutation, Context context, java.util.Random random) {
-		Gene mutatedMaybe;
-		do {
-			mutatedMaybe = mutation.mutateGene(mType, mMaybeGene, context, random);
-		} while( !(mutatedMaybe.type() instanceof Maybe) );
-
-		Gene mutatedConcrete = mutation.mutateGene(type(), mConcreteGene, context, random);
-
-		if( mMaybeGene != mutatedMaybe || mConcreteGene != mutatedConcrete ) {
-			return new DemaybeGene(mutatedMaybe, mutatedConcrete, mVarName);
-		} else {
-			return this;
-		}
-	}
-
-	public Type type() {
-		return mType.type();
-	}
-}
 
 public class PassMaybeGene implements Gene, Serializable {
 	private static final long serialVersionUID = 7584683815234892086L;
