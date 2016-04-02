@@ -1,6 +1,80 @@
 var GENES = (function () {
     "use strict";
 
+    function Context(registry) {
+        this.registry = registry;
+        this.chromosomes = [];
+        this.symbolTable = [];
+    }
+    
+    Context.prototype.addChromosome = function (chromosome) {
+        this.chromosomes.push(chromosome);
+    };
+    
+    Context.prototype.findMatching = function (type) {
+        type = SLUR_TYPES.makeParametersUnique(type);
+        var matching = this.registry.findMatch(type);
+        for (var c = 0; c < this.chromosomes.length; ++c) {
+            var genes = this.chromosomes[c].namedGenes();
+            for (var g = 0; g < genes.length; ++g) {
+                var gene = genes[g];
+                if (gene.gene.type.match(type).matches()) {
+                    matching.push(new SLUR.Symbol(gene.name));
+                }
+            }
+        }
+        for (var s = 0; s < this.symbolTable.length; ++s) {
+            var entry = this.symbolTable[s];
+            if (type.match(entry.type).matches()) {
+                matching.addEntry(entry.symbol);
+            }
+        }
+        return matching;
+    };
+    
+    Context.prototype.pushSymbol = function (name, type) {
+        this.symbolTable.push({symbol: new SLUR.Symbol(name), type: type});
+    };
+    
+    Context.prototype.popSymbols = function (count) {
+        this.symbolTable.splice(this.symbolTable.length - count, count);
+    };
+    
+    Context.prototype.findFunctionReturning = function (returnType) {
+        returnType = SLUR_TYPES.makeParametersUnique(returnType);
+        var matching = this.registry.findFunctionReturning(returnType);
+        for (var c = 0; c < this.chromosomes.length; ++c) {
+            var genes = this.chromosomes[c].namedGenes();
+            for (var g = 0; g < genes.length; ++g) {
+                var gene = genes[g];
+                if (SLUR_TYPES.isFunctionType(gene.gene.type)) {
+                    var match = returnType.match(gene.gene.type.returnType);
+                    if(match.matches()) {
+                        matching.push({symbol: new SLUR.Symbol(gene.name), type: gene.gene.type.substitute(match.mappings)});
+                    }
+                }
+            }
+        }
+        for (var s = 0; s < this.symbolTable.length; ++s) {
+            var entry = this.symbolTable[s];
+            if (SLUR_TYPES.isFunctionType(entry.type)) {
+                var entryMatch = returnType.match(entry.type.returnType);
+                if (entryMatch.matches()) {
+                    matching.push({symbol: entry.symbol, type: entry.type.substitute(entryMatch.mappings)});
+                }
+            }
+        }
+    };
+    
+    Context.prototype.findConcreteTypes = function() {
+        var result = [];
+        for (var s = 0; s < this.symbolTable.length; ++s) {
+            var entry = this.symbolTable[s];
+            entry.type.findConcrete(result);
+        }
+        return result;
+    };
+    
     var P = SLUR_TYPES.Primitives;
 
     function NullGene() {

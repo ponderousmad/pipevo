@@ -409,81 +409,7 @@ var EVOLVE = (function () {
         population.crowd = data.crowd;
         return population;
     }
-    
-    function Context(registry) {
-        this.registry = registry;
-        this.chromosomes = [];
-        this.symbolTable = [];
-    }
-    
-    Context.prototype.addChromosome = function (chromosome) {
-        this.chromosomes.push(chromosome);
-    };
-    
-    Context.prototype.findMatching = function (type) {
-        type = SLUR_TYPES.makeParametersUnique(type);
-        var matching = this.registry.findMatch(type);
-        for (var c = 0; c < this.chromosomes.length; ++c) {
-            var genes = this.chromosomes[c].namedGenes();
-            for (var g = 0; g < genes.length; ++g) {
-                var gene = genes[g];
-                if (gene.gene.type.match(type).matches()) {
-                    matching.push(new SLUR.Symbol(gene.name));
-                }
-            }
-        }
-        for (var s = 0; s < this.symbolTable.length; ++s) {
-            var entry = this.symbolTable[s];
-            if (type.match(entry.type).matches()) {
-                matching.addEntry(entry.symbol);
-            }
-        }
-        return matching;
-    };
-    
-    Context.prototype.pushSymbol = function (name, type) {
-        this.symbolTable.push({symbol: new SLUR.Symbol(name), type: type});
-    };
-    
-    Context.prototype.popSymbols = function (count) {
-        this.symbolTable.splice(this.symbolTable.length - count, count);
-    };
-    
-    Context.prototype.findFunctionReturning = function (returnType) {
-        returnType = SLUR_TYPES.makeParametersUnique(returnType);
-        var matching = this.registry.findFunctionReturning(returnType);
-        for (var c = 0; c < this.chromosomes.length; ++c) {
-            var genes = this.chromosomes[c].namedGenes();
-            for (var g = 0; g < genes.length; ++g) {
-                var gene = genes[g];
-                if (SLUR_TYPES.isFunctionType(gene.gene.type)) {
-                    var match = returnType.match(gene.gene.type.returnType);
-                    if(match.matches()) {
-                        matching.push({symbol: new SLUR.Symbol(gene.name), type: gene.gene.type.substitute(match.mappings)});
-                    }
-                }
-            }
-        }
-        for (var s = 0; s < this.symbolTable.length; ++s) {
-            var entry = this.symbolTable[s];
-            if (SLUR_TYPES.isFunctionType(entry.type)) {
-                var entryMatch = returnType.match(entry.type.returnType);
-                if (entryMatch.matches()) {
-                    matching.push({symbol: entry.symbol, type: entry.type.substitute(entryMatch.mappings)});
-                }
-            }
-        }
-    };
-    
-    Context.prototype.findConcreteTypes = function() {
-        var result = [];
-        for (var s = 0; s < this.symbolTable.length; ++s) {
-            var entry = this.symbolTable[s];
-            entry.type.findConcrete(result);
-        }
-        return result;
-    };
-    
+
     var BuildType = {
         BRANCH: 1,
         APPLICATION: 2,
@@ -878,7 +804,7 @@ var EVOLVE = (function () {
     
     GenomeBuilder.prototype.build = function (genomeStructure, entropy) {
         var genome = new Genome(),
-            context = new Context(this.registry),
+            context = new GENES.Context(this.registry),
             geneBuilder = new GeneBuilder(this.typeBuilder, this.randomizer, context);
         for (var c = 0; c < genomeStructure.length; ++c) {
             genome.add(this.buildChromosome(context, geneBuilder, genomeStructure[c], entropy));
@@ -1120,7 +1046,7 @@ var EVOLVE = (function () {
     }
     
     Mutator.prototype.mutate = function (genome, registry, allowMacroMutation, entropy, target) {
-        var context = new Context(registry),
+        var context = new GENES.Context(registry),
             isMutated = false,
             mutated = new Genome(),
             addChromosome = allowMacroMutation && this.mutation.addChromosome(entropy),
@@ -1579,7 +1505,7 @@ public class Evaluator {
         public void express() {
             try {
                 Genome genome = mTask.genome();
-                Context context = new Context(mRunner.registry());
+                Context context = new GENES.Context(mRunner.registry());
                 List<Phene> phenome = genome.express(context);
                 mTask.setView(new GenomeView(phenome));
                 Environment env = bind(phenome);
