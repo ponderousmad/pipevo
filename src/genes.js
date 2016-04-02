@@ -410,120 +410,105 @@ var GENES = (function () {
     DemaybeGene.prototype.copy = function() {
         return new DemaybeGene(this.maybeGene, this.concreteGene, this.varName);
     };
+    
+    function PassMaybeGene(type, functionGene, argGenes, varName) {
+        this.type = type;
+        this.functionType = functionGene.type;
+        if (!this.type.match(this.functionType.returnType).matches()) {
+            throw "Mismatch between type and function type.";
+        }
+        this.argGenes = argGenes;
+        this.varName = varName;
+    }
+    
+    PassMaybeGene.prototype.express = function (context) {
+        var bindings = this.buildBindings(context, 0),
+            args = this.buildArguments(0),
+            application = SLUR.prependList(this.function.express(context), args),
+            predicate = this.buildPredicate(),
+            body = null;
+        if (SLUR.isNull(predicate)) {
+            body = SLUR.makeList(application);
+        } else {
+            body = SLUR.makeList(new SLUR.IfExpression(predicate, application, SLUR.NULL));
+        }
+        return SLUR.prependList(new SLUR.Symbol("let"), bindings, body);
+    };
 
-/*
-
-public class PassMaybeGene implements Gene, Serializable {
-	private static final long serialVersionUID = 7584683815234892086L;
-	private FunctionType mFunctionType;
-	private Maybe mType;
-	private Gene mFunction;
-	private Gene[] mArguments;
-	private String mVarName;
-
-	public PassMaybeGene( Type type, Gene function, Gene[] arguments, String varName ) {
-		assert( type instanceof Maybe );
-		mType = (Maybe)type;
-		assert( function.type() instanceof FunctionType );
-		mFunctionType = (FunctionType)function.type();
-		assert( mType.match(mFunctionType.returnType()).matches() );
-		assert( arguments.length == mFunctionType.argumentTypes().length );
-		mFunction = function;
-		mArguments = arguments;
-		mVarName = varName;
-	}
-
-	public Obj express(Context context) {
-		Obj bindings = buildBindings(context, 0);
-
-		Obj arguments = buildArguments(0);
-		Cons application = Cons.prependList(mFunction.express(context), arguments);
-
-		Obj predicate = buildPredicate();
-		Cons body;
-		if( predicate.isNull() ) {
-			body = Cons.list(application);
-		} else {
-			body = Cons.list(new IfExpression(predicate, application, Null.NULL));
-		}
-
-		return Cons.prependList(new Symbol("let"), bindings, body);
-	}
-
-	private Obj buildArguments( int index ) {
-		if( index >= mArguments.length ) {
-			return Null.NULL;
-		}
-		return Cons.prependList(varSymbol(index), buildArguments(index+1));
-	}
-
-	private Symbol varSymbol(int index) {
-		return new Symbol("pm_" + mVarName + Integer.toString(index));
-	}
-
-	private Obj buildPredicate() {
-		Obj checks = buildPredicate(0);
-		if( checks.isCons() ) {
-			return Cons.prependList(new Symbol("and"), checks);
+    PassMaybeGene.prototype.buildArguments = function (index) {
+        if (index >= this.argGenes.length) {
+            return SLUR.NULL;
+        }
+        return SLUR.prependList(this.varSymbol(index), this.buildArguments(index + 1));
+    };
+    
+    PassMaybeGene.prototype.varSymbol = function (index) {
+		return new SLUR.Symbol("pm_" + this.varName + index);
+    };
+    
+    PassMaybeGene.prototype.buildPredicate = function () {
+		var checks = this.buildPredicateN(0);
+		if ( SLUR.isCons(checks)) {
+			return SLUR.prependList(new SLUR.Symbol("and"), checks);
 		}
 		return checks;
-	}
-
-	private Obj buildPredicate(int index) {
-		if( index >= mArguments.length ) {
-			return Null.NULL;
+    };
+    
+    PassMaybeGene.prototype.buildPredicateN = function (index) {
+		if (index >= this.argGenes.length) {
+			return SLUR.NULL;
 		}
-		Obj rest = buildPredicate(index + 1);
-		if( !check(index) ) {
+		var rest = this.buildPredicateN(index + 1);
+		if (!this.check(index)) {
 			return rest;
 		}
-		Obj self = varSymbol(index);
-		if( rest.isNull() ) {
-			return self;
+		var symbol = this.varSymbol(index);
+		if (SLUR.isNull(rest)) {
+			return symbol;
 		}
-		if( !rest.isCons() ) {
-			rest = Cons.list(rest);
+		if (!SLUR.isCons(rest)) {
+			rest = SLUR.makeList(rest);
 		}
-		return Cons.prependList(self, rest);
-	}
-
-	private boolean check(int index) {
-		return !(mFunctionType.argumentTypes()[index] instanceof Maybe);
-	}
-
-	private Obj buildBindings(Context context, int index) {
-		if( index >= mArguments.length ) {
-			return Null.NULL;
+		return SLUR.prependList(symbol, rest);
+    };
+    
+    PassMaybeGene.prototype.check = function (index) {
+		return !(SLUR_TYPES.isMaybe(this.functionType.argumentTypes[index]));
+	};
+    
+    PassMaybeGene.prototype.buildBindings = function (context, index) {
+		if (index >= this.argGenes.length) {
+			return SLUR.NULL;
 		}
-		return Cons.prependList(buildBinding(context, index), buildBindings(context,index+1));
-	}
-
-	private Cons buildBinding(Context context, int index) {
-		return Cons.list(varSymbol(index), mArguments[index].express(context));
-	}
-
-	public Gene mutate(Mutation mutation, Context context, java.util.Random random) {
-		Gene mutatedFunction = mutation.mutateGene(mFunctionType, mFunction, context, random);
-		boolean isMutated = mutatedFunction != mFunction;
-		Gene[] mutatedArgs = new Gene[mArguments.length];
-		for( int i = 0; i < mArguments.length; ++i ) {
-			mutatedArgs[i] = mutation.mutateGene(mFunctionType.argumentTypes()[i], mArguments[i], context, random);
-			if( mutatedArgs[i] != mArguments[i] ) {
+		return SLUR.prependList(this.buildBinding(context, index), this.buildBindings(context, index + 1));
+    };
+    
+    PassMaybeGene.prototype.buildBinding = function (context, index) {
+		return SLUR.makeList([this.varSymbol(index), this.arguments[index].express(context)]);
+    };
+    
+    PassMaybeGene.prototype.mutate = function (mutation, context, entropy) {
+		var mutatedFunction = mutation.mutateGene(this.functionType, this.functionGene, context, entropy),
+            isMutated = mutatedFunction != this.functionGene,
+            mutatedArgs = [];
+		for (var i = 0; i < this.argGenes.length; ++i) {
+			mutatedArgs[i] = mutation.mutateGene(this.functionType.argumentTypes[i], this.argGenes[i], context, entropy);
+			if (mutatedArgs[i] != this.argGenes[i]) {
 				isMutated = true;
 			}
 		}
-		if( isMutated ) {
-			return new PassMaybeGene(mType, mutatedFunction, mutatedArgs, mVarName);
+		if (isMutated) {
+			return new PassMaybeGene(this.type, mutatedFunction, mutatedArgs, this.varName);
 		} else {
 			return this;
 		}
-	}
-
-	public Type type() {
-		return mType;
-	}
-}
-
+    };
+    
+    PassMaybeGene.prototype.copy = function () {
+        return new PassMaybeGene(this.type, this.functionGene, this.argGenes, this.varName);
+    };
+    
+/*
 public class FunctionGene implements Gene, Serializable {
 	private static final long serialVersionUID = -8494109078787886616L;
 	private FunctionType mType;
