@@ -587,166 +587,166 @@ var GENES = (function () {
 public class NullGeneTest extends TestCase {
 	public void testType() {
 		Gene gene = new NullGene();
-		assertEquals(gene.type(), BaseType.NULL);
+		TEST.equals(gene.type(), P.NULL);
 	}
 
 	public void testExpress() {
 		Gene gene = new NullGene();
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertTrue(phene.isNull());
+		TEST.isNotNull(phene);
+		TEST.isTrue(phene.isNull());
 	}
 }
 
 public class TrueGeneTest extends TestCase {
 	public void testType() {
 		Gene gene = new TrueGene();
-		assertEquals(gene.type(), BaseType.TRUE);
+		TEST.equals(gene.type(), P.TRUE);
 	}
 
 	public void testExpress() {
 		Gene gene = new TrueGene();
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertTrue(phene.equals(True.TRUE));
+		TEST.isNotNull(phene);
+		TEST.isTrue(phene.equals(True.TRUE));
 	}
 }
 
 public class FixNumGeneratorTest extends TestCase {
 	public void testType() {
 		FixNumGenerator gene = new FixNumGenerator(1);
-		assertEquals(gene.type(),BaseType.FIXNUM);
+		TEST.equals(gene.type(),P.FIXNUM);
 	}
 
 	public void testExpress() {
 		FixNumGenerator gene = new FixNumGenerator(102,0,100);
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertTrue(phene instanceof FixNum);
-		assertEquals(((FixNum)phene).value(),1);
+		TEST.isNotNull(phene);
+		TEST.isTrue(phene instanceof FixNum);
+		TEST.equals(((FixNum)phene).value(),1);
 	}
 }
 
 public class RealGeneratorTest extends TestCase {
 	public void testType() {
 		RealGenerator gene = new RealGenerator(1);
-		assertEquals(gene.type(),BaseType.REAL);
+		TEST.equals(gene.type(),P.REAL);
 	}
 
 	public void testExpress() {
 		RealGenerator gene = new RealGenerator(101,new RealGenerator.Range(0,100));
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertTrue(phene instanceof Real);
+		TEST.isNotNull(phene);
+		TEST.isTrue(phene instanceof Real);
 		double value = ((Real)phene).value();
-		assertTrue( 0 <= value && value <= 100 );
+		TEST.isTrue( 0 <= value && value <= 100 );
 	}
 }
 
 public class SymbolGeneratorTest extends TestCase {
 	public void testType() {
 		SymbolGenerator gene = new SymbolGenerator(1L,5);
-		assertEquals(gene.type(),BaseType.SYMBOL);
+		TEST.equals(gene.type(),P.SYMBOL);
 	}
 
 	public void testExpress() {
 		SymbolGenerator gene = new SymbolGenerator(1L,5);
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertTrue(phene instanceof Symbol);
+		TEST.isNotNull(phene);
+		TEST.isTrue(phene instanceof Symbol);
 		Symbol symbol = (Symbol)phene;
-		assertNotNull(symbol);
-		assertEquals(5,symbol.name().length());
+		TEST.isNotNull(symbol);
+		TEST.equals(5,symbol.name().length());
 	}
 }
 
 public class StringGeneratorTest extends TestCase {
 	public void testType() {
 		StringGenerator gene = new StringGenerator(1L,5);
-		assertEquals(gene.type(),BaseType.STRING);
+		TEST.equals(gene.type(),P.STRING);
 	}
 
 	public void testExpress() {
 		StringGenerator gene = new StringGenerator(1L,5);
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertTrue(phene instanceof StringObj);
+		TEST.isNotNull(phene);
+		TEST.isTrue(phene instanceof StringObj);
 		String value = ((StringObj)phene).value();
-		assertNotNull(value);
-		assertEquals(value.length(),5);
+		TEST.isNotNull(value);
+		TEST.equals(value.length(),5);
 	}
 }
 
 public class BoolGeneratorTest extends TestCase {
 	public void testType() {
 		Gene gene = new BoolGenerator(1);
-		assertEquals(gene.type(),BaseType.BOOL);
+		TEST.equals(gene.type(),P.BOOL);
 	}
 
 	public void testExpress() {
 		Gene gene = new BoolGenerator(new Random().nextLong());
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertTrue(phene.isNull() || phene.equals(True.TRUE));
+		TEST.isNotNull(phene);
+		TEST.isTrue(phene.isNull() || phene.equals(True.TRUE));
 	}
 }
 
 public class ConsGeneTest extends TestCase {
 	public void testType() {
-		Gene gene = new ConsGene(new ConsType(BaseType.NULL,BaseType.NULL), new NullGene(), new NullGene());
-		assertEquals(gene.type(), new ConsType(BaseType.NULL,BaseType.NULL));
+		Gene gene = new ConsGene(new ConsType(P.NULL,P.NULL), new NullGene(), new NullGene());
+		TEST.equals(gene.type(), new ConsType(P.NULL,P.NULL));
 	}
 
 	public void testExpress() {
-		Gene gene = new ConsGene(new ConsType(BaseType.NULL,BaseType.NULL), new NullGene(), new NullGene());
+		Gene gene = new ConsGene(new ConsType(P.NULL,P.NULL), new NullGene(), new NullGene());
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertEquals(phene.toString(),"(cons () ())");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(),"(cons () ())");
 	}
 }
 
 public class ListGeneTest extends TestCase {
 	public void testType() {
-		Gene gene = new ListGene(new ListType(BaseType.FIXNUM));
-		assertEquals(gene.type(), new ListType(BaseType.FIXNUM));
+		Gene gene = new ListGene(new ListType(P.FIXNUM));
+		TEST.equals(gene.type(), new ListType(P.FIXNUM));
 	}
 
 	public void testExpress() {
-		ListGene gene = new ListGene(new ListType(BaseType.FIXNUM));
+		ListGene gene = new ListGene(new ListType(P.FIXNUM));
 		Context c = new Context(new ObjectRegistry());
 		Obj phene = gene.express(c);
-		assertNotNull(phene);
-		assertEquals(phene.toString(),"(list)");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(),"(list)");
 
 		gene.add(new FixNumGenerator(0,0,2));
 		phene = gene.express(c);
-		assertNotNull(phene);
-		assertEquals(phene.toString(),"(list 0)");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(),"(list 0)");
 
 		gene.add(new FixNumGenerator(1,0,2));
 		phene = gene.express(c);
-		assertNotNull(phene);
-		assertEquals(phene.toString(),"(list 0 1)");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(),"(list 0 1)");
 
 		gene.add(new FixNumGenerator(2,0,2));
 		phene = gene.express(c);
-		assertNotNull(phene);
-		assertEquals(phene.toString(),"(list 0 1 2)");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(),"(list 0 1 2)");
 	}
 
 	public void testCopy() {
-		ListGene gene = new ListGene(new ListType(BaseType.FIXNUM));
+		ListGene gene = new ListGene(new ListType(P.FIXNUM));
 		gene.add(new FixNumGenerator(0,0,2));
 		gene.add(new FixNumGenerator(1,0,2));
 		gene.add(new FixNumGenerator(2,0,2));
 
 		Gene copy = gene.copy();
-		assertNotSame(gene,copy);
+		TEST.isNotSame(gene,copy);
 
 		Context c = new Context(new ObjectRegistry());
 		Obj phene = gene.express(c);
 		Obj copyPhene = copy.express(c);
-		assertEquals(phene.toString(),copyPhene.toString());
+		TEST.equals(phene.toString(),copyPhene.toString());
 	}
 }
 
@@ -759,15 +759,15 @@ public class LookupGeneTest extends TestCase {
 	public void testType() {
 		Gene gene = buildLookupGene();
 		Parameter q = new Parameter();
-		assertTrue(gene.type().match(new FunctionType(new ConsType(q,q), new Type[]{q,q})).matches());
+		TEST.isTrue(gene.type().match(new FunctionType(new ConsType(q,q), new Type[]{q,q})).matches());
 	}
 
 	public void testExpress() {
 		Gene gene = buildLookupGene();
 		Context c = buildContext();
 		Obj result = gene.express(c);
-		assertNotNull(result);
-		assertEquals(result.toString(),"cons");
+		TEST.isNotNull(result);
+		TEST.equals(result.toString(),"cons");
 	}
 
 	private Context buildContext() {
@@ -781,117 +781,117 @@ public class LookupGeneTest extends TestCase {
 public class IfGeneTest extends TestCase {
 	public void testType() {
 		Gene ifGene = new IfGene(
-				BaseType.FIXNUM,
+				P.FIXNUM,
 				new NullGene(),
 				new FixNumGenerator(0,0,1),
 				new FixNumGenerator(1,0,1)
 		);
-		assertEquals(ifGene.type(),BaseType.FIXNUM);
+		TEST.equals(ifGene.type(),P.FIXNUM);
 	}
 
 	public void testExpress() {
 		Context c = new Context(new ObjectRegistry());
 
 		Gene gene = new IfGene(
-				BaseType.FIXNUM,
+				P.FIXNUM,
 				new NullGene(),
 				new FixNumGenerator(0,0,1),
 				new FixNumGenerator(1,0,1)
 		);
 
 		Obj result = gene.express(c);
-		assertNotNull(result);
-		assertEquals("(if () 0 1)", result.toString());
+		TEST.isNotNull(result);
+		TEST.equals("(if () 0 1)", result.toString());
 	}
 }
 
 public class ApplicationGeneTest extends TestCase {
 	public void testType() {
-		FunctionType type = new FunctionType(BaseType.FIXNUM,new Type[]{BaseType.FIXNUM});
+		FunctionType type = new FunctionType(P.FIXNUM,new Type[]{P.FIXNUM});
 		Gene gene = new ApplicationGene(new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true), new Gene[]{new FixNumGenerator(0,0,1)});
-		assertEquals(gene.type(), BaseType.FIXNUM);
+		TEST.equals(gene.type(), P.FIXNUM);
 	}
 
 	public void testExpress() {
-		FunctionType type = new FunctionType(BaseType.FIXNUM,new Type[]{BaseType.FIXNUM});
+		FunctionType type = new FunctionType(P.FIXNUM,new Type[]{P.FIXNUM});
 		Gene gene = new ApplicationGene(new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true), new Gene[]{new FixNumGenerator(0,0,1)});
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertEquals(phene.toString(), "((lambda (lp0) 1) 0)");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(), "((lambda (lp0) 1) 0)");
 	}
 }
 
 public class DemaybeGeneTest extends TestCase {
 	public void testType() {
-		Gene ifGene = new IfGene(new Maybe(BaseType.FIXNUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
+		Gene ifGene = new IfGene(new Maybe(P.FIXNUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
 		Gene gene = new DemaybeGene(ifGene, new FixNumGenerator(0,0,1), "a");
-		assertEquals(gene.type(), BaseType.FIXNUM);
+		TEST.equals(gene.type(), P.FIXNUM);
 	}
 
 	public void testExpress() {
-		Gene ifGene = new IfGene(new Maybe(BaseType.FIXNUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
+		Gene ifGene = new IfGene(new Maybe(P.FIXNUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
 		Gene gene = new DemaybeGene(ifGene, new FixNumGenerator(0,0,1), "a");
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertEquals(phene.toString(),"(let ((dm_a (if () 1 ()))) (if dm_a dm_a 0))");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(),"(let ((dm_a (if () 1 ()))) (if dm_a dm_a 0))");
 	}
 }
 
 public class PassMaybeGeneTest extends TestCase {
 	private Gene buildPassMaybeGene() {
-		FunctionType type = new FunctionType(new Maybe(BaseType.FIXNUM),new Type[]{BaseType.FIXNUM});
+		FunctionType type = new FunctionType(new Maybe(P.FIXNUM),new Type[]{P.FIXNUM});
 		Gene function = new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true);
-		Gene ifGene = new IfGene(new Maybe(BaseType.FIXNUM), new TrueGene(), new FixNumGenerator(0,0,1), new NullGene());
-		Gene gene = new PassMaybeGene(new Maybe(BaseType.FIXNUM), function, new Gene[]{ifGene}, "a");
+		Gene ifGene = new IfGene(new Maybe(P.FIXNUM), new TrueGene(), new FixNumGenerator(0,0,1), new NullGene());
+		Gene gene = new PassMaybeGene(new Maybe(P.FIXNUM), function, new Gene[]{ifGene}, "a");
 		return gene;
 	}
 
 	public void testType() {
 		Gene gene = buildPassMaybeGene();
-		assertEquals(gene.type(),new Maybe(BaseType.FIXNUM));
+		TEST.equals(gene.type(),new Maybe(P.FIXNUM));
 	}
 
 	public void testExpress() {
 		Gene gene = buildPassMaybeGene();
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
+		TEST.isNotNull(phene);
 		String pheneString = phene.toString();
-		assertEquals(pheneString,"(let ((pm_a0 (if #t 0 ()))) (if pm_a0 ((lambda (lp0) 1) pm_a0) ()))");
+		TEST.equals(pheneString,"(let ((pm_a0 (if #t 0 ()))) (if pm_a0 ((lambda (lp0) 1) pm_a0) ()))");
 	}
 }
 
 public class FunctionGeneTest extends TestCase {
 	public void testType() {
-		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM}),"fn",new FixNumGenerator(1,0,1));
-		assertEquals(gene.type(), new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM}));
+		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM}),"fn",new FixNumGenerator(1,0,1));
+		TEST.equals(gene.type(), new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM}));
 	}
 
 	public void testExpressNoArgs() {
-		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{}),"fn",new FixNumGenerator(1,0,1));
+		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{}),"fn",new FixNumGenerator(1,0,1));
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertEquals(phene.toString(), "(define (fn) 1)");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(), "(define (fn) 1)");
 	}
 
 	public void testExpressOneArg() {
-		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM}),"fn",new FixNumGenerator(1,0,1));
+		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM}),"fn",new FixNumGenerator(1,0,1));
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertEquals(phene.toString(), "(define (fn fnp0) 1)");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(), "(define (fn fnp0) 1)");
 	}
 
 	public void testExpressTwoArgs() {
-		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM,BaseType.BOOL}),"fn",new FixNumGenerator(1,0,1));
+		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM,P.BOOL}),"fn",new FixNumGenerator(1,0,1));
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertEquals(phene.toString(), "(define (fn fnp0 fnp1) 1)");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(), "(define (fn fnp0 fnp1) 1)");
 	}
 
 	public void testExpressLambda() {
-		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM}),"fn",new FixNumGenerator(1,0,1), true);
+		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM}),"fn",new FixNumGenerator(1,0,1), true);
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		assertNotNull(phene);
-		assertEquals(phene.toString(), "(lambda (fnp0) 1)");
+		TEST.isNotNull(phene);
+		TEST.equals(phene.toString(), "(lambda (fnp0) 1)");
 	}
 }
 
