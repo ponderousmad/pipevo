@@ -341,27 +341,27 @@ var GENES = (function () {
     IfGene.prototype.copy = function () {
         return new IfGene(this.type, this.predicateGene, this.thenGene, this.elseGene);
     };
-    
+
     function ApplicationGene(functionGene, args) {
         this.type = functionGene.type;
         this.functionGene = functionGene;
         this.args = args;
     }
-    
+
     ApplicationGene.prototype.express = function (context) {
         return new SLUR.Cons(
             this.functionGene.express(context),
             this.generateArguments(context, 0)
         );
     };
-    
+
     ApplicationGene.prototype.generateArguments = function (context, offset) {
         if (offset >= this.args.length) {
             return SLUR.NULL;
         }
         return new SLUR.Cons(this.args[offset].express(context), this.generateArguments(context, offset + 1));
     };
-    
+
     ApplicationGene.prototype.mutate = function (mutation, context, entropy) {
         var mutatedFunction = mutation.mutateGene(this.type, this.functionGene, context, entropy),
             mutated = mutatedFunction != this.functionGene,
@@ -373,44 +373,44 @@ var GENES = (function () {
                 mutated = true;
             }
         }
-        
+
         if (mutated) {
             return new ApplicationGene(mutatedFunction, mutatedArgs);
         }
         return this;
     };
-    
+
     function DemaybeGene(maybeGene, concreteGene, varName) {
 		this.type = maybeGene.type;
 		this.maybeGene = maybeGene;
 		this.concreteGene = concreteGene;
 		this.varName = varName;
     }
-    
+
     DemaybeGene.prototype.express = function (context) {
 		var maybeSym = new SLUR.Symbol("dm_" + this.varName),
             binding = SLUR.makeList([maybeSym, this.maybeGene.express(context)]),
             body = new SLUR.IfExpression(maybeSym, maybeSym, this.concreteGene.express(context));
 		return SLUR.makeList(new SLUR.Symbol("let"), SLUR.makeList(binding), body);
 	};
-    
+
     DemaybeGene.prototype.mutate = function (mutation, context, entropy) {
         var mutatedMaybe = null;
         do {
             mutatedMaybe = mutation.mutateGene(this.type, this.maybeGene, context, entropy);
         } while(!SLUR_TYPES.isMaybe(mutatedMaybe.type));
-        
+
         var mutatedConcrete = mutation.mutateGene(this.type, this.concreteGene, context, entropy);
         if (this.maybeGene != mutatedMaybe || this.concreteGene != mutatedConcrete) {
             return new DemaybeGene(mutatedMaybe, mutatedConcrete, this.varName);
         }
         return this;
     };
-    
+
     DemaybeGene.prototype.copy = function() {
         return new DemaybeGene(this.maybeGene, this.concreteGene, this.varName);
     };
-    
+
     function PassMaybeGene(type, functionGene, argGenes, varName) {
         this.type = type;
         this.functionType = functionGene.type;
@@ -420,7 +420,7 @@ var GENES = (function () {
         this.argGenes = argGenes;
         this.varName = varName;
     }
-    
+
     PassMaybeGene.prototype.express = function (context) {
         var bindings = this.buildBindings(context, 0),
             args = this.buildArguments(0),
@@ -441,11 +441,11 @@ var GENES = (function () {
         }
         return SLUR.prependList(this.varSymbol(index), this.buildArguments(index + 1));
     };
-    
+
     PassMaybeGene.prototype.varSymbol = function (index) {
 		return new SLUR.Symbol("pm_" + this.varName + index);
     };
-    
+
     PassMaybeGene.prototype.buildPredicate = function () {
 		var checks = this.buildPredicateN(0);
 		if ( SLUR.isCons(checks)) {
@@ -453,7 +453,7 @@ var GENES = (function () {
 		}
 		return checks;
     };
-    
+
     PassMaybeGene.prototype.buildPredicateN = function (index) {
 		if (index >= this.argGenes.length) {
 			return SLUR.NULL;
@@ -471,22 +471,22 @@ var GENES = (function () {
 		}
 		return SLUR.prependList(symbol, rest);
     };
-    
+
     PassMaybeGene.prototype.check = function (index) {
 		return !(SLUR_TYPES.isMaybe(this.functionType.argumentTypes[index]));
 	};
-    
+
     PassMaybeGene.prototype.buildBindings = function (context, index) {
 		if (index >= this.argGenes.length) {
 			return SLUR.NULL;
 		}
 		return SLUR.prependList(this.buildBinding(context, index), this.buildBindings(context, index + 1));
     };
-    
+
     PassMaybeGene.prototype.buildBinding = function (context, index) {
 		return SLUR.makeList([this.varSymbol(index), this.arguments[index].express(context)]);
     };
-    
+
     PassMaybeGene.prototype.mutate = function (mutation, context, entropy) {
 		var mutatedFunction = mutation.mutateGene(this.functionType, this.functionGene, context, entropy),
             isMutated = mutatedFunction != this.functionGene,
@@ -503,18 +503,18 @@ var GENES = (function () {
 			return this;
 		}
     };
-    
+
     PassMaybeGene.prototype.copy = function () {
         return new PassMaybeGene(this.type, this.functionGene, this.argGenes, this.varName);
     };
-    
+
     function FunctionGene(type, name, body, isLambda) {
         this.type = type;
         this.name = name;
         this.body = body;
         this.isLambda = isLambda ? true : false;
     }
-    
+
     FunctionGene.prototype.express = function (context) {
 		var args = this.argumentNames();
 		this.pushArguments(context, args);
@@ -527,7 +527,7 @@ var GENES = (function () {
 			return this.expressFunction(this.name, this.argumentList(arguments), body);
 		}
     };
-    
+
     FunctionGene.prototype.argumentList = function (args) {
 		var list = SLUR.NULL;
 		for (var i = args.length - 1; i >= 0; --i ) {
@@ -535,11 +535,11 @@ var GENES = (function () {
 		}
 		return list;
 	};
-    
+
     FunctionGene.prototype.expressFunction = function (name, args, body) {
 		return SLUR.prependList(new SLUR.Symbol("define"), SLUR.prependList(new SLUR.Symbol(this.name), args), body);
 	};
-    
+
     FunctionGene.prototype.expressLambda = function (args, body) {
 		return SLUR.prependList(new SLUR.Symbol("lambda"), args, body);
 	};
@@ -562,11 +562,11 @@ var GENES = (function () {
 		}
 		return names;
     }
-    
+
     FunctionGene.prototype.argumentNames = function () {
         return functionArgumentNames(this.type, this.name);
 	};
-    
+
     FunctionGene.prototype.mutate = function (mutation, context, entropy) {
 		this.pushArguments(context, this.argumentNames());
 		var mutatedBody = mutation.mutateGene(this.type.returnType, this.body, context, entropy);
@@ -581,7 +581,325 @@ var GENES = (function () {
     FunctionGene.prototype.copy = function () {
         return new FunctionGene(this.type, this.name, this.body, this.isLambda);
     };
-    
+
+    function testSuite() {
+/*
+public class NullGeneTest extends TestCase {
+	public void testType() {
+		Gene gene = new NullGene();
+		assertEquals(gene.type(), BaseType.NULL);
+	}
+
+	public void testExpress() {
+		Gene gene = new NullGene();
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertTrue(phene.isNull());
+	}
+}
+
+public class TrueGeneTest extends TestCase {
+	public void testType() {
+		Gene gene = new TrueGene();
+		assertEquals(gene.type(), BaseType.TRUE);
+	}
+
+	public void testExpress() {
+		Gene gene = new TrueGene();
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertTrue(phene.equals(True.TRUE));
+	}
+}
+
+public class FixNumGeneratorTest extends TestCase {
+	public void testType() {
+		FixNumGenerator gene = new FixNumGenerator(1);
+		assertEquals(gene.type(),BaseType.FIXNUM);
+	}
+
+	public void testExpress() {
+		FixNumGenerator gene = new FixNumGenerator(102,0,100);
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertTrue(phene instanceof FixNum);
+		assertEquals(((FixNum)phene).value(),1);
+	}
+}
+
+public class RealGeneratorTest extends TestCase {
+	public void testType() {
+		RealGenerator gene = new RealGenerator(1);
+		assertEquals(gene.type(),BaseType.REAL);
+	}
+
+	public void testExpress() {
+		RealGenerator gene = new RealGenerator(101,new RealGenerator.Range(0,100));
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertTrue(phene instanceof Real);
+		double value = ((Real)phene).value();
+		assertTrue( 0 <= value && value <= 100 );
+	}
+}
+
+public class SymbolGeneratorTest extends TestCase {
+	public void testType() {
+		SymbolGenerator gene = new SymbolGenerator(1L,5);
+		assertEquals(gene.type(),BaseType.SYMBOL);
+	}
+
+	public void testExpress() {
+		SymbolGenerator gene = new SymbolGenerator(1L,5);
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertTrue(phene instanceof Symbol);
+		Symbol symbol = (Symbol)phene;
+		assertNotNull(symbol);
+		assertEquals(5,symbol.name().length());
+	}
+}
+
+public class StringGeneratorTest extends TestCase {
+	public void testType() {
+		StringGenerator gene = new StringGenerator(1L,5);
+		assertEquals(gene.type(),BaseType.STRING);
+	}
+
+	public void testExpress() {
+		StringGenerator gene = new StringGenerator(1L,5);
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertTrue(phene instanceof StringObj);
+		String value = ((StringObj)phene).value();
+		assertNotNull(value);
+		assertEquals(value.length(),5);
+	}
+}
+
+public class BoolGeneratorTest extends TestCase {
+	public void testType() {
+		Gene gene = new BoolGenerator(1);
+		assertEquals(gene.type(),BaseType.BOOL);
+	}
+
+	public void testExpress() {
+		Gene gene = new BoolGenerator(new Random().nextLong());
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertTrue(phene.isNull() || phene.equals(True.TRUE));
+	}
+}
+
+public class ConsGeneTest extends TestCase {
+	public void testType() {
+		Gene gene = new ConsGene(new ConsType(BaseType.NULL,BaseType.NULL), new NullGene(), new NullGene());
+		assertEquals(gene.type(), new ConsType(BaseType.NULL,BaseType.NULL));
+	}
+
+	public void testExpress() {
+		Gene gene = new ConsGene(new ConsType(BaseType.NULL,BaseType.NULL), new NullGene(), new NullGene());
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertEquals(phene.toString(),"(cons () ())");
+	}
+}
+
+public class ListGeneTest extends TestCase {
+	public void testType() {
+		Gene gene = new ListGene(new ListType(BaseType.FIXNUM));
+		assertEquals(gene.type(), new ListType(BaseType.FIXNUM));
+	}
+
+	public void testExpress() {
+		ListGene gene = new ListGene(new ListType(BaseType.FIXNUM));
+		Context c = new Context(new ObjectRegistry());
+		Obj phene = gene.express(c);
+		assertNotNull(phene);
+		assertEquals(phene.toString(),"(list)");
+
+		gene.add(new FixNumGenerator(0,0,2));
+		phene = gene.express(c);
+		assertNotNull(phene);
+		assertEquals(phene.toString(),"(list 0)");
+
+		gene.add(new FixNumGenerator(1,0,2));
+		phene = gene.express(c);
+		assertNotNull(phene);
+		assertEquals(phene.toString(),"(list 0 1)");
+
+		gene.add(new FixNumGenerator(2,0,2));
+		phene = gene.express(c);
+		assertNotNull(phene);
+		assertEquals(phene.toString(),"(list 0 1 2)");
+	}
+
+	public void testCopy() {
+		ListGene gene = new ListGene(new ListType(BaseType.FIXNUM));
+		gene.add(new FixNumGenerator(0,0,2));
+		gene.add(new FixNumGenerator(1,0,2));
+		gene.add(new FixNumGenerator(2,0,2));
+
+		Gene copy = gene.copy();
+		assertNotSame(gene,copy);
+
+		Context c = new Context(new ObjectRegistry());
+		Obj phene = gene.express(c);
+		Obj copyPhene = copy.express(c);
+		assertEquals(phene.toString(),copyPhene.toString());
+	}
+}
+
+public class LookupGeneTest extends TestCase {
+	private Gene buildLookupGene() {
+		Parameter p = new Parameter();
+		return new LookupGene(new FunctionType(new ConsType(p,p), new Type[]{p,p}), "cons", 0);
+	}
+
+	public void testType() {
+		Gene gene = buildLookupGene();
+		Parameter q = new Parameter();
+		assertTrue(gene.type().match(new FunctionType(new ConsType(q,q), new Type[]{q,q})).matches());
+	}
+
+	public void testExpress() {
+		Gene gene = buildLookupGene();
+		Context c = buildContext();
+		Obj result = gene.express(c);
+		assertNotNull(result);
+		assertEquals(result.toString(),"cons");
+	}
+
+	private Context buildContext() {
+		ObjectRegistry reg = new ObjectRegistry();
+		BuiltinRegistrar.registerBuiltins(reg);
+		Context c = new Context(reg);
+		return c;
+	}
+}
+
+public class IfGeneTest extends TestCase {
+	public void testType() {
+		Gene ifGene = new IfGene(
+				BaseType.FIXNUM,
+				new NullGene(),
+				new FixNumGenerator(0,0,1),
+				new FixNumGenerator(1,0,1)
+		);
+		assertEquals(ifGene.type(),BaseType.FIXNUM);
+	}
+
+	public void testExpress() {
+		Context c = new Context(new ObjectRegistry());
+
+		Gene gene = new IfGene(
+				BaseType.FIXNUM,
+				new NullGene(),
+				new FixNumGenerator(0,0,1),
+				new FixNumGenerator(1,0,1)
+		);
+
+		Obj result = gene.express(c);
+		assertNotNull(result);
+		assertEquals("(if () 0 1)", result.toString());
+	}
+}
+
+public class ApplicationGeneTest extends TestCase {
+	public void testType() {
+		FunctionType type = new FunctionType(BaseType.FIXNUM,new Type[]{BaseType.FIXNUM});
+		Gene gene = new ApplicationGene(new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true), new Gene[]{new FixNumGenerator(0,0,1)});
+		assertEquals(gene.type(), BaseType.FIXNUM);
+	}
+
+	public void testExpress() {
+		FunctionType type = new FunctionType(BaseType.FIXNUM,new Type[]{BaseType.FIXNUM});
+		Gene gene = new ApplicationGene(new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true), new Gene[]{new FixNumGenerator(0,0,1)});
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertEquals(phene.toString(), "((lambda (lp0) 1) 0)");
+	}
+}
+
+public class DemaybeGeneTest extends TestCase {
+	public void testType() {
+		Gene ifGene = new IfGene(new Maybe(BaseType.FIXNUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
+		Gene gene = new DemaybeGene(ifGene, new FixNumGenerator(0,0,1), "a");
+		assertEquals(gene.type(), BaseType.FIXNUM);
+	}
+
+	public void testExpress() {
+		Gene ifGene = new IfGene(new Maybe(BaseType.FIXNUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
+		Gene gene = new DemaybeGene(ifGene, new FixNumGenerator(0,0,1), "a");
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertEquals(phene.toString(),"(let ((dm_a (if () 1 ()))) (if dm_a dm_a 0))");
+	}
+}
+
+public class PassMaybeGeneTest extends TestCase {
+	private Gene buildPassMaybeGene() {
+		FunctionType type = new FunctionType(new Maybe(BaseType.FIXNUM),new Type[]{BaseType.FIXNUM});
+		Gene function = new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true);
+		Gene ifGene = new IfGene(new Maybe(BaseType.FIXNUM), new TrueGene(), new FixNumGenerator(0,0,1), new NullGene());
+		Gene gene = new PassMaybeGene(new Maybe(BaseType.FIXNUM), function, new Gene[]{ifGene}, "a");
+		return gene;
+	}
+
+	public void testType() {
+		Gene gene = buildPassMaybeGene();
+		assertEquals(gene.type(),new Maybe(BaseType.FIXNUM));
+	}
+
+	public void testExpress() {
+		Gene gene = buildPassMaybeGene();
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		String pheneString = phene.toString();
+		assertEquals(pheneString,"(let ((pm_a0 (if #t 0 ()))) (if pm_a0 ((lambda (lp0) 1) pm_a0) ()))");
+	}
+}
+
+public class FunctionGeneTest extends TestCase {
+	public void testType() {
+		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM}),"fn",new FixNumGenerator(1,0,1));
+		assertEquals(gene.type(), new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM}));
+	}
+
+	public void testExpressNoArgs() {
+		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{}),"fn",new FixNumGenerator(1,0,1));
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertEquals(phene.toString(), "(define (fn) 1)");
+	}
+
+	public void testExpressOneArg() {
+		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM}),"fn",new FixNumGenerator(1,0,1));
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertEquals(phene.toString(), "(define (fn fnp0) 1)");
+	}
+
+	public void testExpressTwoArgs() {
+		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM,BaseType.BOOL}),"fn",new FixNumGenerator(1,0,1));
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertEquals(phene.toString(), "(define (fn fnp0 fnp1) 1)");
+	}
+
+	public void testExpressLambda() {
+		Gene gene = new FunctionGene(new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM}),"fn",new FixNumGenerator(1,0,1), true);
+		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		assertNotNull(phene);
+		assertEquals(phene.toString(), "(lambda (fnp0) 1)");
+	}
+}
+
+*/
+    }
+
+    testSuite();
+
     return {
         NullGene: NullGene,
         TrueGene: TrueGene,
