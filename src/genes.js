@@ -116,10 +116,11 @@ var GENES = (function () {
     }
 
     FixNumGenerator.prototype.express = function (context) {
-        var seedValue = this.seed / ENTROPY.MAX_SEED,
-            min = this.range.min,
+        // This produces biased results, when the max seed is not a muliple of
+        // the range size, but makes the mutation have nice properties.
+        var min = this.range.min,
             max = this.range.max,
-            value = max == min ? min : Math.min(Math.floor(min + seedValue * (max - min)), max - 1);
+            value = max == min ? min : min + this.seed % (max - min);
         return new SLUR.FixNum(value);
     };
 
@@ -683,22 +684,22 @@ var GENES = (function () {
                 TEST.equals(phene.value, true);
             }
         ];
+        
+        var generatorTests = [
+            function testFixnumType() {
+                var gene = new FixNumGenerator(1);
+                TEST.isTrue(gene.type.equals(P.FIX_NUM));
+            },
+            function testFixnumExpress() {
+                var range = { min: 0, max: 100 },
+                    gene = new FixNumGenerator(102, range),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.isTrue(SLUR.isInt(phene));
+                TEST.equals(phene.value, 2);
+            }
+        ];
 /*
-public class FixNumGeneratorTest extends TestCase {
-	public void testType() {
-		FixNumGenerator gene = new FixNumGenerator(1);
-		TEST.equals(gene.type(),P.FIXNUM);
-	}
-
-	public void testExpress() {
-		FixNumGenerator gene = new FixNumGenerator(102,0,100);
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.isTrue(phene instanceof FixNum);
-		TEST.equals(((FixNum)phene).value(),1);
-	}
-}
-
 public class RealGeneratorTest extends TestCase {
 	public void testType() {
 		RealGenerator gene = new RealGenerator(1);
@@ -969,6 +970,7 @@ public class FunctionGeneTest extends TestCase {
 */
         TEST.run("NullGene", nullGeneTests);
         TEST.run("TrueGene", trueGeneTests);
+        TEST.run("Generator", generatorTests);
     }
 
     testSuite();
