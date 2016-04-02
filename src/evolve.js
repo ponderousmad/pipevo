@@ -62,7 +62,7 @@ var EVOLVE = (function () {
         this.chromosomes.push(chromosome);
     };
     
-    Geneome.prototype.express = function (context) {
+    Genome.prototype.express = function (context) {
         var phenome = [];
         for (var c = 0; c < this.chromosomes.length; ++c) {
             var chromosome = this.chromosomes[c];
