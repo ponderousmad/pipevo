@@ -508,97 +508,96 @@ var GENES = (function () {
         return new PassMaybeGene(this.type, this.functionGene, this.argGenes, this.varName);
     };
     
-/*
-public class FunctionGene implements Gene, Serializable {
-	private static final long serialVersionUID = -8494109078787886616L;
-	private FunctionType mType;
-	private String mName;
-	private Gene mBody;
-	private boolean mIsLambda;
+    function FunctionGene(type, name, body, isLambda) {
+        this.type = type;
+        this.name = name;
+        this.body = body;
+        this.isLambda = isLambda ? true : false;
+    }
+    
+    FunctionGene.prototype.express = function (context) {
+		var args = this.argumentNames();
+		this.pushArguments(context, args);
+		var body = SLUR.makeList(this.body.express(context));
+		this.popArguments(context);
 
-	public FunctionGene( FunctionType type, String name, Gene body ) {
-		mType = type;
-		mName = name;
-		mBody = body;
-		mIsLambda = false;
-	}
-
-	public FunctionGene( FunctionType type, String name, Gene body, boolean isLambda ) {
-		mType = type;
-		mName = name;
-		mBody = body;
-		mIsLambda = isLambda;
-	}
-
-	public Type type() {
-		return mType;
-	}
-
-	public Obj express(Context context) {
-		String[] arguments = argumentNames();
-		pushArguments( context, arguments );
-		Cons body = Cons.list(mBody.express(context));
-		popArguments( context );
-
-		if( mIsLambda ) {
-			return expressLambda( argumentList(arguments), body );
+		if (this.isLambda) {
+			return this.expressLambda(this.argumentList(arguments), body);
 		} else {
-			return expressFunction( mName, argumentList(arguments), body );
+			return this.expressFunction(this.name, this.argumentList(arguments), body);
 		}
-	}
-
-	private Obj argumentList( String[] arguments ) {
-		Obj list = Null.NULL;
-		for( int i = arguments.length - 1; i >=0; --i ) {
-			list = new Cons( new Symbol( arguments[i] ), list );
+    };
+    
+    FunctionGene.prototype.argumentList = function (args) {
+		var list = SLUR.NULL;
+		for (var i = args.length - 1; i >= 0; --i ) {
+			list = new SLUR.Cons(new Symbol(args[i] ), list);
 		}
 		return list;
-	}
+	};
+    
+    FunctionGene.prototype.expressFunction = function (name, args, body) {
+		return SLUR.prependList(new SLUR.Symbol("define"), SLUR.prependList(new SLUR.Symbol(this.name), args), body);
+	};
+    
+    FunctionGene.prototype.expressLambda = function (args, body) {
+		return SLUR.prependList(new SLUR.Symbol("lambda"), args, body);
+	};
 
-	private Obj expressFunction(String name, Obj arguments, Cons body) {
-		return Cons.prependList( new Symbol("define"), Cons.prependList(new Symbol(mName), arguments), body);
-	}
-
-	private Obj expressLambda(Obj arguments, Cons body) {
-		return Cons.prependList(new Symbol("lambda"), arguments, body);
-	}
-
-	private void pushArguments(Context context, String[] argumentNames ) {
-		for( int i = 0; i < argumentNames.length; ++i ) {
-			context.pushSymbol( argumentNames[i], mType.argumentTypes()[i] );
+    FunctionGene.prototype.pushArguments = function (context, args) {
+		for (var i = 0; i < this.args.length; ++i ) {
+			context.pushSymbol(args[i], this.type.argumentTypes[i]);
 		}
-	}
+	};
 
-	private void popArguments(Context context) {
-		context.popSymbols( mType.argumentTypes().length );
-	}
+    FunctionGene.prototype.popArguments = function (context) {
+		context.popSymbols( this.type.argumentTypes.length );
+	};
 
-	public static String[] argumentNames( FunctionType functionType, String baseName ) {
-		baseName = baseName + "p";
-		String[] arguments = new String[ functionType.argumentTypes().length ];
-		for( int i = 0; i < arguments.length; ++i ) {
-			arguments[i] = baseName + Integer.toString(i);
+    function functionArgumentNames(type, baseName) {
+        baseName = baseName + "p";
+		var names = [];
+		for (var i = 0; i < type.argumentTypes.length; ++i) {
+			names.push(baseName + i);
 		}
-		return arguments;
-	}
+		return names;
+    }
+    
+    FunctionGene.prototype.argumentNames = function () {
+        return functionArgumentNames(this.type, this.name);
+	};
+    
+    FunctionGene.prototype.mutate = function (mutation, context, entropy) {
+		this.pushArguments(context, this.argumentNames());
+		var mutatedBody = mutation.mutateGene(this.type.returnType, this.body, context, entropy);
+		this.popArguments(context);
 
-	public String[] argumentNames() {
-		return argumentNames( mType, mName );
-	}
-
-	public Gene mutate(Mutation mutation, Context context, java.util.Random random) {
-		pushArguments(context, argumentNames());
-		Gene mutatedBody = mutation.mutateGene(mType.returnType(), mBody, context, random);
-		popArguments(context);
-
-		if( mutatedBody != mBody ) {
-			return new FunctionGene(mType, mName, mutatedBody, mIsLambda);
-		} else {
-			return this;
+		if (mutatedBody != this.body) {
+			return new FunctionGene(this.type, this.name, mutatedBody, this.isLambda);
 		}
-	}
-}
-*/
+        return this;
+    };
+
+    FunctionGene.prototype.copy = function () {
+        return new FunctionGene(this.type, this.name, this.body, this.isLambda);
+    };
+    
     return {
+        NullGene: NullGene,
+        TrueGene: TrueGene,
+        FixNumGenerator: FixNumGenerator,
+        RealGenerator: RealGenerator,
+        SymbolGenerator: SymbolGenerator,
+        StringGenerator: StringGenerator,
+        BoolGenerator: BoolGenerator,
+        ConsGene: ConsGene,
+        ListGene: ListGene,
+        LookupGene: LookupGene,
+        IfGene: IfGene,
+        ApplicationGene: ApplicationGene,
+        DemaybeGene: DemaybeGene,
+        PassMaybeGene: PassMaybeGene,
+        FunctionGene: FunctionGene,
+        functionArgumentNames: functionArgumentNames
     };
 }());
