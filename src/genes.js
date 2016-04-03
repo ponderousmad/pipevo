@@ -141,7 +141,7 @@ var GENES = (function () {
     };
 
     function RealGenerator(seed, range) {
-        this.type = P.FIX_NUM;
+        this.type = P.REAL;
         this.seed = seed;
         this.range = range;
     }
@@ -171,14 +171,14 @@ var GENES = (function () {
     };
 
     function SymbolGenerator(seed, length) {
-        this.type = P.STRING;
+        this.type = P.SYMBOL;
         this.seed = seed;
         this.length = length;
     }
 
     SymbolGenerator.prototype.express = function (context) {
         var entropy = new ENTROPY.Entropy(this.seed);
-        return entropy.alphaString(this.length);
+        return new SLUR.Symbol(entropy.alphaString(this.length));
     };
 
     SymbolGenerator.prototype.mutate = function (mutation, context, entropy) {
@@ -205,7 +205,7 @@ var GENES = (function () {
 
     StringGenerator.prototype.express = function (context) {
         var entropy = new ENTROPY.Entropy(this.seed);
-        return entropy.alphaString(this.length);
+        return new SLUR.StringValue(entropy.alphaString(this.length));
     };
 
     StringGenerator.prototype.mutate = function (mutation, context, entropy) {
@@ -687,7 +687,7 @@ var GENES = (function () {
         
         var generatorTests = [
             function testFixnumType() {
-                var gene = new FixNumGenerator(1);
+                var gene = new FixNumGenerator(1, { min: 0, max: 100 });
                 TEST.isTrue(gene.type.equals(P.FIX_NUM));
             },
             function testFixnumExpress() {
@@ -697,73 +697,54 @@ var GENES = (function () {
                 TEST.notNull(phene);
                 TEST.isTrue(SLUR.isInt(phene));
                 TEST.equals(phene.value, 2);
-            }
+            },
+            function testRealType() {
+                var gene = new RealGenerator(1, { min: 0, max: 100 });
+                TEST.isTrue(gene.type.equals(P.REAL));
+            },
+            function testRealExpress() {
+                var range = { min: 0, max: 100 },
+                    gene = new RealGenerator(102, range),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.isTrue(SLUR.isReal(phene));
+                TEST.isTrue(range.min <= phene.value);
+                TEST.isTrue(phene.value <= range.max);
+            },
+            function testSymbolType() {
+                var gene = new SymbolGenerator(1, 5);
+                TEST.equals(gene.type, P.SYMBOL);
+            },
+            function testSymbolExpress() {
+                var gene = new SymbolGenerator(1, 5),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.isTrue(SLUR.isSymbol(phene));
+                TEST.equals(5, phene.name.length);
+            },
+            function testStringType() {
+                var gene = new StringGenerator(1, 5);
+                TEST.equals(gene.type, P.STRING);
+            },
+            function testStringExpress() {
+                var gene = new StringGenerator(1, 5),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.isTrue(SLUR.isString(phene));
+                TEST.equals(5, phene.value.length);
+            },
+            function testBoolType() {
+                var gene = new BoolGenerator(1);
+                TEST.isTrue(gene.type.equals(P.BOOL));
+            },
+            function testBoolExpress() {
+                var gene = new BoolGenerator(1),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.equals(phene.value, true);
+            }            
         ];
 /*
-public class RealGeneratorTest extends TestCase {
-	public void testType() {
-		RealGenerator gene = new RealGenerator(1);
-		TEST.equals(gene.type(),P.REAL);
-	}
-
-	public void testExpress() {
-		RealGenerator gene = new RealGenerator(101,new RealGenerator.Range(0,100));
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.isTrue(phene instanceof Real);
-		double value = ((Real)phene).value();
-		TEST.isTrue( 0 <= value && value <= 100 );
-	}
-}
-
-public class SymbolGeneratorTest extends TestCase {
-	public void testType() {
-		SymbolGenerator gene = new SymbolGenerator(1L,5);
-		TEST.equals(gene.type(),P.SYMBOL);
-	}
-
-	public void testExpress() {
-		SymbolGenerator gene = new SymbolGenerator(1L,5);
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.isTrue(phene instanceof Symbol);
-		Symbol symbol = (Symbol)phene;
-		TEST.notNull(symbol);
-		TEST.equals(5,symbol.name().length());
-	}
-}
-
-public class StringGeneratorTest extends TestCase {
-	public void testType() {
-		StringGenerator gene = new StringGenerator(1L,5);
-		TEST.equals(gene.type(),P.STRING);
-	}
-
-	public void testExpress() {
-		StringGenerator gene = new StringGenerator(1L,5);
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.isTrue(phene instanceof StringObj);
-		String value = ((StringObj)phene).value();
-		TEST.notNull(value);
-		TEST.equals(value.length(),5);
-	}
-}
-
-public class BoolGeneratorTest extends TestCase {
-	public void testType() {
-		Gene gene = new BoolGenerator(1);
-		TEST.equals(gene.type(),P.BOOL);
-	}
-
-	public void testExpress() {
-		Gene gene = new BoolGenerator(new Random().nextLong());
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.isTrue(phene.isNull() || phene.equals(True.TRUE));
-	}
-}
-
 public class ConsGeneTest extends TestCase {
 	public void testType() {
 		Gene gene = new ConsGene(new ConsType(P.NULL,P.NULL), new NullGene(), new NullGene());
