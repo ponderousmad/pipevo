@@ -853,16 +853,49 @@ var GENES = (function () {
             }
         ];
         
+        var FuncType = SLUR_TYPES.FunctionType;
+        
+        var functionTests = [
+        	function testType() {
+                var gene = new FunctionGene(new FuncType(P.FIX_NUM, [P.FIX_NUM]), "fn", new FixNumGenerator(1, { min: 0, max: 1 }));
+                TEST.isTrue(gene.type.equals(new FuncType(P.FIX_NUM, [P.FIX_NUM])));
+            },
+            function testExpressNoArgs() {
+                var gene = new FunctionGene(new FuncType(P.FIX_NUM, []), "fn", new FixNumGenerator(1, { min: 0, max: 1 })),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(), "(define (fn) 1)");
+            },
+            function testExpressOneArg() {
+                var gene = new FunctionGene(new FuncType(P.FIX_NUM, [P.FIX_NUM]), "fn", new FixNumGenerator(1, { min: 0, max: 1 })),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(), "(define (fn fnp0) 1)");
+            },
+            function testExpressTwoArgs() {
+                var gene = new FunctionGene(new FuncType(P.FIX_NUM, [P.FIX_NUM, P.BOOL]), "fn", new TrueGene()),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(), "(define (fn fnp0 fnp1) #t)");
+            },
+            function testExpressLambda() {
+                var gene = new FunctionGene(new FuncType(P.FIX_NUM, [P.FIX_NUM]), "fn", new BoolGenerator(1), true),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(), "(lambda (fnp0) #t)");
+            }
+        ];
+        
         var appTests = [
             function testType() {
-                var type = new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM]),
+                var type = new FuncType(P.FIX_NUM, [P.FIX_NUM]),
                     fixZero = new FixNumGenerator(0, { min: 0, max: 1 }),
                     fixOne = new FixNumGenerator(1, { min: 0, max: 1 }),
                     gene = new ApplicationGene(new FunctionGene(type, "l", fixOne, true), [fixZero]);
                 TEST.isTrue(gene.type.equals(P.FIX_NUM));
             },
             function testExpress() {
-                var type = new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM]),
+                var type = new FuncType(P.FIX_NUM, [P.FIX_NUM]),
                     fixZero = new FixNumGenerator(0, { min: 0, max: 1 }),
                     fixOne = new FixNumGenerator(1, { min: 0, max: 1 }),
                     gene = new ApplicationGene(new FunctionGene(type, "l", fixOne, true), [fixZero]),
@@ -872,41 +905,6 @@ var GENES = (function () {
             }
         ];
 /*
-public class FunctionGeneTest extends TestCase {
-	public void testType() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1));
-		TEST.equals(gene.type(), new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}));
-	}
-
-	public void testExpressNoArgs() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{}),"fn",new FixNumGenerator(1,0,1));
-		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(), "(define (fn) 1)");
-	}
-
-	public void testExpressOneArg() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1));
-		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(), "(define (fn fnp0) 1)");
-	}
-
-	public void testExpressTwoArgs() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM,P.BOOL}),"fn",new FixNumGenerator(1,0,1));
-		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(), "(define (fn fnp0 fnp1) 1)");
-	}
-
-	public void testExpressLambda() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1), true);
-		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(), "(lambda (fnp0) 1)");
-	}
-}
-
 public class DemaybeGeneTest extends TestCase {
 	public void testType() {
 		Gene ifGene = new IfGene(new Maybe(P.FIX_NUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
@@ -952,6 +950,7 @@ public class PassMaybeGeneTest extends TestCase {
         TEST.run("ContainerGene", containerTests);
         TEST.run("LookupGene", lookupTests);
         TEST.run("IfGene", ifTests);
+        TEST.run("FunctionGene", functionTests);
         TEST.run("ApplicationGene", appTests);
     }
 
