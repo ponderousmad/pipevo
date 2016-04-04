@@ -1709,6 +1709,7 @@ var SLUR = (function (TEST) {
         Symbol: Symbol,
         IfExpression: IfExpression,
         makeList: makeList,
+        prependList: prependList,
         define: define,
         Parser: Parser,
         baseEnvironment: baseEnvironment,

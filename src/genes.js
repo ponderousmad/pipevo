@@ -744,65 +744,63 @@ var GENES = (function () {
                 TEST.equals(phene.value, true);
             }            
         ];
+        
+        var containerTests = [
+            function testConsType() {
+                var gene = new ConsGene(new SLUR_TYPES.ConsType(P.NULL, P.NULL), new NullGene(), new NullGene());
+                TEST.isTrue(gene.type.equals(new SLUR_TYPES.ConsType(P.NULL,P.NULL)));
+            },
+            function testConsExpress() {
+                var gene = new ConsGene(new SLUR_TYPES.ConsType(P.NULL, P.NULL), new NullGene(), new NullGene()),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(),"(cons () ())");
+            },
+            function testListType() {
+                var gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM));
+                TEST.isTrue(gene.type.equals(new SLUR_TYPES.ListType(P.FIX_NUM)));
+            },
+            function testListExpress() {
+                var gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM)),
+                    c = new Context(new SLUR_TYPES.Registry()),
+                    phene = gene.express(c);
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(), "(list)");
+
+                var items = [new FixNumGenerator(0, { min: 0, max: 3 })];
+                gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM), items);
+                phene = gene.express(c);
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(),"(list 0)");
+
+                items.push(new FixNumGenerator(1, { min: 0, max: 3 }));
+                gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM), items);
+                phene = gene.express(c);
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(),"(list 0 1)");
+
+                items.push(new FixNumGenerator(2, { min: 0, max: 3 }));
+                gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM), items);
+                phene = gene.express(c);
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(),"(list 0 1 2)");
+            },
+            function testCopy() {
+                var gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM), [
+                        new FixNumGenerator(0, { min: 0, max: 3 }),
+                        new FixNumGenerator(1, { min: 0, max: 3 }),
+                        new FixNumGenerator(2, { min: 0, max: 3 })
+                    ]),
+                    copy = gene.copy();
+                TEST.notSame(gene, copy);
+
+                var c = new Context(new SLUR_TYPES.Registry()),
+                    phene = gene.express(c),
+                    copyPhene = copy.express(c);
+                TEST.equals(phene.toString(), copyPhene.toString());
+            }
+        ];
 /*
-public class ConsGeneTest extends TestCase {
-	public void testType() {
-		Gene gene = new ConsGene(new ConsType(P.NULL,P.NULL), new NullGene(), new NullGene());
-		TEST.equals(gene.type(), new ConsType(P.NULL,P.NULL));
-	}
-
-	public void testExpress() {
-		Gene gene = new ConsGene(new ConsType(P.NULL,P.NULL), new NullGene(), new NullGene());
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(),"(cons () ())");
-	}
-}
-
-public class ListGeneTest extends TestCase {
-	public void testType() {
-		Gene gene = new ListGene(new ListType(P.FIXNUM));
-		TEST.equals(gene.type(), new ListType(P.FIXNUM));
-	}
-
-	public void testExpress() {
-		ListGene gene = new ListGene(new ListType(P.FIXNUM));
-		Context c = new Context(new ObjectRegistry());
-		Obj phene = gene.express(c);
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(),"(list)");
-
-		gene.add(new FixNumGenerator(0,0,2));
-		phene = gene.express(c);
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(),"(list 0)");
-
-		gene.add(new FixNumGenerator(1,0,2));
-		phene = gene.express(c);
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(),"(list 0 1)");
-
-		gene.add(new FixNumGenerator(2,0,2));
-		phene = gene.express(c);
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(),"(list 0 1 2)");
-	}
-
-	public void testCopy() {
-		ListGene gene = new ListGene(new ListType(P.FIXNUM));
-		gene.add(new FixNumGenerator(0,0,2));
-		gene.add(new FixNumGenerator(1,0,2));
-		gene.add(new FixNumGenerator(2,0,2));
-
-		Gene copy = gene.copy();
-		TEST.isNotSame(gene,copy);
-
-		Context c = new Context(new ObjectRegistry());
-		Obj phene = gene.express(c);
-		Obj copyPhene = copy.express(c);
-		TEST.equals(phene.toString(),copyPhene.toString());
-	}
-}
 
 public class LookupGeneTest extends TestCase {
 	private Gene buildLookupGene() {
@@ -835,19 +833,19 @@ public class LookupGeneTest extends TestCase {
 public class IfGeneTest extends TestCase {
 	public void testType() {
 		Gene ifGene = new IfGene(
-				P.FIXNUM,
+				P.FIX_NUM,
 				new NullGene(),
 				new FixNumGenerator(0,0,1),
 				new FixNumGenerator(1,0,1)
 		);
-		TEST.equals(ifGene.type(),P.FIXNUM);
+		TEST.equals(ifGene.type(),P.FIX_NUM);
 	}
 
 	public void testExpress() {
 		Context c = new Context(new ObjectRegistry());
 
 		Gene gene = new IfGene(
-				P.FIXNUM,
+				P.FIX_NUM,
 				new NullGene(),
 				new FixNumGenerator(0,0,1),
 				new FixNumGenerator(1,0,1)
@@ -861,13 +859,13 @@ public class IfGeneTest extends TestCase {
 
 public class ApplicationGeneTest extends TestCase {
 	public void testType() {
-		FunctionType type = new FunctionType(P.FIXNUM,new Type[]{P.FIXNUM});
+		FunctionType type = new FunctionType(P.FIX_NUM,new Type[]{P.FIX_NUM});
 		Gene gene = new ApplicationGene(new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true), new Gene[]{new FixNumGenerator(0,0,1)});
-		TEST.equals(gene.type(), P.FIXNUM);
+		TEST.equals(gene.type(), P.FIX_NUM);
 	}
 
 	public void testExpress() {
-		FunctionType type = new FunctionType(P.FIXNUM,new Type[]{P.FIXNUM});
+		FunctionType type = new FunctionType(P.FIX_NUM,new Type[]{P.FIX_NUM});
 		Gene gene = new ApplicationGene(new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true), new Gene[]{new FixNumGenerator(0,0,1)});
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
 		TEST.notNull(phene);
@@ -877,13 +875,13 @@ public class ApplicationGeneTest extends TestCase {
 
 public class DemaybeGeneTest extends TestCase {
 	public void testType() {
-		Gene ifGene = new IfGene(new Maybe(P.FIXNUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
+		Gene ifGene = new IfGene(new Maybe(P.FIX_NUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
 		Gene gene = new DemaybeGene(ifGene, new FixNumGenerator(0,0,1), "a");
-		TEST.equals(gene.type(), P.FIXNUM);
+		TEST.equals(gene.type(), P.FIX_NUM);
 	}
 
 	public void testExpress() {
-		Gene ifGene = new IfGene(new Maybe(P.FIXNUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
+		Gene ifGene = new IfGene(new Maybe(P.FIX_NUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
 		Gene gene = new DemaybeGene(ifGene, new FixNumGenerator(0,0,1), "a");
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
 		TEST.notNull(phene);
@@ -893,16 +891,16 @@ public class DemaybeGeneTest extends TestCase {
 
 public class PassMaybeGeneTest extends TestCase {
 	private Gene buildPassMaybeGene() {
-		FunctionType type = new FunctionType(new Maybe(P.FIXNUM),new Type[]{P.FIXNUM});
+		FunctionType type = new FunctionType(new Maybe(P.FIX_NUM),new Type[]{P.FIX_NUM});
 		Gene function = new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true);
-		Gene ifGene = new IfGene(new Maybe(P.FIXNUM), new TrueGene(), new FixNumGenerator(0,0,1), new NullGene());
-		Gene gene = new PassMaybeGene(new Maybe(P.FIXNUM), function, new Gene[]{ifGene}, "a");
+		Gene ifGene = new IfGene(new Maybe(P.FIX_NUM), new TrueGene(), new FixNumGenerator(0,0,1), new NullGene());
+		Gene gene = new PassMaybeGene(new Maybe(P.FIX_NUM), function, new Gene[]{ifGene}, "a");
 		return gene;
 	}
 
 	public void testType() {
 		Gene gene = buildPassMaybeGene();
-		TEST.equals(gene.type(),new Maybe(P.FIXNUM));
+		TEST.equals(gene.type(),new Maybe(P.FIX_NUM));
 	}
 
 	public void testExpress() {
@@ -916,33 +914,33 @@ public class PassMaybeGeneTest extends TestCase {
 
 public class FunctionGeneTest extends TestCase {
 	public void testType() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM}),"fn",new FixNumGenerator(1,0,1));
-		TEST.equals(gene.type(), new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM}));
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1));
+		TEST.equals(gene.type(), new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}));
 	}
 
 	public void testExpressNoArgs() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{}),"fn",new FixNumGenerator(1,0,1));
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{}),"fn",new FixNumGenerator(1,0,1));
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
 		TEST.notNull(phene);
 		TEST.equals(phene.toString(), "(define (fn) 1)");
 	}
 
 	public void testExpressOneArg() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM}),"fn",new FixNumGenerator(1,0,1));
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1));
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
 		TEST.notNull(phene);
 		TEST.equals(phene.toString(), "(define (fn fnp0) 1)");
 	}
 
 	public void testExpressTwoArgs() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM,P.BOOL}),"fn",new FixNumGenerator(1,0,1));
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM,P.BOOL}),"fn",new FixNumGenerator(1,0,1));
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
 		TEST.notNull(phene);
 		TEST.equals(phene.toString(), "(define (fn fnp0 fnp1) 1)");
 	}
 
 	public void testExpressLambda() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIXNUM, new Type[]{P.FIXNUM}),"fn",new FixNumGenerator(1,0,1), true);
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1), true);
 		Obj phene = gene.express(new Context(new ObjectRegistry()));
 		TEST.notNull(phene);
 		TEST.equals(phene.toString(), "(lambda (fnp0) 1)");
@@ -952,6 +950,7 @@ public class FunctionGeneTest extends TestCase {
         TEST.run("NullGene", nullGeneTests);
         TEST.run("TrueGene", trueGeneTests);
         TEST.run("Generator", generatorTests);
+        TEST.run("ContainerGene", containerTests);
     }
 
     testSuite();
