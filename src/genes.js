@@ -457,7 +457,11 @@ var GENES = (function () {
     };
 
     function DemaybeGene(maybeGene, concreteGene, varName) {
-		this.type = maybeGene.type;
+        this.maybeType = maybeGene.type;
+        if (!this.maybeType.maybeType) {
+            throw "Maybe expected.";
+        }
+		this.type = this.maybeType.maybeType;
 		this.maybeGene = maybeGene;
 		this.concreteGene = concreteGene;
 		this.varName = varName;
@@ -467,13 +471,13 @@ var GENES = (function () {
 		var maybeSym = new SLUR.Symbol("dm_" + this.varName),
             binding = SLUR.makeList([maybeSym, this.maybeGene.express(context)]),
             body = new SLUR.IfExpression(maybeSym, maybeSym, this.concreteGene.express(context));
-		return SLUR.makeList(new SLUR.Symbol("let"), SLUR.makeList(binding), body);
+		return SLUR.makeList([new SLUR.Symbol("let"), SLUR.makeList(binding), body]);
 	};
 
     DemaybeGene.prototype.mutate = function (mutation, context, entropy) {
         var mutatedMaybe = null;
         do {
-            mutatedMaybe = mutation.mutateGene(this.type, this.maybeGene, context, entropy);
+            mutatedMaybe = mutation.mutateGene(this.maybeType, this.maybeGene, context, entropy);
         } while(!SLUR_TYPES.isMaybe(mutatedMaybe.type));
 
         var mutatedConcrete = mutation.mutateGene(this.type, this.concreteGene, context, entropy);
@@ -490,9 +494,10 @@ var GENES = (function () {
     function PassMaybeGene(type, functionGene, argGenes, varName) {
         this.type = type;
         this.functionType = functionGene.type;
-        if (!this.type.match(this.functionType.returnType).matches()) {
+        if (!this.type.match(this.functionType.returnType).matches) {
             throw "Mismatch between type and function type.";
         }
+        this.functionGene = functionGene;
         this.argGenes = argGenes;
         this.varName = varName;
     }
@@ -500,7 +505,7 @@ var GENES = (function () {
     PassMaybeGene.prototype.express = function (context) {
         var bindings = this.buildBindings(context, 0),
             args = this.buildArguments(0),
-            application = new SLUR.Cons(this.function.express(context), args),
+            application = new SLUR.Cons(this.functionGene.express(context), args),
             predicate = this.buildPredicate(),
             body = null;
         if (SLUR.isNull(predicate)) {
@@ -807,10 +812,12 @@ var GENES = (function () {
             SLUR_TYPES.registerBuiltins(reg);
             return new Context(reg);
         }
+        
         function buildLookupGene() {
             var p = new SLUR_TYPES.Parameter();
             return new LookupGene(new SLUR_TYPES.FunctionType(new SLUR_TYPES.ConsType(p, p), [p, p]), "cons", 0);
         }
+                    
         
         var lookupTests = [
             function testLookupType() {
@@ -827,25 +834,18 @@ var GENES = (function () {
             }
         ];
         
+        var fixZero = new FixNumGenerator(0, { min: 0, max: 1 }),
+            fixOne = new FixNumGenerator(1, { min: 0, max: 1 });
+        
         var ifTests = [
             function testIfType() {
-                var ifGene = new IfGene(
-                    P.FIX_NUM,
-                    new NullGene(),
-                    new FixNumGenerator(0, { min: 0, max: 1 }),
-                    new FixNumGenerator(1, { min: 0, max: 1 })
-                );
+                var ifGene = new IfGene(P.FIX_NUM, new NullGene(), fixZero, fixOne);
                 TEST.isTrue(ifGene.type.equals(P.FIX_NUM));
             },
             function testIfExpress() {
                 var c = new Context(new SLUR_TYPES.Registry());
 
-                var gene = new IfGene(
-                    P.FIX_NUM,
-                    new NullGene(),
-                    new FixNumGenerator(0, { min: 0, max: 1 }),
-                    new FixNumGenerator(1, { min: 0, max: 1 })
-                );
+                var gene = new IfGene(P.FIX_NUM, new NullGene(), fixZero, fixOne);
 
                 var phene = gene.express(c);
                 TEST.notNull(phene);
@@ -857,17 +857,17 @@ var GENES = (function () {
         
         var functionTests = [
         	function testType() {
-                var gene = new FunctionGene(new FuncType(P.FIX_NUM, [P.FIX_NUM]), "fn", new FixNumGenerator(1, { min: 0, max: 1 }));
+                var gene = new FunctionGene(new FuncType(P.FIX_NUM, [P.FIX_NUM]), "fn", fixOne);
                 TEST.isTrue(gene.type.equals(new FuncType(P.FIX_NUM, [P.FIX_NUM])));
             },
             function testExpressNoArgs() {
-                var gene = new FunctionGene(new FuncType(P.FIX_NUM, []), "fn", new FixNumGenerator(1, { min: 0, max: 1 })),
+                var gene = new FunctionGene(new FuncType(P.FIX_NUM, []), "fn", fixOne),
                     phene = gene.express(new Context(new SLUR_TYPES.Registry()));
                 TEST.notNull(phene);
                 TEST.equals(phene.toString(), "(define (fn) 1)");
             },
             function testExpressOneArg() {
-                var gene = new FunctionGene(new FuncType(P.FIX_NUM, [P.FIX_NUM]), "fn", new FixNumGenerator(1, { min: 0, max: 1 })),
+                var gene = new FunctionGene(new FuncType(P.FIX_NUM, [P.FIX_NUM]), "fn", fixOne),
                     phene = gene.express(new Context(new SLUR_TYPES.Registry()));
                 TEST.notNull(phene);
                 TEST.equals(phene.toString(), "(define (fn fnp0) 1)");
@@ -889,61 +889,51 @@ var GENES = (function () {
         var appTests = [
             function testType() {
                 var type = new FuncType(P.FIX_NUM, [P.FIX_NUM]),
-                    fixZero = new FixNumGenerator(0, { min: 0, max: 1 }),
-                    fixOne = new FixNumGenerator(1, { min: 0, max: 1 }),
                     gene = new ApplicationGene(new FunctionGene(type, "l", fixOne, true), [fixZero]);
                 TEST.isTrue(gene.type.equals(P.FIX_NUM));
             },
             function testExpress() {
                 var type = new FuncType(P.FIX_NUM, [P.FIX_NUM]),
-                    fixZero = new FixNumGenerator(0, { min: 0, max: 1 }),
-                    fixOne = new FixNumGenerator(1, { min: 0, max: 1 }),
                     gene = new ApplicationGene(new FunctionGene(type, "l", fixOne, true), [fixZero]),
                     phene = gene.express(new Context(new SLUR_TYPES.Registry()));
                 TEST.notNull(phene);
                 TEST.equals(phene.toString(), "((lambda (lp0) 1) 0)");
             }
         ];
-/*
-public class DemaybeGeneTest extends TestCase {
-	public void testType() {
-		Gene ifGene = new IfGene(new Maybe(P.FIX_NUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
-		Gene gene = new DemaybeGene(ifGene, new FixNumGenerator(0,0,1), "a");
-		TEST.equals(gene.type(), P.FIX_NUM);
-	}
+        
+        function buildPassMaybeGene() {
+            var type = new FuncType(new SLUR_TYPES.Maybe(P.FIX_NUM), [P.FIX_NUM]),
+                func = new FunctionGene(type, "l", fixOne, true),
+                ifGene = new IfGene(new SLUR_TYPES.Maybe(P.FIX_NUM), new TrueGene(), fixZero, new NullGene()),
+                gene = new PassMaybeGene(new SLUR_TYPES.Maybe(P.FIX_NUM), func, [ifGene], "a");
+            return gene;
+        }
+        
+        var maybeTests = [
+        	function testDemaybeType() {
+                var ifGene = new IfGene(new SLUR_TYPES.Maybe(P.FIX_NUM), new NullGene(), fixOne, new NullGene()),
+                    gene = new DemaybeGene(ifGene, fixZero, "a");
+                TEST.isTrue(gene.type.equals(P.FIX_NUM));
+            },
+            function testDemaybeExpress() {
+                var ifGene = new IfGene(new SLUR_TYPES.Maybe(P.FIX_NUM), new NullGene(), fixOne, new NullGene()),
+                    gene = new DemaybeGene(ifGene, fixZero, "a"),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(), "(let ((dm_a (if () 1 ()))) (if dm_a dm_a 0))");
+            },
+            function testPassMaybeType() {
+                var gene = buildPassMaybeGene();
+                TEST.isTrue(gene.type.equals(new SLUR_TYPES.Maybe(P.FIX_NUM)));
+            },
+            function testPassMaybeExpress() {
+                var gene = buildPassMaybeGene(),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(), "(let ((pm_a0 (if #t 0 ()))) (if pm_a0 ((lambda (lp0) 1) pm_a0) ()))");
+            }
+        ];
 
-	public void testExpress() {
-		Gene ifGene = new IfGene(new Maybe(P.FIX_NUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
-		Gene gene = new DemaybeGene(ifGene, new FixNumGenerator(0,0,1), "a");
-		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(),"(let ((dm_a (if () 1 ()))) (if dm_a dm_a 0))");
-	}
-}
-
-public class PassMaybeGeneTest extends TestCase {
-	private Gene buildPassMaybeGene() {
-		FunctionType type = new FunctionType(new Maybe(P.FIX_NUM),new Type[]{P.FIX_NUM});
-		Gene function = new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true);
-		Gene ifGene = new IfGene(new Maybe(P.FIX_NUM), new TrueGene(), new FixNumGenerator(0,0,1), new NullGene());
-		Gene gene = new PassMaybeGene(new Maybe(P.FIX_NUM), function, new Gene[]{ifGene}, "a");
-		return gene;
-	}
-
-	public void testType() {
-		Gene gene = buildPassMaybeGene();
-		TEST.equals(gene.type(),new Maybe(P.FIX_NUM));
-	}
-
-	public void testExpress() {
-		Gene gene = buildPassMaybeGene();
-		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
-		TEST.notNull(phene);
-		String pheneString = phene.toString();
-		TEST.equals(pheneString,"(let ((pm_a0 (if #t 0 ()))) (if pm_a0 ((lambda (lp0) 1) pm_a0) ()))");
-	}
-}
-*/
         TEST.run("NullGene", nullGeneTests);
         TEST.run("TrueGene", trueGeneTests);
         TEST.run("Generator", generatorTests);
@@ -952,6 +942,7 @@ public class PassMaybeGeneTest extends TestCase {
         TEST.run("IfGene", ifTests);
         TEST.run("FunctionGene", functionTests);
         TEST.run("ApplicationGene", appTests);
+        TEST.run("MaybeGenes", maybeTests);
     }
 
     testSuite();

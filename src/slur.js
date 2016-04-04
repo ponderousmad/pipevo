@@ -198,11 +198,13 @@ var SLUR = (function (TEST) {
         return result;
     };
 
-    function makeList(list_or_single) {
+    function makeList(list_or_single, second) {
         if (typeof list_or_single === 'undefined') {
             return NULL;
         }
-        else if (Array.isArray(list_or_single)) {
+        if (second) {
+            throw "Must call with list argument to construct a list with multiple items.";
+        } else if (Array.isArray(list_or_single)) {
             var cons = NULL;
             for (var i = list_or_single.length - 1; i >=0; --i) {
                 cons = new Cons(list_or_single[i], cons);
