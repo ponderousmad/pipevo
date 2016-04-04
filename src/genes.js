@@ -120,7 +120,7 @@ var GENES = (function () {
         // the range size, but makes the mutation have nice properties.
         var min = this.range.min,
             max = this.range.max,
-            value = max == min ? min : min + this.seed % (max - min);
+            value = max == min ? min : min + this.seed % (max - min + 1);
         return new SLUR.FixNum(value);
     };
 
@@ -280,7 +280,7 @@ var GENES = (function () {
 		for (var i = this.items.length - 1; i >= 0; --i) {
 			list = new SLUR.Cons(this.items[i].express(context), list);
 		}
-		return SLUR.prependList(new SLUR.Symbol("list"), list);
+		return new SLUR.Cons(new SLUR.Symbol("list"), list);
 	};
 
     ListGene.prototype.mutate = function (mutation, context, entropy) {
@@ -418,7 +418,8 @@ var GENES = (function () {
     };
 
     function ApplicationGene(functionGene, args) {
-        this.type = functionGene.type;
+        this.functionType = functionGene.type;
+        this.type = this.functionType.returnType;
         this.functionGene = functionGene;
         this.args = args;
     }
@@ -438,12 +439,12 @@ var GENES = (function () {
     };
 
     ApplicationGene.prototype.mutate = function (mutation, context, entropy) {
-        var mutatedFunction = mutation.mutateGene(this.type, this.functionGene, context, entropy),
+        var mutatedFunction = mutation.mutateGene(this.functionType, this.functionGene, context, entropy),
             mutated = mutatedFunction != this.functionGene,
             mutatedArgs = [];
         for (var i = 0; i < this.args.length; ++i) {
             var arg = this.args[i];
-            mutatedArgs.push(mutation.mutateGene(this.type.argumentTypes[i], arg, context, entropy));
+            mutatedArgs.push(mutation.mutateGene(this.functionType.argumentTypes[i], arg, context, entropy));
             if (mutatedArgs[i] != arg) {
                 mutated = true;
             }
@@ -499,7 +500,7 @@ var GENES = (function () {
     PassMaybeGene.prototype.express = function (context) {
         var bindings = this.buildBindings(context, 0),
             args = this.buildArguments(0),
-            application = SLUR.prependList(this.function.express(context), args),
+            application = new SLUR.Cons(this.function.express(context), args),
             predicate = this.buildPredicate(),
             body = null;
         if (SLUR.isNull(predicate)) {
@@ -507,14 +508,14 @@ var GENES = (function () {
         } else {
             body = SLUR.makeList(new SLUR.IfExpression(predicate, application, SLUR.NULL));
         }
-        return SLUR.prependList(new SLUR.Symbol("let"), bindings, body);
+        return new SLUR.Cons(new SLUR.Symbol("let"), new SLUR.Cons(bindings, body));
     };
 
     PassMaybeGene.prototype.buildArguments = function (index) {
         if (index >= this.argGenes.length) {
             return SLUR.NULL;
         }
-        return SLUR.prependList(this.varSymbol(index), this.buildArguments(index + 1));
+        return new SLUR.Cons(this.varSymbol(index), this.buildArguments(index + 1));
     };
 
     PassMaybeGene.prototype.varSymbol = function (index) {
@@ -524,7 +525,7 @@ var GENES = (function () {
     PassMaybeGene.prototype.buildPredicate = function () {
 		var checks = this.buildPredicateN(0);
 		if ( SLUR.isCons(checks)) {
-			return SLUR.prependList(new SLUR.Symbol("and"), checks);
+			return new SLUR.Cons(new SLUR.Symbol("and"), checks);
 		}
 		return checks;
     };
@@ -544,7 +545,7 @@ var GENES = (function () {
 		if (!SLUR.isCons(rest)) {
 			rest = SLUR.makeList(rest);
 		}
-		return SLUR.prependList(symbol, rest);
+		return new SLUR.Cons(symbol, rest);
     };
 
     PassMaybeGene.prototype.check = function (index) {
@@ -555,11 +556,11 @@ var GENES = (function () {
 		if (index >= this.argGenes.length) {
 			return SLUR.NULL;
 		}
-		return SLUR.prependList(this.buildBinding(context, index), this.buildBindings(context, index + 1));
+		return new SLUR.Cons(this.buildBinding(context, index), this.buildBindings(context, index + 1));
     };
 
     PassMaybeGene.prototype.buildBinding = function (context, index) {
-		return SLUR.makeList([this.varSymbol(index), this.arguments[index].express(context)]);
+		return SLUR.makeList([this.varSymbol(index), this.argGenes[index].express(context)]);
     };
 
     PassMaybeGene.prototype.mutate = function (mutation, context, entropy) {
@@ -597,36 +598,36 @@ var GENES = (function () {
 		this.popArguments(context);
 
 		if (this.isLambda) {
-			return this.expressLambda(this.argumentList(arguments), body);
+			return this.expressLambda(this.argumentList(args), body);
 		} else {
-			return this.expressFunction(this.name, this.argumentList(arguments), body);
+			return this.expressFunction(this.name, this.argumentList(args), body);
 		}
     };
 
     FunctionGene.prototype.argumentList = function (args) {
 		var list = SLUR.NULL;
 		for (var i = args.length - 1; i >= 0; --i ) {
-			list = new SLUR.Cons(new Symbol(args[i] ), list);
+			list = new SLUR.Cons(new SLUR.Symbol(args[i]), list);
 		}
 		return list;
 	};
 
     FunctionGene.prototype.expressFunction = function (name, args, body) {
-		return SLUR.prependList(new SLUR.Symbol("define"), SLUR.prependList(new SLUR.Symbol(this.name), args), body);
+		return new SLUR.Cons(new SLUR.Symbol("define"), new SLUR.Cons(new SLUR.Cons(new SLUR.Symbol(this.name), args), body));
 	};
 
     FunctionGene.prototype.expressLambda = function (args, body) {
-		return SLUR.prependList(new SLUR.Symbol("lambda"), args, body);
+		return new SLUR.Cons(new SLUR.Symbol("lambda"), new SLUR.Cons(args, body));
 	};
 
     FunctionGene.prototype.pushArguments = function (context, args) {
-		for (var i = 0; i < this.args.length; ++i ) {
+		for (var i = 0; i < args.length; ++i) {
 			context.pushSymbol(args[i], this.type.argumentTypes[i]);
 		}
 	};
 
     FunctionGene.prototype.popArguments = function (context) {
-		context.popSymbols( this.type.argumentTypes.length );
+		context.popSymbols(this.type.argumentTypes.length);
 	};
 
     function functionArgumentNames(type, baseName) {
@@ -696,7 +697,7 @@ var GENES = (function () {
                     phene = gene.express(new Context(new SLUR_TYPES.Registry()));
                 TEST.notNull(phene);
                 TEST.isTrue(SLUR.isInt(phene));
-                TEST.equals(phene.value, 2);
+                TEST.equals(phene.value, 1);
             },
             function testRealType() {
                 var gene = new RealGenerator(1, { min: 0, max: 100 });
@@ -767,19 +768,19 @@ var GENES = (function () {
                 TEST.notNull(phene);
                 TEST.equals(phene.toString(), "(list)");
 
-                var items = [new FixNumGenerator(0, { min: 0, max: 3 })];
+                var items = [new FixNumGenerator(0, { min: 0, max: 2 })];
                 gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM), items);
                 phene = gene.express(c);
                 TEST.notNull(phene);
                 TEST.equals(phene.toString(),"(list 0)");
 
-                items.push(new FixNumGenerator(1, { min: 0, max: 3 }));
+                items.push(new FixNumGenerator(1, { min: 0, max: 2 }));
                 gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM), items);
                 phene = gene.express(c);
                 TEST.notNull(phene);
                 TEST.equals(phene.toString(),"(list 0 1)");
 
-                items.push(new FixNumGenerator(2, { min: 0, max: 3 }));
+                items.push(new FixNumGenerator(2, { min: 0, max: 2 }));
                 gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM), items);
                 phene = gene.express(c);
                 TEST.notNull(phene);
@@ -787,9 +788,9 @@ var GENES = (function () {
             },
             function testCopy() {
                 var gene = new ListGene(new SLUR_TYPES.ListType(P.FIX_NUM), [
-                        new FixNumGenerator(0, { min: 0, max: 3 }),
-                        new FixNumGenerator(1, { min: 0, max: 3 }),
-                        new FixNumGenerator(2, { min: 0, max: 3 })
+                        new FixNumGenerator(0, { min: 0, max: 2 }),
+                        new FixNumGenerator(1, { min: 0, max: 2 }),
+                        new FixNumGenerator(2, { min: 0, max: 2 })
                     ]),
                     copy = gene.copy();
                 TEST.notSame(gene, copy);
@@ -825,47 +826,84 @@ var GENES = (function () {
                 TEST.equals(phene.toString(), "cons");
             }
         ];
+        
+        var ifTests = [
+            function testIfType() {
+                var ifGene = new IfGene(
+                    P.FIX_NUM,
+                    new NullGene(),
+                    new FixNumGenerator(0, { min: 0, max: 1 }),
+                    new FixNumGenerator(1, { min: 0, max: 1 })
+                );
+                TEST.isTrue(ifGene.type.equals(P.FIX_NUM));
+            },
+            function testIfExpress() {
+                var c = new Context(new SLUR_TYPES.Registry());
+
+                var gene = new IfGene(
+                    P.FIX_NUM,
+                    new NullGene(),
+                    new FixNumGenerator(0, { min: 0, max: 1 }),
+                    new FixNumGenerator(1, { min: 0, max: 1 })
+                );
+
+                var phene = gene.express(c);
+                TEST.notNull(phene);
+                TEST.equals("(if () 0 1)", phene.toString());
+            }
+        ];
+        
+        var appTests = [
+            function testType() {
+                var type = new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM]),
+                    fixZero = new FixNumGenerator(0, { min: 0, max: 1 }),
+                    fixOne = new FixNumGenerator(1, { min: 0, max: 1 }),
+                    gene = new ApplicationGene(new FunctionGene(type, "l", fixOne, true), [fixZero]);
+                TEST.isTrue(gene.type.equals(P.FIX_NUM));
+            },
+            function testExpress() {
+                var type = new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM]),
+                    fixZero = new FixNumGenerator(0, { min: 0, max: 1 }),
+                    fixOne = new FixNumGenerator(1, { min: 0, max: 1 }),
+                    gene = new ApplicationGene(new FunctionGene(type, "l", fixOne, true), [fixZero]),
+                    phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(), "((lambda (lp0) 1) 0)");
+            }
+        ];
 /*
-public class IfGeneTest extends TestCase {
+public class FunctionGeneTest extends TestCase {
 	public void testType() {
-		Gene ifGene = new IfGene(
-				P.FIX_NUM,
-				new NullGene(),
-				new FixNumGenerator(0,0,1),
-				new FixNumGenerator(1,0,1)
-		);
-		TEST.equals(ifGene.type(),P.FIX_NUM);
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1));
+		TEST.equals(gene.type(), new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}));
 	}
 
-	public void testExpress() {
-		Context c = new Context(new ObjectRegistry());
-
-		Gene gene = new IfGene(
-				P.FIX_NUM,
-				new NullGene(),
-				new FixNumGenerator(0,0,1),
-				new FixNumGenerator(1,0,1)
-		);
-
-		Obj result = gene.express(c);
-		TEST.notNull(result);
-		TEST.equals("(if () 0 1)", result.toString());
-	}
-}
-
-public class ApplicationGeneTest extends TestCase {
-	public void testType() {
-		FunctionType type = new FunctionType(P.FIX_NUM,new Type[]{P.FIX_NUM});
-		Gene gene = new ApplicationGene(new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true), new Gene[]{new FixNumGenerator(0,0,1)});
-		TEST.equals(gene.type(), P.FIX_NUM);
-	}
-
-	public void testExpress() {
-		FunctionType type = new FunctionType(P.FIX_NUM,new Type[]{P.FIX_NUM});
-		Gene gene = new ApplicationGene(new FunctionGene(type,"l",new FixNumGenerator(1,0,1),true), new Gene[]{new FixNumGenerator(0,0,1)});
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
+	public void testExpressNoArgs() {
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{}),"fn",new FixNumGenerator(1,0,1));
+		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
 		TEST.notNull(phene);
-		TEST.equals(phene.toString(), "((lambda (lp0) 1) 0)");
+		TEST.equals(phene.toString(), "(define (fn) 1)");
+	}
+
+	public void testExpressOneArg() {
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1));
+		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+		TEST.notNull(phene);
+		TEST.equals(phene.toString(), "(define (fn fnp0) 1)");
+	}
+
+	public void testExpressTwoArgs() {
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM,P.BOOL}),"fn",new FixNumGenerator(1,0,1));
+		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+		TEST.notNull(phene);
+		TEST.equals(phene.toString(), "(define (fn fnp0 fnp1) 1)");
+	}
+
+	public void testExpressLambda() {
+		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1), true);
+		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
+		TEST.notNull(phene);
+		TEST.equals(phene.toString(), "(lambda (fnp0) 1)");
 	}
 }
 
@@ -879,7 +917,7 @@ public class DemaybeGeneTest extends TestCase {
 	public void testExpress() {
 		Gene ifGene = new IfGene(new Maybe(P.FIX_NUM), new NullGene(), new FixNumGenerator(1,0,1), new NullGene());
 		Gene gene = new DemaybeGene(ifGene, new FixNumGenerator(0,0,1), "a");
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
 		TEST.notNull(phene);
 		TEST.equals(phene.toString(),"(let ((dm_a (if () 1 ()))) (if dm_a dm_a 0))");
 	}
@@ -901,45 +939,10 @@ public class PassMaybeGeneTest extends TestCase {
 
 	public void testExpress() {
 		Gene gene = buildPassMaybeGene();
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
+		Obj phene = gene.express(new Context(new SLUR_TYPES.Registry()));
 		TEST.notNull(phene);
 		String pheneString = phene.toString();
 		TEST.equals(pheneString,"(let ((pm_a0 (if #t 0 ()))) (if pm_a0 ((lambda (lp0) 1) pm_a0) ()))");
-	}
-}
-
-public class FunctionGeneTest extends TestCase {
-	public void testType() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1));
-		TEST.equals(gene.type(), new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}));
-	}
-
-	public void testExpressNoArgs() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{}),"fn",new FixNumGenerator(1,0,1));
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(), "(define (fn) 1)");
-	}
-
-	public void testExpressOneArg() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1));
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(), "(define (fn fnp0) 1)");
-	}
-
-	public void testExpressTwoArgs() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM,P.BOOL}),"fn",new FixNumGenerator(1,0,1));
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(), "(define (fn fnp0 fnp1) 1)");
-	}
-
-	public void testExpressLambda() {
-		Gene gene = new FunctionGene(new FunctionType(P.FIX_NUM, new Type[]{P.FIX_NUM}),"fn",new FixNumGenerator(1,0,1), true);
-		Obj phene = gene.express(new Context(new ObjectRegistry()));
-		TEST.notNull(phene);
-		TEST.equals(phene.toString(), "(lambda (fnp0) 1)");
 	}
 }
 */
@@ -948,6 +951,8 @@ public class FunctionGeneTest extends TestCase {
         TEST.run("Generator", generatorTests);
         TEST.run("ContainerGene", containerTests);
         TEST.run("LookupGene", lookupTests);
+        TEST.run("IfGene", ifTests);
+        TEST.run("ApplicationGene", appTests);
     }
 
     testSuite();

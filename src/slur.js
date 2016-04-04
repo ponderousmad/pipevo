@@ -198,18 +198,6 @@ var SLUR = (function (TEST) {
         return result;
     };
 
-    function prependList(list_or_single, tail) {
-        if (Array.isArray(list_or_single)) {
-            var cons = tail;
-            for (var i = list_or_single.length - 1; i >=0; --i) {
-                cons = new Cons(list_or_single[i], cons);
-            }
-            return cons;
-        } else {
-            return new Cons(list_or_single, tail);
-        }
-    }
-
     function makeList(list_or_single) {
         if (typeof list_or_single === 'undefined') {
             return NULL;
@@ -229,7 +217,7 @@ var SLUR = (function (TEST) {
         if (isNull(args)) {
             return args;
         } else if(isCons(args)) {
-            return prependList(args.car.compile(env), compileList(env, args.cdr));
+            return new Cons(args.car.compile(env), compileList(env, args.cdr));
         }
         throw compileException("Malformed list", env);
     }
@@ -381,7 +369,7 @@ var SLUR = (function (TEST) {
         if (this.build) {
             return this.build(env, args);
         } else {
-            return prependList(this, compileList(env, args));
+            return new Cons(this, compileList(env, args));
         }
     };
 
@@ -514,7 +502,7 @@ var SLUR = (function (TEST) {
 
     function quoteCompile(env, args) {
         // jshint validthis: true
-        return prependList(this, args);
+        return new Cons(this, args);
     }
 
     function IfExpression(predicate, thenClause, elseClause) {
@@ -1708,7 +1696,6 @@ var SLUR = (function (TEST) {
         Symbol: Symbol,
         IfExpression: IfExpression,
         makeList: makeList,
-        prependList: prependList,
         define: define,
         Parser: Parser,
         baseEnvironment: baseEnvironment,
