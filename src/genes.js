@@ -800,36 +800,32 @@ var GENES = (function () {
                 TEST.equals(phene.toString(), copyPhene.toString());
             }
         ];
+        
+        function buildContext() {
+            var reg = new SLUR_TYPES.Registry();
+            SLUR_TYPES.registerBuiltins(reg);
+            return new Context(reg);
+        }
+        function buildLookupGene() {
+            var p = new SLUR_TYPES.Parameter();
+            return new LookupGene(new SLUR_TYPES.FunctionType(new SLUR_TYPES.ConsType(p, p), [p, p]), "cons", 0);
+        }
+        
+        var lookupTests = [
+            function testLookupType() {
+                var gene = buildLookupGene(),
+                    q = new SLUR_TYPES.Parameter();
+                TEST.isTrue(gene.type.match(new SLUR_TYPES.FunctionType(new SLUR_TYPES.ConsType(q,q), [q, q])).matches);
+            },
+            function testExpress() {
+                var gene = buildLookupGene(),
+                    c = buildContext(),
+                    phene = gene.express(c);
+                TEST.notNull(phene);
+                TEST.equals(phene.toString(), "cons");
+            }
+        ];
 /*
-
-public class LookupGeneTest extends TestCase {
-	private Gene buildLookupGene() {
-		Parameter p = new Parameter();
-		return new LookupGene(new FunctionType(new ConsType(p,p), new Type[]{p,p}), "cons", 0);
-	}
-
-	public void testType() {
-		Gene gene = buildLookupGene();
-		Parameter q = new Parameter();
-		TEST.isTrue(gene.type().match(new FunctionType(new ConsType(q,q), new Type[]{q,q})).matches());
-	}
-
-	public void testExpress() {
-		Gene gene = buildLookupGene();
-		Context c = buildContext();
-		Obj result = gene.express(c);
-		TEST.notNull(result);
-		TEST.equals(result.toString(),"cons");
-	}
-
-	private Context buildContext() {
-		ObjectRegistry reg = new ObjectRegistry();
-		BuiltinRegistrar.registerBuiltins(reg);
-		Context c = new Context(reg);
-		return c;
-	}
-}
-
 public class IfGeneTest extends TestCase {
 	public void testType() {
 		Gene ifGene = new IfGene(
@@ -951,6 +947,7 @@ public class FunctionGeneTest extends TestCase {
         TEST.run("TrueGene", trueGeneTests);
         TEST.run("Generator", generatorTests);
         TEST.run("ContainerGene", containerTests);
+        TEST.run("LookupGene", lookupTests);
     }
 
     testSuite();

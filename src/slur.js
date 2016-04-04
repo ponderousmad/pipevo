@@ -1117,7 +1117,6 @@ var SLUR = (function (TEST) {
         binary("atan2",REAL, function (a, b) { return Math.atan2(b, a); });
     }
 
-
     function parseException(message) {
         return new SlurException("ParseException", message);
     }
