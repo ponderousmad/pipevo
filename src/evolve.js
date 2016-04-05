@@ -1606,6 +1606,364 @@ public interface Reporter {
     void currentPopulation(List<Evaluation> evaluated);
 }
 */
+
+    function testSuite() {
+/*
+public class TypeBuilderTest extends TestCase {
+	private TypeBuilder.Probabilities TypeProbs() {
+		return new TypeBuilder.Probabilities();
+	}
+
+	public void testCreate() {
+		TypeBuilder builder = new TypeBuilder(false, TypeProbs());
+		Random random = new Random();
+
+		for( int i = 0; i < 1000; ++i ) {
+			Type type = builder.createType(random);
+			assertNotNull( type );
+		}
+	}
+
+	public void testCreateFunction() {
+		TypeBuilder builder = new TypeBuilder(false, TypeProbs());
+		Random random = new Random();
+
+		for( int i = 0; i < 100; ++i ) {
+			Type r = builder.createType(new Random());
+			assertNotNull( r );
+			FunctionType rFunc = builder.createFunction(r, random);
+			assertNotNull( rFunc );
+		}
+	}
+
+	public void testCreateParameterized() {
+		TypeBuilder builder = new TypeBuilder(true, TypeProbs());
+		Random random = new Random();
+
+		boolean someParameter = false;
+		for( int i = 0; i < 2000; ++i ) {
+			Type type = builder.createType(random);
+			assertNotNull( type );
+			if( type.isParameterized() ) {
+				someParameter = true;
+			}
+		}
+		assertTrue( someParameter );
+	}
+
+	public void testCreateParameterizedFunction() {
+		TypeBuilder builder = new TypeBuilder(true, TypeProbs());
+		Random random = new Random();
+
+		boolean someParameter = false;
+		for( int i = 0; i < 1000; ++i ) {
+			Type r = builder.createType(random);
+			assertNotNull( r );
+			FunctionType rFunc = builder.createFunction(r, random);
+			assertNotNull( rFunc );
+			if( rFunc.isParameterized() ) {
+				someParameter = true;
+			}
+		}
+		assertTrue( someParameter );
+	}
+}
+
+public class GeneBuilderTest extends TestCase {
+	public static void testBuildFunction() {
+		long baseSeed = new Random().nextLong();
+		Random testRandom = new Random( baseSeed );
+
+		ObjectRegistry reg = new ObjectRegistry();
+		BuiltinRegistrar.registerBuiltins(reg);
+		Chromasome c = new Chromasome(StringRandom.alphaString( testRandom, 5 ));
+		final int kTestCount = 20;
+		long[] seeds = new long[kTestCount];
+
+		for( int i = 0; i < kTestCount; ++i ) {
+			long seed = testRandom.nextLong();
+			seeds[i] = seed;
+			Random random = new Random( seed );
+			TypeBuilder typeBuilder = new TypeBuilder(
+				true,
+				new TypeBuilder.Probabilities()
+			);
+			Context context = new Context(reg);
+			context.addChromasome( c );
+
+			GeneRandomizer randomizer = new GeneRandomizer(new GeneRandomizer.Probabilities());
+			GeneBuilder geneBuilder = new GeneBuilder( typeBuilder, randomizer, context );
+			Type returnType = typeBuilder.createType(random);
+			FunctionType funcType = typeBuilder.createFunction(returnType, random);
+			Gene gene = geneBuilder.buildFunction(funcType, c.nextGeneName(), random);
+			assertNotNull( gene );
+
+			c.addGene( gene );
+
+			Obj obj = gene.express(context);
+			assertNotNull( obj );
+		}
+		expressTest( reg, c );
+
+		String path = "tmp";
+		storeChromasome( c, path );
+		expressTest(reg, loadChromasome( path ));
+	}
+
+	private static void expressTest(ObjectRegistry reg, Chromasome chromasome) {
+		Context context = new Context(reg);
+		context.addChromasome( chromasome );
+		Phene[] expressions = chromasome.express(context);
+		assertNotNull(expressions);
+		assertTrue(expressions.length>0);
+		for( Phene expression : expressions) {
+			assertNotNull(expression);
+			assertNotNull(expression.name);
+			assertNotNull(expression.expression);
+		}
+	}
+
+	private static Chromasome loadChromasome(String path) {
+		try {
+			FileInputStream in = new FileInputStream(path);
+			ObjectInputStream s = new ObjectInputStream(in);
+			return (Chromasome)s.readObject();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	private static void storeChromasome(Chromasome c, String path) {
+		FileOutputStream f;
+		try {
+			f = new FileOutputStream(path);
+			ObjectOutput s = new ObjectOutputStream(f);
+			s.writeObject(c);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+}
+
+public class GenomeBuilderTest extends TestCase {
+	static class Helper {
+		GenomeBuilder mBuilder;
+		ObjectRegistry mReg;
+
+		Helper() {
+			mReg = new ObjectRegistry();
+			BuiltinRegistrar.registerBuiltins(mReg);
+			TypeBuilder typeBuilder = new TypeBuilder(
+				true,
+				new TypeBuilder.Probabilities()
+			);
+			mBuilder = new GenomeBuilder(mReg,typeBuilder, new GeneRandomizer(new GeneRandomizer.Probabilities()));
+		}
+
+		ChromasomeStructure[] buildStructure( FunctionType target, Random random ) {
+			return mBuilder.buildGenomeStructure(target, random);
+		}
+
+		Genome build( ChromasomeStructure[] structure, Random random ) {
+			return mBuilder.build(structure, random);
+		}
+
+		List<Phene> express( Genome genome ) {
+			Context context = new Context(mReg);
+			return genome.express(context);
+		}
+	}
+
+	public void testBuildStructure() {
+		Random random = new Random();
+		Helper helper = new Helper();
+		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
+		ChromasomeStructure[] structure = helper.buildStructure(target, random);
+		assertNotNull( structure );
+		assertTrue( structure.length > 1 );
+		for( int i = 0; i < structure.length; ++i ) {
+			GenomeBuilder.ChromasomeStructure cs = structure[i];
+			assertNotNull(cs);
+			assertNotNull(cs.name);
+			assertNotNull(cs.geneTypes);
+			assertTrue( cs.geneTypes.length > 0 );
+			for( int j = 0; j < cs.geneTypes.length; ++j ) {
+				assertNotNull(cs.geneTypes[j]);
+			}
+		}
+	}
+
+	public void testBuild() {
+		Random random = new Random();
+		Helper helper = new Helper();
+		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
+		ChromasomeStructure[] structure = helper.buildStructure(target, random);
+		Genome genome = helper.build(structure, random);
+		assertNotNull(genome);
+		List<Phene> phenome = helper.express(genome);
+		assertNotNull(phenome);
+		assertTrue(phenome.size() > 0);
+
+		Symbol targetSymbol = genome.findLastMatching(target);
+		assertNotNull(targetSymbol);
+
+		Phene targetPhene = phenome.get(phenome.size()-1);
+		assertEquals(targetSymbol.name(),targetPhene.name);
+		assertNotNull(targetPhene.expression);
+	}
+}
+
+public class BreederTest extends TestCase {
+	static class BuildHelper {
+		Helper helper = new Helper();
+		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
+		Genome genomeA;
+		Genome genomeB;
+
+		public BuildHelper( Random random )
+		{
+			ChromasomeStructure[] structure = helper.buildStructure(target, random);
+			genomeA = helper.build(structure, random);
+			genomeB = helper.build(structure, random);
+		}
+	}
+
+	public void testBreedChromasome() {
+		Random random = new Random();
+		BuildHelper h = new BuildHelper(random);
+		Chromasome a = h.genomeA.chromasomes().get(0);
+		Chromasome b = h.genomeB.chromasomes().get(0);
+		Chromasome offspring = Breeder.breed(a, b, random);
+
+		assertNotNull(offspring);
+		assertEquals(a.genes().length, offspring.genes().length);
+		for( int i = 0; i < a.genes().length; ++i ) {
+			assertEquals(a.genes()[i].gene.type(), offspring.genes()[i].gene.type());
+		}
+	}
+
+	public void testBreedGenome() {
+		Random random = new Random();
+		BuildHelper h = new BuildHelper(random);
+		Genome offspring = Breeder.breed(h.genomeA, h.genomeB, h.target, random);
+
+		assertNotNull(offspring);
+		assertEquals(h.genomeA.chromasomes().size(),offspring.chromasomes().size());
+		for( int i = 0; i < offspring.chromasomes().size(); ++i ) {
+			assertEquals(h.genomeA.chromasomes().get(i).genes().length,offspring.chromasomes().get(i).genes().length);
+		}
+	}
+}
+
+public class DarwinTest extends TestCase {
+	interface TargetFunction {
+		int target( int x );
+	}
+
+	static class TestRunner implements Runner {
+		private ObjectRegistry mObjectReg;
+		private FunctionType mTarget;
+		private TargetFunction mFunc;
+
+		TestRunner( TargetFunction func ) {
+			mObjectReg = new ObjectRegistry();
+			BuiltinRegistrar.registerBuiltins(mObjectReg);
+			mTarget = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
+			mFunc = func;
+		}
+
+		public ObjectRegistry registry() {
+			return mObjectReg;
+		}
+
+		public Environment environment() {
+			return Initialize.init();
+		}
+
+		public String viewExpression(Genome genome) {
+			Context context = new Context(mObjectReg);
+			List<Phene> expressions = genome.express(context);
+			StringBuilder result = new StringBuilder();
+			for( Phene expression : expressions ) {
+				result.append(expression.name + " = ");
+				result.append(expression.expression.toString());
+				result.append('\n');
+			}
+			return result.toString();
+		}
+
+		public double run(Environment env, Symbol target, Random random) {
+			int number = random.nextInt(20);
+			Cons application = Cons.list(target, new FixNum( number ));
+			Obj result = application.eval(env);
+			if( result instanceof FixNum ) {
+				int resultValue = ((FixNum)result).value();
+				if( resultValue == mFunc.target( number ) ) {
+					return maxScore();
+				}
+			}
+			return 0;
+		}
+
+		public FunctionType targetType() {
+			return mTarget;
+		}
+
+		public double maxScore() {
+			return 1.0;
+		}
+
+		public int iterations() {
+			return 5;
+		}
+
+		public long timeoutInterval() {
+			return 1000;
+		}
+
+		public List<TypeBuilder.Constraint> typeConstraints() {
+			return new java.util.ArrayList<TypeBuilder.Constraint>();
+		}
+	}
+
+	// Evolve a program which returns it's first argument.
+	public void testSimple() {
+		GeneRandomizer geneRandomizer = new GeneRandomizer(new GeneRandomizer.Probabilities());
+
+		TypeBuilder builder = new TypeBuilder(
+			true,
+			new TypeBuilder.Probabilities()
+		);
+		TestRunner testRunner = new TestRunner(new TargetFunction() { public int target(int x) { return x * x; }});
+		Status status = new Status() {
+			public void onFail(Throwable ex, String context) {}
+			public void pop() {}
+			public void push(String name) {}
+			public void updateBest(Evaluation eval) {}
+			public void updateProgress(int current, int total) {}
+			public void notify(String message) {}
+			public void currentPopulation(List<Evaluation> evaluated) {}
+		};
+		Mutator mutator = new Mutator(new Mutation(new Mutation.Probabilities(), builder, geneRandomizer));
+		Darwin darwin = new Darwin(builder, testRunner, status, geneRandomizer, mutator);
+		long seed = new Random().nextLong();
+		Random random = new Random(seed);
+		Population initialPopulation = darwin.initialPopulation(10, random);
+		Evaluation best = darwin.evolve(initialPopulation, 10, random);
+		assertTrue( best != null );
+		assertTrue( best.score > 0.0 );
+	}
+}
+
+*/
+
+    }
+    
+    testSuite();
+
     return {
     };
 }());
