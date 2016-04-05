@@ -1235,6 +1235,100 @@ var EVOLVE = (function () {
         result.add(crTarget);
         return result;
     }
+    
+    function phenomeToString(phenes) {
+        var result = "";
+        for (var p = 0; p < phenes.length; ++p) {
+            var phene = phenes[p];
+            result += phene.name;
+            result += " = ";
+            result += phene.expression.toString();
+            result += "\n";
+        }
+        return result;
+    }
+    
+    function Task(genome, id, iterationCount, seed) {
+        this.genome = genome;
+        this.taskID = id;
+        this.startTime = null;
+        this.score = 0;
+        this.env = null;
+        this.entryPoint = null;
+        this.runFrame = null;
+        this.iterationCount = iterationCount;
+        this.iterations = 0;
+        this.seed = seed;
+        this.errors = [];
+    }
+    
+    Task.prototype.setExpression = function (env, entryPoint) {
+        this.env = env;
+        this.entryPoint = entryPoint;
+    };
+    
+    Task.prototype.failExpress = function (error) {
+        this.errors.push("Expression failed: " + error);
+    };
+    
+    Task.prototype.checkTime = function (allowedTime) {
+        if (this.startTime !== null && (TIMING.now() - this.startTime) > allowedTime) {
+            this.runFrame.abort = "Evaluation time exceeded";
+        }
+    };
+    
+    Task.prototype.abort = function (reason) {
+        if (this.runFrame !== null) {
+            this.runFrame.abort = reason;
+        }
+    };
+    
+    Task.prototype.updateScore = function (score) {
+        if (this.startTime !== null) {
+            this.startTime = null;
+            this.runFrame = null;
+            this.score += score;
+            this.iterations += 1;
+        }
+    };
+    
+    Task.prototype.fail = function (error) {
+        this.errors.push("Execution failed: " + error);
+        this.updateScore(-1);            
+    };
+    
+    Task.prototype.expressFailed = function () {
+        return this.env === null && errors.length > 0;
+    };
+    
+    Task.prototype.done = function () {
+        return this.expressFailed() || this.iterations >= this.iterationCount;
+    };
+    
+    Task.prototype.evaluation = function () {
+        var finalScore = 0;
+        if (this.env === null) {
+            finalScore = -2 * this.iterationCount;
+        } else if (this.iterations > 0) {
+            finalScore = this.score / this.iterations;
+        }
+        return { score: finalScore, genome: this.genome };
+    };
+    
+    Task.prototype.startEvaluation = function () {
+        if (this.env === null) {
+            return null;
+        }
+        var entropy = new ENTROPY.Entropy(this.seed);
+        this.seed = entropy.randomSeed();
+        this.runFrame = new SLUR.Frame(this.env, "RunFrame");
+        this.startTime = TIMING.now();
+        return {
+            env: this.runFrame,
+            entryPoint: this.entryPoint,
+            entropy: entropy
+        };
+    };
 
 /*
 public interface Runner {
@@ -1254,185 +1348,6 @@ public interface Runner {
 
     public int iterations();
 }
-
-public interface Status {
-    void onFail(Throwable ex, String context);
-    void notify(String message);
-    void updateBest(Evaluation eval);
-    void updateProgress(int current, int total);
-    void push(String name);
-    void pop();
-    void currentPopulation(List<Evaluation> evaluated);
-}
-
-public class Evaluator {
-    static class IterationData {
-        Environment env;
-        Symbol entryPoint;
-        Random random;
-
-        IterationData(Environment env, Symbol entryPoint, Random random) {
-            this.env = env;
-            this.entryPoint = entryPoint;
-            this.random = random;
-        }
-    }
-
-    public static class TimeoutException extends RuntimeException {
-        private static final long serialVersionUID = -1793266047279954658L;
-
-        public TimeoutException() {
-            super("Timed out.");
-        }
-    }
-
-    public static class AbortedException extends RuntimeException {
-        private static final long serialVersionUID = -2168950614241347034L;
-
-        public AbortedException() {
-            super("Aborted.");
-        }
-    }
-
-    public static class TargetNotFoundException extends RuntimeException {
-        private static final long serialVersionUID = -4130995184897392403L;
-
-        public TargetNotFoundException() {
-            super("Target not found.");
-        }
-    }
-
-    static class GenomeView {
-        List<Phene> mExpressions;
-        GenomeView(List<Phene> expressions) {
-            mExpressions = expressions;
-        }
-
-        public String toString() {
-            StringBuilder result = new StringBuilder();
-            for (Phene expression : mExpressions) {
-                result.append(expression.name + " = ");
-                result.append(expression.expression.toString());
-                result.append('\n');
-            }
-            return result.toString();
-        }
-    }
-
-    private static class Task {
-        static final int kUnset = -1;
-
-        private Genome mGenome = null;
-        private GenomeView mView = null;
-        private int mTaskID = kUnset;
-        private long mStartTime = kUnset;
-        private double mScore = 0;
-        private Environment mEnv = null;
-        private Symbol mEntryPoint = null;
-        private long mSeed;
-        private int mIterationCount;
-        private int mIterations = 0;
-        private Frame mRunFrame = null;
-        private List<Pair<Throwable,String>> mErrors = new ArrayList<Pair<Throwable,String>>();
-
-        Task(Genome genome, int taskID, int iterationCount, long seed) {
-            mGenome = genome;
-            mTaskID = taskID;
-            mIterationCount = iterationCount;
-            mSeed = seed;
-        }
-
-        synchronized int taskID() {
-            return mTaskID;
-        }
-
-        synchronized Genome genome() {
-            return mGenome;
-        }
-
-        synchronized void setView(GenomeView view) {
-            // mView = view;
-        }
-
-        synchronized String view() {
-            if (mView != null) {
-                return mGenome.toString() + "\n" + mView.toString();
-            }
-            return mGenome.toString();
-        }
-
-        synchronized void setExpression(Environment env, Symbol entryPoint) {
-            mEnv = env;
-            mEntryPoint = entryPoint;
-        }
-
-        synchronized void failExpress(Throwable ex, String expression) {
-            mErrors.add(new Pair<Throwable,String>(ex, expression));
-        }
-
-        synchronized void checkTime(long allowedTime) {
-            if (mStartTime != kUnset && ((System.currentTimeMillis() - mStartTime) > allowedTime)) {
-                mRunFrame.abort(new TimeoutException());
-            }
-        }
-
-        synchronized void updateScore(double score) {
-            if (mStartTime != kUnset) {
-                mRunFrame = null;
-                mStartTime = kUnset;
-                mScore += score;
-                ++mIterations;
-            }
-        }
-
-        synchronized void fail(Throwable ex, String expression) {
-            mErrors.add(new Pair<Throwable,String>(ex, expression));
-            updateScore(-1);
-        }
-
-        synchronized double score() {
-            if (mEnv == null) {
-                return -2 * mIterationCount;
-            } else if (mIterations > 0) {
-                return mScore / mIterations;
-            }
-            return 0;
-        }
-
-        synchronized boolean done() {
-            return (expressFailed()) || mIterations >= mIterationCount;
-        }
-
-        private boolean expressFailed() {
-            return mEnv == null && !mErrors.isEmpty();
-        }
-
-        synchronized Evaluation evaluation() {
-            return new Evaluation(score(), mGenome);
-        }
-
-        synchronized List<Pair<Throwable,String>> errors() {
-            return mErrors;
-        }
-
-        synchronized public IterationData iterationData() {
-            if (mEnv != null) {
-                Random random = new Random(mSeed);
-                mSeed = random.nextLong();
-                mRunFrame = new Frame(mEnv, "RunFrame");
-                mStartTime = System.currentTimeMillis();
-
-                return new IterationData(mRunFrame, mEntryPoint, random);
-            }
-            return null;
-        }
-
-        synchronized public void abort() {
-            if (mRunFrame != null) {
-                mRunFrame.abort(new AbortedException());
-            }
-        }
-    }
 
     class Worker implements Runnable
     {
@@ -1542,17 +1457,19 @@ public class Evaluator {
             }
             return false;
         }
-
-        public void join() {
-            try {
-                mThread.join();
-            } catch (InterruptedException e) {
-                mStatus.notify("Unexected interruption.");
-                e.printStackTrace(System.out);
-            }
-        }
     }
 
+public interface Status {
+    void onFail(Throwable ex, String context);
+    void notify(String message);
+    void updateBest(Evaluation eval);
+    void updateProgress(int current, int total);
+    void push(String name);
+    void pop();
+    void currentPopulation(List<Evaluation> evaluated);
+}
+
+public class Evaluator {
     private Runner mRunner;
     private Status mStatus;
 
