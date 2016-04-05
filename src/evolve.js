@@ -1248,24 +1248,17 @@ var EVOLVE = (function () {
         return result;
     }
     
-    function Task(genome, id, iterationCount, seed) {
+    function Task(genome, seed) {
         this.genome = genome;
-        this.taskID = id;
         this.startTime = null;
         this.score = 0;
         this.env = null;
         this.entryPoint = null;
         this.runFrame = null;
-        this.iterationCount = iterationCount;
         this.iterations = 0;
         this.seed = seed;
         this.errors = [];
     }
-    
-    Task.prototype.setExpression = function (env, entryPoint) {
-        this.env = env;
-        this.entryPoint = entryPoint;
-    };
     
     Task.prototype.failExpress = function (error) {
         this.errors.push("Expression failed: " + error);
@@ -1301,21 +1294,21 @@ var EVOLVE = (function () {
         return this.env === null && errors.length > 0;
     };
     
-    Task.prototype.done = function () {
-        return this.expressFailed() || this.iterations >= this.iterationCount;
+    Task.prototype.done = function (iterationCount) {
+        return this.expressFailed() || this.iterations >= iterationCount;
     };
     
-    Task.prototype.evaluation = function () {
+    Task.prototype.evaluation = function (iterationCount) {
         var finalScore = 0;
         if (this.env === null) {
-            finalScore = -2 * this.iterationCount;
+            finalScore = -2 * iterationCount;
         } else if (this.iterations > 0) {
             finalScore = this.score / this.iterations;
         }
         return { score: finalScore, genome: this.genome };
     };
     
-    Task.prototype.startEvaluation = function () {
+    Task.prototype.evaluate = function (runner) {
         if (this.env === null) {
             return null;
         }
@@ -1323,12 +1316,81 @@ var EVOLVE = (function () {
         this.seed = entropy.randomSeed();
         this.runFrame = new SLUR.Frame(this.env, "RunFrame");
         this.startTime = TIMING.now();
-        return {
-            env: this.runFrame,
-            entryPoint: this.entryPoint,
-            entropy: entropy
-        };
+        
+        try {
+            var score = runner.run(this.runFrame, this.entryPoint, entropy);
+            this.updateScore(score);
+        } catch(e) {
+            this.fail(e);
+        }
     };
+    
+    Task.prototype.express = function (runner) {
+        try {
+            var context = new GENES.Context(runner.registry),
+                phenome = genome.express(context),
+                env = this.bind(phenome, runner),
+                entryPoint = genome.findLastMatching(runner.targetType);
+            if (entryPoint === null) {
+                throw "Target not found";
+            }
+            this.env = env;
+            this.entryPoint = entryPoint;
+        } catch(e) {
+            this.failExpress(e);
+        }
+    };
+    
+    Task.prototype.bind = function (phenome, runner) {
+        function isDefine (expression) {
+            if (SLUR.isCons(expression)) {
+                if (SLUR.isSymbol(expression.car)) {
+                    if (expression.car.name === "define") {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        
+        var env = new SLUR.Frame(runner.environment, "expressFrame");
+        for (var p = 0; p < phenome.length; ++p) {
+            var phene = phenome[p],
+                result = phene.expression.compile(env);
+            result = result.eval(env);
+            if (!isDefine(phene.expression)) {
+                env.add(phene.name, result);
+            }
+        }
+        return env;
+    };
+    
+    Task.prototype.run = function (runner) {
+        this.express(runner);
+        
+        while(!this.done(runner.iterationCount)) {
+            this.evaluate(runner);
+        }
+        
+        return this.evaluation(runner.iterationCount);
+    };
+    
+    function evaluatePopulation(population, runner, reporter) {
+        var entropy = ENTROPY.makeRandom(),
+            results = [];
+        for (var g = 0; g < population.length; ++g) {
+            var task = new Task(population[g], entropy.randomSeed());
+            results.push(task.run(runner));
+            if (task.errors.length > 0) {
+                for (var e = 0; e < task.errors.length; ++e) {
+                    reporter.onFail(e, "Genome " + g);
+                }
+            }
+        }
+        
+        results.sort(function (a, b) { return a.score - b.score; });
+        return results;
+    }
 
 /*
 public interface Runner {
@@ -1349,116 +1411,6 @@ public interface Runner {
     public int iterations();
 }
 
-    class Worker implements Runnable
-    {
-        int mWorkerID;
-        Thread mThread;
-
-        Queue<Task> mTasks;
-        Task mTask;
-
-        public Worker(int workerID) {
-            mWorkerID = workerID;
-            constructThread();
-            getTask();
-        }
-
-        private void constructThread() {
-            mThread = new Thread(this);
-            mThread.setName("EvaluateWorker" + mWorkerID);
-        }
-
-        synchronized void start() {
-            mThread.start();
-        }
-
-        synchronized boolean checkStatus(long allowedTime) {
-            if (mTask != null) {
-                mTask.checkTime(allowedTime);
-            }
-            return mTask != null;
-        }
-
-        synchronized void abort() {
-            if (mTask != null) {
-                mTask.abort();
-            }
-            mTasks = null;
-        }
-
-        synchronized boolean getTask() {
-            if (mTasks != null && mTask != null && !mTask.done()) {
-                return true;
-            }
-            mTask = null;
-            if (mTasks == null || mTasks.isEmpty()) {
-                mTasks = assignTasks();
-                if (mTasks == null) {
-                    return false;
-                }
-            }
-            mTask = mTasks.remove();
-            return true;
-        }
-
-        public void run() {
-            while(getTask()) {
-                IterationData data = mTask.iterationData();
-                if (data != null) {
-                    try {
-                        double score = mRunner.run(data.env, data.entryPoint, data.random);
-                        mTask.updateScore(score);
-                    } catch (Throwable ex) {
-                        mTask.fail(ex, mTask.view());
-                    }
-                } else {
-                    express();
-                }
-            }
-        }
-
-        public void express() {
-            try {
-                Genome genome = mTask.genome();
-                Context context = new GENES.Context(mRunner.registry());
-                List<Phene> phenome = genome.express(context);
-                mTask.setView(new GenomeView(phenome));
-                Environment env = bind(phenome);
-                Symbol entryPoint = genome.findLastMatching(mRunner.targetType());
-                if (entryPoint == null) {
-                    throw new TargetNotFoundException();
-                }
-                mTask.setExpression(env, entryPoint);
-            } catch(Throwable ex) {
-                mTask.failExpress(ex, mTask.view());
-            }
-        }
-
-        private Environment bind(List<Phene> phenome) {
-            Environment env = new Frame(mRunner.environment(),"expressFrame");
-            for (Phene phene : phenome) {
-                Obj result = phene.expression.compile(env);
-                result = result.eval(env);
-                if (!isDefine(phene.expression)) {
-                    env.add(phene.name, result);
-                }
-            }
-            return env;
-        }
-
-        private boolean isDefine(Obj expression) {
-            if (expression.isCons()) {
-                Obj car = ((Cons)expression).car();
-                if (car.isSymbol()) {
-                    if (((Symbol)car).name().equals("define")) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-    }
-
 public interface Status {
     void onFail(Throwable ex, String context);
     void notify(String message);
@@ -1467,171 +1419,6 @@ public interface Status {
     void push(String name);
     void pop();
     void currentPopulation(List<Evaluation> evaluated);
-}
-
-public class Evaluator {
-    private Runner mRunner;
-    private Status mStatus;
-
-    private Random mRandom;
-    private Population mPopulation;
-    private int mUnassigned = 0;
-    private Task[] mTasks;
-    Worker[] mWorkers;
-
-
-    public Evaluator(Runner runner, Status status) {
-        mRunner = runner;
-        mStatus = status;
-    }
-
-    synchronized Queue<Task> assignTasks() {
-        mStatus.updateProgress(mUnassigned > 0 ? mUnassigned-1 : 0, mTasks.length);
-        if (mUnassigned == mTasks.length || mWorkers == null) {
-            return null;
-        }
-        Queue<Task> tasks = new java.util.LinkedList<Task>();
-        int chunk = Math.max(Math.min(5, mTasks.length / mWorkers.length), 1);
-        int end = Math.min(mUnassigned + chunk, mTasks.length);
-        for (; mUnassigned < end; ++mUnassigned) {
-            tasks.add(mTasks[mUnassigned]);
-        }
-        return tasks;
-    }
-
-    public static class Evaluation {
-        public double score;
-        public Genome genome;
-
-        public Evaluation(double score, Genome genome) {
-            this.score = score;
-            this.genome = genome;
-        }
-    };
-
-    private void setup() {
-        mUnassigned = 0;
-        mTasks = new Task[mPopulation.size()];
-        int i = 0;
-        for (Genome genome : mPopulation) {
-            long seed = mRandom.nextLong();
-            mTasks[i] = new Task(genome, i, mRunner.iterations(), seed);
-            ++i;
-        }
-
-        int workerCount = java.lang.Runtime.getRuntime().availableProcessors();
-        mWorkers = new Worker[workerCount];
-        for (i = 0; i < workerCount; ++i) {
-            mWorkers[i] = new Worker(i);
-        }
-    }
-
-    synchronized void start() {
-        for (Worker worker : mWorkers) {
-            worker.start();
-        }
-    }
-
-    private synchronized Worker[] getWorkers() {
-        return mWorkers;
-    }
-
-    private boolean checkStatus() {
-        Worker[] workers = getWorkers();
-        if (workers == null) {
-            return false;
-        }
-        boolean isActive = false;
-        for (Worker worker : workers) {
-            if (worker.checkStatus(mRunner.timeoutInterval())) {
-                isActive = true;
-            }
-        }
-        return isActive;
-    }
-
-    // This method cannot be synchronized, because otherwise it would prevent the worker threads from running.
-    public List<Evaluation> evaluate(Population population, Random random) {
-        mRandom = random;
-        mPopulation = population;
-
-        setup();
-        start();
-
-        boolean interruped;
-        do {
-            interruped = false;
-            try {
-                Thread.sleep(Math.min(mRunner.timeoutInterval()/2, 5000));
-            } catch (InterruptedException e) {
-                interruped = true;
-                mStatus.notify("Unexected interruption.");
-                e.printStackTrace(System.out);
-            }
-        } while(interruped || checkStatus());
-
-        return finish();
-    }
-
-    synchronized private List<Evaluation> finish() {
-        if (mWorkers != null) {
-            for (Worker worker : mWorkers) {
-                worker.join();
-            }
-            mWorkers = null;
-
-            return processResults();
-        }
-        return null;
-    }
-
-    private List<Evaluation> processResults() {
-        List<Evaluation> results = new ArrayList<Evaluation>();
-        int i = 0;
-        for (Task task : mTasks) {
-            if (!task.done()) {
-                throw new RuntimeException("Task not done!");
-            }
-            List<Pair<Throwable,String>> errors = task.errors();
-            boolean seen = false;
-            for (Pair<Throwable,String> error : errors) {
-                String description = "";
-                if (!seen && error.second != null && error.second.length() > 0) {
-                    description = "**** Genome " + i + " ****\n" + error.second;
-                    seen = true;
-                }
-                mStatus.onFail(error.first, description + "Genome " + i + ": ");
-
-            }
-            results.add(task.evaluation());
-            ++i;
-        }
-
-        Collections.sort(results, new Comparator<Evaluation>(){
-            public int compare(Evaluation a, Evaluation b) {
-                if (a.score == b.score) {
-                    return 0;
-                }
-                return a.score > b.score ? -1 : 1;
-            }
-        });
-        return results;
-    }
-
-    private synchronized Worker[] clearWorkers() {
-        Worker[] workers = mWorkers;
-        mWorkers = null;
-        return workers;
-    }
-
-    public void stop() {
-        Worker[] workers = clearWorkers();
-        if (workers != null) {
-            for (Worker worker : workers) {
-                worker.abort();
-            }
-        }
-    }
 }
 
 public class Darwin {
