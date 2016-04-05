@@ -1391,7 +1391,192 @@ var EVOLVE = (function () {
         results.sort(function (a, b) { return a.score - b.score; });
         return results;
     }
+    
+    function defaultSurvivalRatios() {
+        return {
+            survivalRatio: 0.1,
+            mutatedSurvivorRatio: 0.4,
+            mutantRatio: 0.05,
+            purebreadRatio: 0.25
+        };
+    }
+    
+    function Darwin(typeBuilder, runner, reporter, geneRandomizer, mutator, survivalRatios) {
+        this.typeBuilder = typeBuilder;
+        this.runner = runner;
+        this.reporter = reporter;
+        this.mutator = mutator;
+        this.survivalRatios = survivalRatios;
+        this.stop = false;
+        this.skipTargetCheck = false;
+    }
+    
+    Darwin.prototype.initialPopulation = function (size, entropy) {
+        this.stop = false;
+        
+        var population = new Population(this.runner.targetType),
+            builder = new GenomeBuilder(this.runner.registry, this.typeBuilder, this.geneRandomizer),
+            structure = builder.buildGenomeStructure(this.runner.targetType, entropy);
 
+        this.reporter.push("Generate Population");
+        for (var i = 0; i < size && !this.stop; ++i) {
+            this.reporter.updateProgress(i, size);
+            try {
+                population.add(builder.build(structure, random));
+            } catch(e) {
+                this.reporter.onFail(e, "Generating population: ");
+                --i;
+            }
+        }
+        this.reporter.pop();
+
+        return population;
+    };
+    
+    Darwin.prototype.nextPopulation = function (evaluated, entropy) {
+        try {
+            var count = evaluated.length,
+                survivors = Math.max(Math.floor(count * this.survivalRatios.survivalRatio), 1),
+                mutatedSurvivors = Math.floor(count * this.survivalRatios.mutatedSurvivorRatio),
+                mutants = Math.floor(count * this.survivalRatios.mutantRatio),
+                offspringCount = Math.max(count - (survivors + mutatedSurvivors + mutants), 0);
+
+            this.reporter.push("Breading/mutating");
+
+            this.reporter.updateProgress(0, 4);
+            var next = this.breedPopulation(evaluated, offspringCount, survivors, random);
+
+            this.reporter.updateProgress(1, 4);
+            for (var s = 0; s < survivors; ++s) {
+                next.push(evaluated[s].genome);
+            }
+
+            this.reporter.updateProgress(2, 4);
+            try {
+                this.reporter.push("Mutating Survivors");
+                for (var m = 0; m < mutatedSurvivors; ++m) {
+                    var mutantSurvivor = this.mutate(evaluated[entropy.randomInt(0, survivors)].genome, entropy);
+                    next.push(mutantSurvivor);
+                    this.reporter.updateProgress(i, mutatedSurvivors);
+                }
+            } finally {
+                this.reporter.pop();
+            }
+
+            this.reporter.updateProgress(3, 4);
+            try {
+                this.reporter.push("Mutating");
+                for (var i = 0; i < mutants; ++i) {
+                    var mutant = this.mutate(entropy.randomElement(evaluated).genome, entropy);
+                    next.push(mutant);
+                    this.reporter.updateProgress(i, mutants);
+                }
+            } finally {
+                this.reporter.pop();
+            }
+
+            return next;
+        } finally {
+            this.reporter.pop();
+        }
+    };
+    
+    Darwin.prototype.breedPopulation = function (evaluated, count, selectFrom, entropy) {
+        var purebreads = Math.floor(this.survivalRatios.purebreadRatio * count),
+            offspring = new Population(this.runner.targetType);
+        try {
+            this.reporter.push("Breeding");
+            for (var i = 0; i < count; ++i) {
+                var parentA = this.selectParent(evaluated, selectFrom, entropy),
+                    parentB = this.selectParent(evaluated, selectFrom, entropy),
+                    child = breedGenomes(parentA, parentB, this.runner.targetType, entropy);
+                if (i > purebreads) {
+                    child = this.mutate(child, entropy);
+                }
+                offspring.add(child);
+            }
+        } finally {
+            this.reporter.pop();
+        }
+        return offspring;
+    };
+    
+    Darwin.prototype.mutate = function (genome, entropy) {
+        var mutated = null;
+        do {
+            try {
+                mutated = mMutator.mutate(genome, mObjectRegistry, true, entropy, target());
+                if (!this.skipTargetCheck && mutated.findLastMatching(this.runner.targetType) === null) {
+                    throw "No matching target.";
+                }
+            } catch(e) {
+                Console.log("Failure during mutation: " + e);
+                this.reporter.notify("Failure during mutation.");
+            }
+        } while (mutated === null);
+        return mutated;
+    };
+
+    Darwin.prototype.selectParent = function (evaluated, selectFrom, entropy) {
+        var selected = random.nextInt(selectFrom),
+            selection = evaluated.get(selected);
+        return selection.genome;
+    };
+    
+    Darwin.prototype.evolve = function (population, generations, entropy) {
+        if (!population.isTarget(this.runner.targetType)) {
+            this.reporter.notify("Incompatible population.");
+            return null;
+        }
+        var best = null,
+            i = 0;
+        this.reporter.updateProgress(0, generations);
+        do {
+            try {
+                this.reporter.push("Generation " + i);
+                this.reporter.updateProgress(0, 2);
+
+                var evaluated = null;
+                try {
+                    this.reporter.push("Evaluating");
+                    evaluated = evaluatePopulation(population, this.runner, this.reporter);
+                    if (this.stop) {
+                        // If we were stopped during evaluation, evaluate will return null
+                        // So for simplicity, just jump out here.
+                        return best;
+                    }
+                    var currentBest = evaluated[0];
+                    if (best === null || currentBest.score > best.score) {
+                        best = currentBest;
+                        this.reporter.updateBest(best);
+                    }
+                    this.reporter.currentPopulation(evaluated);
+                    if (best.score == mRunner.maxScore) {
+                        // If we've hit the max score, we'll never replace it, so stop now.
+                        return best;
+                    }
+                } finally {
+                    this.reporter.pop();
+                }
+
+                this.reporter.updateProgress(1, 2);
+                do {
+                    population = this.nextPopulation(evaluated, entropy);
+                } while(population === null);
+            } finally {
+                this.reporter.pop();
+            }
+            ++i;
+            this.reporter.updateProgress(i, generations);
+        } while(i < generations && !this.stop);
+        return best;
+    };
+    
+    Darwin.prototype.abort = function () {
+        this.stop = true;
+        this.reporter.notify("Aborting...");
+    };
+    
 /*
 public interface Runner {
     public ObjectRegistry registry();
@@ -1411,7 +1596,7 @@ public interface Runner {
     public int iterations();
 }
 
-public interface Status {
+public interface Reporter {
     void onFail(Throwable ex, String context);
     void notify(String message);
     void updateBest(Evaluation eval);
@@ -1419,245 +1604,6 @@ public interface Status {
     void push(String name);
     void pop();
     void currentPopulation(List<Evaluation> evaluated);
-}
-
-public class Darwin {
-    public static class SurvivalRatios implements java.io.Serializable {
-        private static final long serialVersionUID = 1774113748620858730L;
-
-        public double survivalRatio = 0.1;
-        public double mutatedSurvivorRatio = 0.4;
-        public double mutantRatio = 0.05;
-        public double purebreadRatio = 0.25;
-    }
-
-    private TypeBuilder mTypeBuilder;
-    private GeneRandomizer mGeneRandomizer;
-    private ObjectRegistry mObjectRegistry;
-    private Runner mRunner;
-    private Evaluator mEvaluator;
-    private Status mStatus;
-    private Mutator mMutator;
-    private String mLastPopulationPath;
-    private SurvivalRatios mSurvivalRatios;
-    private boolean mStop = false;
-
-    public Darwin(TypeBuilder typeBuilder, Runner runner, Status status, GeneRandomizer geneRandomizer, Mutator mutator) {
-        initialize(typeBuilder, runner, status, geneRandomizer, mutator, new SurvivalRatios());
-    }
-
-    public Darwin(TypeBuilder typeBuilder, Runner runner, Status status, GeneRandomizer geneRandomizer, Mutator mutator, SurvivalRatios survival) {
-        initialize(typeBuilder, runner, status, geneRandomizer, mutator, survival);
-    }
-
-    public void initialize(TypeBuilder typeBuilder, Runner runner, Status status, GeneRandomizer geneRandomizer, Mutator mutator, SurvivalRatios survival) {
-        mTypeBuilder = typeBuilder;
-        mObjectRegistry = runner.registry();
-        mRunner = runner;
-        mEvaluator = new Evaluator(runner, status);
-        mStatus = status;
-        mGeneRandomizer = geneRandomizer;
-        mSurvivalRatios = survival;
-        mMutator = mutator;
-    }
-
-    public void setPopulationStorePath(String path) {
-        mLastPopulationPath = path;
-    }
-
-    private FunctionType target() {
-        return mRunner.targetType();
-    }
-
-    public Population initialPopulation(int size, Random random) {
-        start();
-        Population population = new Population(target());
-        GenomeBuilder builder = new GenomeBuilder(mObjectRegistry, mTypeBuilder, mGeneRandomizer);
-        GenomeBuilder.ChromosomeStructure[] structure = builder.buildGenomeStructure(target(), random);
-
-        mStatus.push("Generate Population");
-        for (int i = 0; i < size && !isStopped(); ++i) {
-            mStatus.updateProgress(i, size);
-            try {
-                population.add(builder.build(structure, random));
-            } catch(StackOverflowError ex) {
-                mStatus.onFail(ex, "Generating population: ");
-                --i;
-            } catch(GeneBuilder.GeneBuildException ex) {
-                mStatus.onFail(ex, "Generating population: ");
-                --i;
-            }
-        }
-        mStatus.pop();
-
-        return population;
-    }
-
-    public List<Evaluator.Evaluation> evaluate(Population population, Random random) {
-        return mEvaluator.evaluate(population, random);
-    }
-
-    public Population nextPopulation(final List<Evaluation> evaluated, final Random random) {
-        int count = evaluated.size();
-
-        try {
-            int survivors = Math.max((int)(count * mSurvivalRatios.survivalRatio),1);
-            int mutatedSurvivors = (int)(count * mSurvivalRatios.mutatedSurvivorRatio);
-            int mutants = (int)(count * mSurvivalRatios.mutantRatio);
-            final int offspringCount = Math.max(count - (survivors + mutatedSurvivors + mutants), 0);
-
-            mStatus.push("Breading/mutating");
-
-            mStatus.updateProgress(0, 4);
-            final Population next = breedPopulation(evaluated, offspringCount, survivors, random);
-
-            mStatus.updateProgress(1, 4);
-            for (int i = 0; i < survivors; ++i) {
-                next.add(evaluated.get(i).genome);
-            }
-
-            mStatus.updateProgress(2, 4);
-            try {
-                mStatus.push("Mutating Survivors");
-                for (int i = 0; i < mutatedSurvivors; ++i) {
-                    Genome mutantSurvivor = mutate(evaluated.get(random.nextInt(survivors)).genome, random);
-                    next.add(mutantSurvivor);
-                    mStatus.updateProgress(i, mutatedSurvivors);
-                }
-            } finally {
-                mStatus.pop();
-            }
-
-            mStatus.updateProgress(3, 4);
-            try {
-                mStatus.push("Mutating");
-                for (int i = 0; i < mutants; ++i) {
-                    Genome mutant = mutate(evaluated.get(random.nextInt(evaluated.size())).genome, random);
-                    next.add(mutant);
-                    mStatus.updateProgress(i, mutants);
-                }
-            } finally {
-                mStatus.pop();
-            }
-
-            return next;
-        } finally {
-            mStatus.pop();
-        }
-    }
-
-    private Population breedPopulation(List<Evaluation> evaluated, int count, int selectFrom, Random random) {
-        int purebreads = (int)(mSurvivalRatios.purebreadRatio * count);
-        Population offspring = new Population(target());
-        try {
-            mStatus.push("Breeding");
-            for (int i = 0; i < count; ++i) {
-                Genome parentA = selectParent(evaluated, selectFrom, random);
-                Genome parentB = selectParent(evaluated, selectFrom, random);
-                Genome child = Breeder.breed(parentA, parentB, target(), random);
-                if (i > purebreads) {
-                    child = mutate(child, random);
-                }
-                offspring.add(child);
-            }
-        } finally {
-            mStatus.pop();
-        }
-        return offspring;
-    }
-
-    boolean mSkipTargetCheck = true;
-    private Genome mutate(Genome genome, Random random) {
-        Genome mutated = null;
-        do {
-            try {
-                mutated = mMutator.mutate(genome, mObjectRegistry, true, random, target());
-                assert(mSkipTargetCheck || mutated.findLastMatching(target()) != null);
-            } catch(Throwable ex) {
-                System.out.println("Failure during mutation: " + ex.toString());
-                mStatus.notify("Failure during mutation.");
-            }
-        } while(mutated == null);
-        return mutated;
-    }
-
-    private Genome selectParent(List<Evaluation> evaluated, int selectFrom, Random random) {
-        int selected = random.nextInt(selectFrom);
-        Evaluation selection = evaluated.get(selected);
-        return selection.genome;
-    }
-
-    public Evaluation evolve(Population population, int generations, Random random) {
-        if (!population.isTarget(target())) {
-            mStatus.notify("Incompatible population.");
-            return null;
-        }
-        start();
-        Evaluation best = null;
-        int i = 0;
-        mStatus.updateProgress(0, generations);
-        do {
-            try {
-                mStatus.push("Generation " + i);
-                mStatus.updateProgress(0, 2);
-
-                storePopulation(population);
-
-                List<Evaluation> evaluated;
-                try {
-                    mStatus.push("Evaluating");
-                    evaluated = evaluate(population,random);
-                    if (isStopped()) {
-                        // If we were stopped during evaluation, evaluate will return null
-                        // So for simplicity, just jump out here.
-                        return best;
-                    }
-                    Evaluation currentBest = evaluated.get(0);
-                    if (best == null || currentBest.score > best.score) {
-                        best = currentBest;
-                        mStatus.updateBest(best);
-                    }
-                    mStatus.currentPopulation(evaluated);
-                    if (best.score == mRunner.maxScore()) {
-                        // If we've hit the max score, we'll never replace it, so stop now.
-                        return best;
-                    }
-                } finally {
-                    mStatus.pop();
-                }
-
-                mStatus.updateProgress(1, 2);
-                do {
-                    population = nextPopulation(evaluated, random);
-                } while(population == null);
-            } finally {
-                mStatus.pop();
-            }
-            ++i;
-            mStatus.updateProgress(i, generations);
-        } while(i < generations && !isStopped());
-        return best;
-    }
-
-    private void storePopulation(Population pop) {
-        if (mLastPopulationPath != null) {
-            pop.store(mLastPopulationPath);
-        }
-    }
-
-    synchronized public boolean isStopped() {
-        return mStop;
-    }
-
-    synchronized public void abort() {
-        mStop = true;
-        mStatus.notify("Aborting...");
-        mEvaluator.stop();
-    }
-
-    synchronized public void start() {
-        mStop = false;
-    }
 }
 */
     return {
