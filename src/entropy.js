@@ -170,8 +170,8 @@ var ENTROPY = (function () {
 
     // Add a value with associated weight.
     WeightedSet.prototype.add = function (value, weight) {
-        if (weight <= 0 || value === null) {
-            throw "Invalid parameters";
+        if (weight <= 0) {
+            return;
         }
         if (this.root === null) {
             this.root = new WeightedNode(value, weight);

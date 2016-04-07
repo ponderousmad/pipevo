@@ -6,24 +6,24 @@ var EVOLVE = (function () {
         this.express = express;
         this.mutate = mutate;
     }
-    
+
     function Chromosome(name) {
         this.name = name;
         this.genes = [];
     }
-    
+
     Chromosome.prototype.size = function () {
         return this.genes.length;
     };
-    
+
     Chromosome.prototype.nextGeneName = function () {
         return this.geneName(this.size());
     };
-    
+
     Chromosome.prototype.geneName = function (i) {
         return this.name + i;
     };
-    
+
     Chromosome.prototype.namedGenes = function () {
         var named = [];
         for (var g = 0; g < this.genes.length; ++g) {
@@ -31,11 +31,11 @@ var EVOLVE = (function () {
         }
         return named;
     };
-    
+
     Chromosome.prototype.add = function (gene) {
         this.genes.push(gene);
     };
-    
+
     Chromosome.prototype.express = function (context) {
         var phenes = [];
         for (var g = 0; g < this.genes.length; ++g) {
@@ -43,8 +43,8 @@ var EVOLVE = (function () {
         }
         return phenes;
     };
-    
-    Chromosome.prototype.findLastMatching = function (type) {        
+
+    Chromosome.prototype.findLastMatching = function (type) {
         for (var g = this.genes.length - 1; g >= 0; --g) {
             var gene = this.genes[g];
             if (gene.type.equals(type)) {
@@ -53,15 +53,15 @@ var EVOLVE = (function () {
         }
         return null;
     };
-    
+
     function Genome() {
         this.chromosomes = [];
     }
-    
+
     Genome.prototype.add = function (chromosome) {
         this.chromosomes.push(chromosome);
     };
-    
+
     Genome.prototype.express = function (context) {
         var phenome = [];
         for (var c = 0; c < this.chromosomes.length; ++c) {
@@ -71,7 +71,7 @@ var EVOLVE = (function () {
         }
         return phenome;
     };
-    
+
     Genome.prototype.findLastMatching = function (type) {
         for (var c = this.chromosomes.length - 1; c >= 0; --c) {
             var matching = this.chromosomes[c].findLastMatching(type);
@@ -81,19 +81,19 @@ var EVOLVE = (function () {
         }
         return null;
     };
-    
+
     function Constraint(type, sources) {
         this.type = type;
         this.sources = sources;
     }
-    
+
     Constraint.prototype.available = function (inContext) {
         for (var c = 0; c < inContext.length; ++c) {
             var contextType = inContext[c];
             if (contextType.equals(this.type)) {
                 return true;
             }
-            
+
             for (var s = 0; s < this.sources.length; ++s) {
                 if (this.sources[s].equals(contextType)) {
                     return true;
@@ -102,7 +102,7 @@ var EVOLVE = (function () {
         }
         return false;
     };
-    
+
     function TypeProbabilities() {
         this.functionWeight = 1;
         this.listWeight = 10;
@@ -110,14 +110,14 @@ var EVOLVE = (function () {
         this.consWeight = 1;
         this.parameterWeight = 1;
         this.newParameterProbability = 0.2;
-        
+
         this.argCountDistribution = [10, 10, 5, 2, 1, 1, 1];
-        
+
         this.concreteWeights = this.setupDefault();
     }
-    
+
     function weightType(type, weight) { return { type: type, weight: weight }; }
-    
+
     TypeProbabilities.prototype.setupDefault = function () {
         var P = SLUR_TYPES.Primitives,
             weights = [];
@@ -129,7 +129,7 @@ var EVOLVE = (function () {
         weights.push(weightType(P.STRING, 100));
         return weights;
     };
-    
+
     TypeProbabilities.prototype.functionArgCountDistribution = function () {
         var dist = new ENTROPY.WeightedSet();
         for (var i = 0; i < this.argCountDistribution.length; ++i) {
@@ -142,9 +142,10 @@ var EVOLVE = (function () {
         this.probabilities = probabilities;
         this.allowParameterized = allowParameterized;
         this.parameters = [];
-        
+
         this.constraints = {};
         this.allowances = null;
+        this.constrainedStack = [];
         if (constraints) {
             for (var c = 0; c < constraints.length; ++c) {
                 var constraint = constraints[c];
@@ -152,7 +153,7 @@ var EVOLVE = (function () {
                 if (this.allowances === null) {
                     this.allowances = {};
                 }
-                
+
                 for (var s = 0; s < constraint.sources.length; ++s) {
                     var sourceType = constraint.sources[s],
                         allowed = this.allowances[sourceType];
@@ -160,11 +161,11 @@ var EVOLVE = (function () {
                         allowed = [];
                     }
                     allowed.push(constraint.type);
-                    this.allowances[sourceType] = allowed;                  
+                    this.allowances[sourceType] = allowed;
                 }
             }
         }
-        
+
         var builders = new ENTROPY.WeightedSet(),
             self = this;
 
@@ -180,7 +181,7 @@ var EVOLVE = (function () {
                 addConcreteBuilder(entry.type, entry.weight);
             }
         }
-        
+
         if (this.probabilities.functionWeight > 0) {
             builders.add(function (entropy) {
                 return self.createFunction(self.createType(entropy), entropy); }, this.probabilities.functionWeight);
@@ -194,32 +195,32 @@ var EVOLVE = (function () {
         if (this.probabilities.consWeight > 0) {
             builders.add(function (entropy) { return self.createCons(entropy); }, this.probabilities.consWeight);
         }
-        
+
         if (this.allowParameterized && this.probabilities.parameterWeight > 0) {
             builders.add(function (entropy) { return self.createParameter(entropy); }, this.probabilities.parameterWeight);
         }
         this.builders = new ENTROPY.ReweightedSet(builders);
-        
+
         this.sourceStack = [];
         this.constraintedStack = [];
         this.nesting = 0;
-        
+
         this.functionArgCountDist = this.probabilities.functionArgCountDistribution();
     }
-    
+
     TypeBuilder.prototype.isConstrained = function (type) {
         return this.constraints.hasOwnProperty(type);
     };
-    
+
     TypeBuilder.prototype.allowDependentTypes = function (sources) {
         if (this.sourceStack.length > 0) {
             throw "Source stack already present";
         }
-        
+
         if (this.allowances === null) {
             return;
         }
-        
+
         for (var s = 0; s < this.sources.length; ++s) {
             var type = this.sources[s],
                 dependents = this.allowances[type];
@@ -229,10 +230,10 @@ var EVOLVE = (function () {
                 for (var d = 0; d < dependents.length; ++d) {
                     this.addConstrained(dependents[d]);
                 }
-            }            
+            }
         }
     };
-    
+
     TypeBuilder.prototype.addConstrained = function (constrained) {
         if (!this.onConstrainedStack(constrained)) {
             var builder = this.addConstrainedBuilder(constrained);
@@ -241,7 +242,7 @@ var EVOLVE = (function () {
             }
         }
     };
-    
+
     TypeBuilder.prototype.onConstrainedStack = function (constrained) {
         for (var e = 0; e < this.constrainedStack.length; ++e) {
             var entry = this.constrainedStack[e];
@@ -251,7 +252,7 @@ var EVOLVE = (function () {
         }
         return false;
     };
-    
+
     TypeBuilder.prototype.addConstrainedBuilder = function (constrained) {
         var weight = null;
         for (var p = 0; p < this.probabilities.concreteWeights.length; ++p) {
@@ -268,7 +269,7 @@ var EVOLVE = (function () {
         }
         return null;
     };
-    
+
     TypeBuilder.prototype.allowAllConstrained = function () {
         if (this.allowances !== null) {
             var types = [];
@@ -280,7 +281,7 @@ var EVOLVE = (function () {
             this.allowDependentTypes(types);
         }
     };
-    
+
     TypeBuilder.prototype.clearDependentTypes = function () {
         this.sourceStack = [];
         for (var e = 0; e < this.constrainedStack.length; ++e) {
@@ -288,7 +289,7 @@ var EVOLVE = (function () {
         }
         // TODO: Shouldn't this also clear constraintedStack ?
     };
-    
+
     TypeBuilder.prototype.createType = function (entropy) {
         this.nesting += 1;
         try {
@@ -301,7 +302,7 @@ var EVOLVE = (function () {
             }
         }
     };
-    
+
     TypeBuilder.prototype.createFunction = function (returnType, entropy) {
         var clearParameters = false;
         try {
@@ -314,7 +315,7 @@ var EVOLVE = (function () {
             for (var c = 0; c < argCount; ++c) {
                 argTypes[c] = this.createType(entropy);
             }
-            
+
             if (this.isConstrained(returnType)) {
                 var satisfied = false,
                     constraint = this.constraints[returnType];
@@ -351,11 +352,11 @@ var EVOLVE = (function () {
             }
         }
     };
-    
+
     TypeBuilder.prototype.createList = function (entropy) {
         return new SLUR_TYPES.ListType(this.createType(entropy));
     };
-    
+
     TypeBuilder.prototype.createMaybe = function (entropy) {
         var type = this.createType(entropy);
         if (type.equals(SLUR_TYPES.Primitives.NULL)) {
@@ -364,11 +365,11 @@ var EVOLVE = (function () {
         }
         return new SLUR_TYPES.Maybe(type);
     };
-    
+
     TypeBuilder.prototype.createCons = function (entropy) {
         return new SLUR_TYPES.ConsType(this.createType(entropy), this.createType(entropy));
     };
-    
+
     TypeBuilder.prototype.createParameter = function (entropy) {
         if (this.parameters.length === 0 || entropy.select(this.probabilities.newParameterProbability)) {
             var p = new SLUR_TYPES.Parameter();
@@ -385,16 +386,16 @@ var EVOLVE = (function () {
         } while(this.isConstrained(result));
         return result;
     };
-    
+
     function Population(target) {
         this.target = target;
         this.crowd = [];
     }
-    
+
     Population.prototype.isTarget = function (target) {
-        return SLUR_TYPES.typesEqualModuloParamaters(this.target, target);
+        return SLUR_TYPES.typesEqualModuloParameters(this.target, target);
     };
-    
+
     Population.prototype.add = function (genome) {
         this.crowd.push(genome);
     };
@@ -402,7 +403,7 @@ var EVOLVE = (function () {
     Population.prototype.serialize = function () {
         return JSON.stringify(this);
     };
-    
+
     function loadPopulation(serialization) {
         var data = JSON.parse(serialization),
             population = new Population(data.target);
@@ -417,10 +418,10 @@ var EVOLVE = (function () {
         CONSTRUCT: 4,
         MAYBE: 5
     };
-    
+
     function weightRange(min, max, weight) { return { min: min, max: max, weight: weight}; }
-    
-    function GenePropabilites() {
+
+    function GeneProbabilities() {
         this.stringLengthWeights = [0,1,3,5,10,20,10,5,3,1,1,1,1,1,1,1,1,1,1,1];
         this.listLengthWeights = [0,10,20,10,5,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1];
         this.chromosomeLengthWeights = [0,1,2,3,2,1];
@@ -454,15 +455,15 @@ var EVOLVE = (function () {
             weightRange(-1e100, 1e100, 1)
         ];
     }
-    
+
     function GeneRandomizer(probabilities) {
         this.probabilities = probabilities;
-        
+
         function distribution(weights, itemBuilder, weightLookup, skipFunction) {
             var set = new ENTROPY.WeightedSet();
             for (var i = 0; i < weights.length; ++i) {
                 if (!skipFunction || !skipFunction(weights, i)) {
-                    set.add(itemBuilder(weights, i), weightLookup(weigths, i));
+                    set.add(itemBuilder(weights, i), weightLookup(weights, i));
                 }
             }
             return set;
@@ -474,7 +475,7 @@ var EVOLVE = (function () {
             var item = weights[index];
             return { min: item.min, max: item.max };
         }
-        
+
         this.stringLengthDistribution = distribution(probabilities.stringLengthWeights, returnIndex, returnAtIndex);
         this.listLengthDistribution = distribution(probabilities.listLengthWeights, returnIndex, returnAtIndex);
         this.chromosomeLengthDistribution = distribution(probabilities.chromosomeLengthWeights, returnIndex, returnAtIndex);
@@ -482,7 +483,7 @@ var EVOLVE = (function () {
         this.fixnumRangeDistribution = distribution(probabilities.fixnumRangeWeights, returnRange, returnWeight);
         this.realRangeDistribution = distribution(probabilities.realRangeWeights, returnRange, returnWeight);
     }
-    
+
     GeneRandomizer.prototype.buildTypeWeight = function (type) {
         for (var i = 0; i < this.probabilities.buildTypeWeights.length; ++i) {
             var entry = this.probabilities.buildTypeWeights[i];
@@ -492,84 +493,101 @@ var EVOLVE = (function () {
         }
         return 0;
     };
-    
+
     GeneRandomizer.prototype.selectStringLength = function (entropy) {
         return this.stringLengthDistribution.select(entropy);
     };
-    
+
     GeneRandomizer.prototype.selectListLength = function (entropy) {
         return this.listLengthDistribution.select(entropy);
     };
-    
+
     GeneRandomizer.prototype.maybeIsNull = function (entropy) {
         return entropy.select(this.probabilities.maybeIsNullProbability);
     };
-    
+
     GeneRandomizer.prototype.selectFixnumRange = function (entropy) {
         return this.fixnumRangeDistribution.select(entropy);
     };
-    
+
     GeneRandomizer.prototype.selectRealRange = function (entropy) {
         return this.realRangeDistribution.select(entropy);
     };
-    
+
     GeneRandomizer.prototype.selectChromosomeLength = function (entropy) {
         return this.chromosomeLengthDistribution.select(entropy);
     };
-    
+
     GeneRandomizer.prototype.selectGenomeSize = function (entropy) {
         return this.genomeSizeDistribution.select(entropy);
     };
-    
+
     function GeneBuilder(typeBuilder, randomizer, context) {
         this.typeBuilder = typeBuilder;
         this.randomizer = randomizer;
         this.context = context;
         this.depthAllowed = 5;
     }
-    
+
     GeneBuilder.prototype.canConstruct = function (type) {
         return !this.typeBuilder.isConstrained(type);
     };
-    
-    GeneBuilder.prototype.builtItem = function (geneType, entropy) {
+
+    GeneBuilder.prototype.buildItem = function (geneType, entropy) {
         var builders = new ENTROPY.WeightedSet(),
             self = this;
-        
+
         if (this.canLookup(geneType)) {
-            builders.add(function () { self.lookup(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.LOOKUP));
+            builders.add(
+                function () { return self.lookup(geneType, entropy); },
+                this.randomizer.buildTypeWeight(BuildType.LOOKUP)
+            );
         }
-        
+
         if (this.canConstruct(geneType)) {
-            builders.add(function () { self.constructItem(geneType, entropy); }, this.randomizer.builtTypeWeight(BuildType.CONSTRUCT));
+            builders.add(
+                function () { return self.constructItem(geneType, entropy); },
+                this.randomizer.buildTypeWeight(BuildType.CONSTRUCT)
+            );
         }
-        
+
         if (this.canApply(geneType, this.depthAllowed)) {
-            builders.add(function () { self.buildApplication(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.APPLICATION));
+            builders.add(
+                function () { return self.buildApplication(geneType, entropy); },
+                this.randomizer.buildTypeWeight(BuildType.APPLICATION)
+            );
             if (SLUR_TYPES.isMaybe(geneType)) {
-                builders.add(function () { self.buildPassMaybe(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.MAYBE));
+                builders.add(
+                    function () { return self.buildPassMaybe(geneType, entropy); },
+                    this.randomizer.buildTypeWeight(BuildType.MAYBE)
+                );
             }
         }
-        
-        if (builders.length > 0) {
+
+        if (!builders.isEmpty()) {
             if (this.depthAllowed > 0) {
                 if (!(SLUR_TYPES.isMaybe(geneType) || geneType.equals(SLUR_TYPES.Primitives.NULL))) {
-                    builders.add(function () { self.buildDemaybe(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.MAYBE));
+                    builders.add(
+                        function () { return self.buildDemaybe(geneType, entropy); },
+                        this.randomizer.buildTypeWeight(BuildType.MAYBE)
+                    );
                 }
-                
-                builders.add(function () { self.buildBranch(geneType, entropy); }, this.randomizer.buildTypeWeight(BuildType.BRANCH));
+                builders.add(
+                    function () { return self.buildBranch(geneType, entropy); },
+                    this.randomizer.buildTypeWeight(BuildType.BRANCH)
+                );
             }
-            
+
             try {
                 this.depthAllowed -= 1;
-                builders.select(entropy)();
+                return builders.select(entropy)();
             } finally {
                 this.depthAllowed += 1;
             }
         }
         throw "No way to construct gene within allowed depth.";
     };
-    
+
     GeneBuilder.prototype.canApply = function(type, depth) {
         if (depth > 0) {
             var matching = this.context.findFunctionReturning(type);
@@ -582,7 +600,7 @@ var EVOLVE = (function () {
         }
         return false;
     };
-    
+
     GeneBuilder.prototype.canInvoke = function (type, depth) {
         for (var a = 0; a < type.argumentTypes.length; ++a) {
             var argType = type.argumentTypes[a];
@@ -597,18 +615,18 @@ var EVOLVE = (function () {
             }
         }
     };
-    
+
     GeneBuilder.prototype.canLookup = function (geneType) {
         return this.context.findMatching(geneType).length > 0;
     };
-    
+
     GeneBuilder.prototype.buildBranch = function (geneType, entropy) {
         var predicate = this.buildItem(SLUR_TYPES.Primitives.BOOL, entropy),
             thenGene = this.buildItem(geneType, entropy),
             elseGene = this.buildItem(geneType, entropy);
         return new GENES.IfGene(geneType, predicate, thenGene, elseGene);
     };
-    
+
     GeneBuilder.prototype.buildDemaybe = function (geneType, entropy) {
         var name = entropy.alphaString(3),
             maybeGene = null;
@@ -624,7 +642,7 @@ var EVOLVE = (function () {
         var concreteGene = this.buildItem(geneType, entropy);
         return new GENES.DemaybeGene(maybeGene, concreteGene, name);
     };
-    
+
     GeneBuilder.prototype.buildPassMaybe = function (geneType, entropy) {
         var func = this.buildInvokeable(geneType, entropy),
             args = [],
@@ -643,7 +661,7 @@ var EVOLVE = (function () {
             return new GENES.ApplicationGene(func, args);
         }
     };
-    
+
     GeneBuilder.prototype.buildApplication = function (geneType, entropy) {
         var func = this.buildInvokeable(geneType, entropy),
             args = [];
@@ -652,7 +670,7 @@ var EVOLVE = (function () {
         }
         return new GENES.ApplicationGene(func, args);
     };
-    
+
     GeneBuilder.prototype.buildInvokeable = function (geneType, entropy) {
         var matching = this.context.findFunctionReturning(geneType);
         if (matching.length === 0) {
@@ -661,7 +679,7 @@ var EVOLVE = (function () {
         var func = entropy.randomElement(matching);
         return new GENES.LookupGene(SLUR_TYPES.makeParametersUnique(func.type), func.symbol.name, entropy.randomSeed());
     };
-    
+
     GeneBuilder.prototype.lookup = function (geneType, entropy) {
         var matching = this.context.findMatching(geneType);
         if (matching.length === 0) {
@@ -670,16 +688,16 @@ var EVOLVE = (function () {
         var symbol = entropy.randomElement(matching);
         return new GENES.LookupGene(geneType, symbol.name, entropy.randomSeed());
     };
-    
+
     GeneBuilder.prototype.constructItem = function (geneType, entropy) {
-        while (SLUR_TYPES.isParamater(geneType)) {
+        while (SLUR_TYPES.isParameter(geneType)) {
             geneType = this.typeBuilder.createConstructableType(entropy);
         }
-        
+
         var P = SLUR_TYPES.Primitives;
-        
+
         if (geneType.equals(P.FIX_NUM)) {
-            return this.buildFixNum(entropy);
+            return this.buildFixnum(entropy);
         } else if (geneType.equals(P.REAL)) {
             return this.buildReal(entropy);
         } else if (geneType.equals(P.BOOL)) {
@@ -701,15 +719,16 @@ var EVOLVE = (function () {
         } else if (SLUR_TYPES.isFunctionType(geneType)) {
             return this.buildLambda(geneType, entropy);
         }
+        throw "No matching type.";
     };
-    
+
     GeneBuilder.prototype.buildMaybe = function (maybe, entropy) {
         if (this.randomizer.maybeIsNull(entropy)) {
             return new GENES.NullGene();
         }
         return this.buildItem(maybe.maybeType, entropy);
-    };    
-    
+    };
+
     GeneBuilder.prototype.buildList = function (listType, entropy) {
         var length = this.randomizer.selectListLength(entropy),
             list = [];
@@ -718,34 +737,34 @@ var EVOLVE = (function () {
             length -= 1;
         }
         return new GENES.ListGene(listType, list);
-    };    
-    
+    };
+
     GeneBuilder.prototype.buildCons = function (type, entropy) {
         return new GENES.ConsGene(type, this.buildItem(type.carType, entropy), this.buildItem(type.cdrType, entropy));
-    };    
-    
+    };
+
     GeneBuilder.prototype.buildSymbol = function (entropy) {
         return new GENES.SymbolGenerator(entropy.randomSeed(), this.randomizer.selectStringLength(entropy));
     };
-    
+
     GeneBuilder.prototype.buildBool = function (entropy) {
         return new GENES.BoolGenerator(entropy.randomSeed());
-    };    
-    
-    GeneBuilder.prototype.buildString = function (entropy) {
-        return new GENE.StringGenerator(entropy.randomSeed(), this.randomizer.selectStringLength(entropy));
     };
-    
+
+    GeneBuilder.prototype.buildString = function (entropy) {
+        return new GENES.StringGenerator(entropy.randomSeed(), this.randomizer.selectStringLength(entropy));
+    };
+
     GeneBuilder.prototype.buildReal = function (entropy) {
         var range = this.randomizer.selectRealRange(entropy);
-        return new GENE.RealGenerator(entropy.randomSeed(),  range);
+        return new GENES.RealGenerator(entropy.randomSeed(),  range);
     };
-    
+
     GeneBuilder.prototype.buildFixnum = function (entropy) {
         var range = this.randomizer.selectFixnumRange(entropy);
-        return new GENE.RealGenerator(entropy.randomSeed(),  range);
+        return new GENES.RealGenerator(entropy.randomSeed(),  range);
     };
-    
+
     GeneBuilder.prototype.buildFunction = function (type, name, entropy) {
         var allowTypes = [];
         for (var a = 0; a < type.argumentTypes.length; ++a) {
@@ -758,13 +777,13 @@ var EVOLVE = (function () {
             this.typeBuilder.clearDependentTypes();
         }
     };
-    
+
     GeneBuilder.prototype.pushArguments = function (names, types) {
         for (var i = 0; i < names.length; ++i) {
             this.context.pushSymbol(names[i], types[i]);
         }
     };
-    
+
     GeneBuilder.prototype.buildFunctionGene = function (type, entropy, name, isLambda) {
         var names = GENES.functionArgumentNames(type, name);
         this.pushArguments(names, type.argumentTypes);
@@ -775,17 +794,17 @@ var EVOLVE = (function () {
         this.context.popSymbols(names.length);
         return result;
     };
-    
+
     GeneBuilder.prototype.buildLambda = function (type, entropy) {
         return this.buildFunctionGene(type, entropy, "l" + entropy.alphaString(5), true);
     };
-    
+
     function GenomeBuilder(registry, typeBuilder, randomizer) {
         this.registry = registry;
         this.typeBuilder = typeBuilder;
         this.randomizer = randomizer;
     }
-    
+
     GenomeBuilder.prototype.buildGenomeStructure = function (target, entropy) {
         this.typeBuilder.allowAllConstrained();
         try {
@@ -801,7 +820,7 @@ var EVOLVE = (function () {
             this.typeBuilder.clearDependentTypes();
         }
     };
-    
+
     GenomeBuilder.prototype.build = function (genomeStructure, entropy) {
         var genome = new Genome(),
             context = new GENES.Context(this.registry),
@@ -811,7 +830,7 @@ var EVOLVE = (function () {
         }
         return genome;
     };
-    
+
     GenomeBuilder.prototype.buildChromosomeStructure = function (entropy) {
         var structure = {
                 name: "cr" + entropy.alphaString(5),
@@ -824,7 +843,7 @@ var EVOLVE = (function () {
         }
         return structure;
     };
-    
+
     GenomeBuilder.prototype.buildChromosome = function (context, geneBuilder, structure, entropy) {
         var chromosome = new Chromosome(structure.name);
         context.addChromosome(chromosome);
@@ -833,7 +852,7 @@ var EVOLVE = (function () {
         }
         return chromosome;
     };
-    
+
     function MutationProbabilities() {
         this.mutateTopLevel = 0.5;
         this.mutateSeed = 1/25.0;
@@ -851,25 +870,25 @@ var EVOLVE = (function () {
         this.mutateAddChromosome = 1/1000.0;
         this.mutateAddTargetChromosome = 1/5000.0;
     }
-    
+
     function Mutation(probabilities, typeBuilder, randomizer) {
         this.probabilities = probabilities;
         this.typeBuilder = typeBuilder;
         this.randomizer = randomizer;
     }
-    
+
     Mutation.prototype.mutateTopLevelGene = function (entropy) {
         return entropy.select(this.probabilities.mutateTopLevel);
     };
-    
+
     Mutation.prototype.mutateSeed = function (entropy) {
         return entropy.select(this.probabilities.mutateSeed);
     };
-    
+
     Mutation.prototype.mutateStringLength = function (entropy) {
         return entropy.select(this.probabilities.mutateStringLength);
     };
-    
+
     Mutation.prototype.newStringLength = function (length, entropy) {
         var mutateType = entropy.randomInt(0, 5);
         if (mutateType < 2) {
@@ -880,11 +899,11 @@ var EVOLVE = (function () {
         }
         return this.randomizer.selectStringLength(entropy);
     };
-    
+
     Mutation.prototype.mutateStringLength = function (entropy) {
         return entropy.select(this.probabilities.mutateSymbolLength);
     };
-    
+
     Mutation.prototype.newSymbolLength = function (length, entropy) {
         var mutateType = entropy.randomInt(0, 5);
         if (mutateType < 2) {
@@ -895,7 +914,7 @@ var EVOLVE = (function () {
         }
         return this.randomizer.selectStringLength(entropy);
     };
-    
+
     Mutation.prototype.replaceSubgene = function (entropy) {
         return entropy.select(this.probabilities.replaceSubgene);
     };
@@ -913,11 +932,11 @@ var EVOLVE = (function () {
             return gene;
         }
     };
-    
+
     Mutation.prototype.reorderList = function (entropy) {
         return entropy.select(this.probabilities.mutateReorderList);
     };
-    
+
     Mutation.prototype.mutateListLength = function (entropy) {
         return entropy.select(this.probabilities.mutateListLength);
     };
@@ -932,11 +951,11 @@ var EVOLVE = (function () {
         }
         return this.randomizer.selectListLength(entropy);
     };
-    
+
     Mutation.prototype.swapListItems = function (entropy) {
         return entropy.select(this.probabilities.mutateSwapListItems);
     };
-    
+
     Mutation.prototype.mutateFixnumRange = function (entropy) {
         return entropy.select(this.probabilities.mutateFixnumRange);
     };
@@ -959,7 +978,7 @@ var EVOLVE = (function () {
         }
         return { min: min, max: max };
     };
-    
+
     Mutation.prototype.mutateRealRange = function (entropy) {
         return entropy.select(this.probabilities.mutateRealRange);
     };
@@ -982,7 +1001,7 @@ var EVOLVE = (function () {
         }
         return { min: min, max: max };
     };
-    
+
     Mutation.prototype.newSeed = function (seed, entropy) {
         var mutateType = entropy.randomInt(0, 5);
         if (mutateType < 2) {
@@ -993,15 +1012,15 @@ var EVOLVE = (function () {
         }
         return entropy.randomSeed();
     };
-    
+
     Mutation.prototype.skipChromosome = function (entropy) {
         return entropy.select(this.probabilities.mutateSkipChromosome);
     };
-    
+
     Mutation.prototype.addChromosome = function (entropy) {
         return entropy.select(this.probabilities.mutateAddChromosome);
     };
-    
+
     Mutation.prototype.createChromosome = function (context, entropy) {
         var builder = new GeneBuilder(this.typeBuilder, this.randomizer, context),
             chromosomeLength = this.randomizer.selectChromosomeLength(entropy),
@@ -1016,42 +1035,42 @@ var EVOLVE = (function () {
         }
         return chromosome;
     };
-    
+
     Mutation.prototype.addTargetChromosome = function (entropy) {
         return entropy.select(this.probabilities.mutateAddTargetChromosome);
     };
-    
+
     Mutation.prototype.createChromosome = function (context, entropy, target) {
         var builder = new GeneBuilder(this.typeBuilder, this.randomizer, context),
             chromosome = new Chromosome("crT_" + entropy.alphaString(5));
         chromosome.addGene(builder.buildFunction(target, chromosome.nextGeneName(), entropy));
         return chromosome;
     };
-    
+
     Mutation.prototype.addGene = function (entropy) {
         return entropy.select(this.probabilities.mutateAddGene);
     };
-    
+
     Mutation.prototype.createGene = function (context, name, entropy) {
         var builder = new GeneBuilder(this.typeBuilder, this.randomizer, context);
         this.typeBuilder.allowDependentTypes(context.findConcreteTypes());
         var returnType = this.typeBuilder.createType(entropy);
         this.typeBuilder.clearDependentTypes();
-        var type = this.typeBuilder.createFunction(returnType, entropy);        
+        var type = this.typeBuilder.createFunction(returnType, entropy);
         return builder.buildFunction(type, name, entropy);
     };
 
     function Mutator(mutation) {
         this.mutation = mutation;
     }
-    
+
     Mutator.prototype.mutate = function (genome, registry, allowMacroMutation, entropy, target) {
         var context = new GENES.Context(registry),
             isMutated = false,
             mutated = new Genome(),
             addChromosome = allowMacroMutation && this.mutation.addChromosome(entropy),
             i = 0;
-            
+
         for (var c = 0; c < genome.chromosomes.length; ++c) {
             i += 1;
             var chromosome = genome.chromosomes[c],
@@ -1063,7 +1082,7 @@ var EVOLVE = (function () {
             }
             if (!skipChromosome) {
                 context.addChromosome(chromosome);
-                var mutatedChromosome = this.mutateChromasome(chromosome, context, isLast, allowMacroMutation, entropy);
+                var mutatedChromosome = this.mutateChromosome(chromosome, context, isLast, allowMacroMutation, entropy);
                 mutated.add(mutatedChromosome);
                 if (mutatedChromosome != chromosome) {
                     isMutated = true;
@@ -1072,7 +1091,7 @@ var EVOLVE = (function () {
                 isMutated = true;
             }
         }
-        
+
         if (allowMacroMutation && this.mutation.addTargetChromosome(entropy)) {
             isMutated = true;
             mutated.add(this.mutation.createChromosome(context, entropy, target));
@@ -1084,8 +1103,8 @@ var EVOLVE = (function () {
             return genome;
         }
     };
-    
-    Mutator.prototype.mutateChromasome = function (chromosome, context, isLast, allowMacroMutation, entropy) {
+
+    Mutator.prototype.mutateChromosome = function (chromosome, context, isLast, allowMacroMutation, entropy) {
         var isMutated = false,
             mutated = new Chromosome(chromosome.name),
             genes = chromosome.namedGenes();
@@ -1111,7 +1130,7 @@ var EVOLVE = (function () {
             return chromosome;
         }
     };
-    
+
     function breedChromosomes(a, b, entropy) {
         if (a.name != b.name) {
             if (entropy.flip()) {
@@ -1161,7 +1180,7 @@ var EVOLVE = (function () {
         }
         return result;
     }
-    
+
     // Given two Genomes, produce an offspring
     function breedGenomes(a, b, target, entropy) {
         // Avoid making the problem O(n*n) by creating a hash of one set of chromosomes
@@ -1171,7 +1190,7 @@ var EVOLVE = (function () {
             var aChromo = a.chromosomes[c];
             aUnpaired[aChromo.name()] = aChromo;
         }
-        
+
         var bUnpaired = [], // Keep track of the chromosomes in b which we haven't paired.
             child = [],
             crTarget = null; // Keep track of the last chromosome matching the target.
@@ -1198,7 +1217,7 @@ var EVOLVE = (function () {
             for (c = 0; c < bUnpaired.length; ++c) {
                 var unpaired = bUnpaired[c],
                     matched = null;
-                    
+
                 // Retrieve the next unpaired a chromosome
                 for (var name in aUnpaired) {
                     if (!aUnpaired.hasOwnProperty(name)) {
@@ -1206,7 +1225,7 @@ var EVOLVE = (function () {
                         delete aUnpaired[name];
                     }
                 }
-                    
+
                 if (matched === null) {
                     if (unpaired.findLastMatching(target) !== null) {
                         crTarget = unpaired;
@@ -1235,7 +1254,7 @@ var EVOLVE = (function () {
         result.add(crTarget);
         return result;
     }
-    
+
     function phenomeToString(phenes) {
         var result = "";
         for (var p = 0; p < phenes.length; ++p) {
@@ -1247,7 +1266,7 @@ var EVOLVE = (function () {
         }
         return result;
     }
-    
+
     function Task(genome, seed) {
         this.genome = genome;
         this.startTime = null;
@@ -1259,23 +1278,23 @@ var EVOLVE = (function () {
         this.seed = seed;
         this.errors = [];
     }
-    
+
     Task.prototype.failExpress = function (error) {
         this.errors.push("Expression failed: " + error);
     };
-    
+
     Task.prototype.checkTime = function (allowedTime) {
         if (this.startTime !== null && (TIMING.now() - this.startTime) > allowedTime) {
             this.runFrame.abort = "Evaluation time exceeded";
         }
     };
-    
+
     Task.prototype.abort = function (reason) {
         if (this.runFrame !== null) {
             this.runFrame.abort = reason;
         }
     };
-    
+
     Task.prototype.updateScore = function (score) {
         if (this.startTime !== null) {
             this.startTime = null;
@@ -1284,20 +1303,20 @@ var EVOLVE = (function () {
             this.iterations += 1;
         }
     };
-    
+
     Task.prototype.fail = function (error) {
         this.errors.push("Execution failed: " + error);
-        this.updateScore(-1);            
+        this.updateScore(-1);
     };
-    
+
     Task.prototype.expressFailed = function () {
         return this.env === null && errors.length > 0;
     };
-    
+
     Task.prototype.done = function (iterationCount) {
         return this.expressFailed() || this.iterations >= iterationCount;
     };
-    
+
     Task.prototype.evaluation = function (iterationCount) {
         var finalScore = 0;
         if (this.env === null) {
@@ -1307,7 +1326,7 @@ var EVOLVE = (function () {
         }
         return { score: finalScore, genome: this.genome };
     };
-    
+
     Task.prototype.evaluate = function (runner) {
         if (this.env === null) {
             return null;
@@ -1316,7 +1335,7 @@ var EVOLVE = (function () {
         this.seed = entropy.randomSeed();
         this.runFrame = new SLUR.Frame(this.env, "RunFrame");
         this.startTime = TIMING.now();
-        
+
         try {
             var score = runner.run(this.runFrame, this.entryPoint, entropy);
             this.updateScore(score);
@@ -1324,7 +1343,7 @@ var EVOLVE = (function () {
             this.fail(e);
         }
     };
-    
+
     Task.prototype.express = function (runner) {
         try {
             var context = new GENES.Context(runner.registry),
@@ -1340,7 +1359,7 @@ var EVOLVE = (function () {
             this.failExpress(e);
         }
     };
-    
+
     Task.prototype.bind = function (phenome, runner) {
         function isDefine (expression) {
             if (SLUR.isCons(expression)) {
@@ -1352,7 +1371,7 @@ var EVOLVE = (function () {
             }
             return false;
         }
-        
+
         var env = new SLUR.Frame(runner.environment, "expressFrame");
         for (var p = 0; p < phenome.length; ++p) {
             var phene = phenome[p],
@@ -1364,17 +1383,17 @@ var EVOLVE = (function () {
         }
         return env;
     };
-    
+
     Task.prototype.run = function (runner) {
         this.express(runner);
-        
+
         while(!this.done(runner.iterationCount)) {
             this.evaluate(runner);
         }
-        
+
         return this.evaluation(runner.iterationCount);
     };
-    
+
     function evaluatePopulation(population, runner, reporter) {
         var entropy = ENTROPY.makeRandom(),
             results = [];
@@ -1387,11 +1406,11 @@ var EVOLVE = (function () {
                 }
             }
         }
-        
+
         results.sort(function (a, b) { return a.score - b.score; });
         return results;
     }
-    
+
     function defaultSurvivalRatios() {
         return {
             survivalRatio: 0.1,
@@ -1400,7 +1419,7 @@ var EVOLVE = (function () {
             purebreadRatio: 0.25
         };
     }
-    
+
     function Darwin(typeBuilder, runner, reporter, geneRandomizer, mutator, survivalRatios) {
         this.typeBuilder = typeBuilder;
         this.runner = runner;
@@ -1410,10 +1429,10 @@ var EVOLVE = (function () {
         this.stop = false;
         this.skipTargetCheck = false;
     }
-    
+
     Darwin.prototype.initialPopulation = function (size, entropy) {
         this.stop = false;
-        
+
         var population = new Population(this.runner.targetType),
             builder = new GenomeBuilder(this.runner.registry, this.typeBuilder, this.geneRandomizer),
             structure = builder.buildGenomeStructure(this.runner.targetType, entropy);
@@ -1432,7 +1451,7 @@ var EVOLVE = (function () {
 
         return population;
     };
-    
+
     Darwin.prototype.nextPopulation = function (evaluated, entropy) {
         try {
             var count = evaluated.length,
@@ -1480,7 +1499,7 @@ var EVOLVE = (function () {
             this.reporter.pop();
         }
     };
-    
+
     Darwin.prototype.breedPopulation = function (evaluated, count, selectFrom, entropy) {
         var purebreads = Math.floor(this.survivalRatios.purebreadRatio * count),
             offspring = new Population(this.runner.targetType);
@@ -1500,7 +1519,7 @@ var EVOLVE = (function () {
         }
         return offspring;
     };
-    
+
     Darwin.prototype.mutate = function (genome, entropy) {
         var mutated = null;
         do {
@@ -1522,7 +1541,7 @@ var EVOLVE = (function () {
             selection = evaluated.get(selected);
         return selection.genome;
     };
-    
+
     Darwin.prototype.evolve = function (population, generations, entropy) {
         if (!population.isTarget(this.runner.targetType)) {
             this.reporter.notify("Incompatible population.");
@@ -1571,12 +1590,12 @@ var EVOLVE = (function () {
         } while(i < generations && !this.stop);
         return best;
     };
-    
+
     Darwin.prototype.abort = function () {
         this.stop = true;
         this.reporter.notify("Aborting...");
     };
-    
+
 /*
 public interface Runner {
     public ObjectRegistry registry();
@@ -1646,7 +1665,7 @@ public interface Reporter {
                 var builder = new TypeBuilder(true, new TypeProbabilities()),
                     entropy = ENTROPY.makeRandom(),
                     someParameter = false;
-                    
+
                 for (var i = 0; i < 1000; ++i) {
                     var r = builder.createType(entropy);
                     TEST.notNull(r);
@@ -1659,87 +1678,53 @@ public interface Reporter {
                 TEST.isTrue(someParameter);
             }
         ];
+
+        function expressTest(reg, chromosome) {
+            var context = new GENES.Context(reg);
+            context.addChromosome(chromosome);
+            var phenes = chromosome.express(context);
+            TEST.notNull(phenes);
+            TEST.isTrue(phenes.length > 0);
+            for (var p = 0; p < phenes.length; ++p) {
+                var phene = phenes[p];
+                TEST.notNull(phene);
+                TEST.notNull(phene.name);
+                TEST.notNull(phene.expression);
+            }
+        }
+
+        var geneBuilderTests = [
+            function testBuildFunction() {
+                var baseSeed = new ENTROPY.makeRandom().randomSeed(),
+                    testEntropy = new ENTROPY.Entropy(baseSeed),
+                    reg = new SLUR_TYPES.Registry(),
+                    c = new Chromosome(testEntropy.alphaString(5)),
+                    TEST_COUNT = 20;
+
+                SLUR_TYPES.registerBuiltins(reg);
+
+                for (var i = 0; i < TEST_COUNT; ++i) {
+                    var seed = testEntropy.randomSeed(),
+                        entropy = new ENTROPY.Entropy(seed),
+                        typeBuilder = new TypeBuilder(true, new TypeProbabilities()),
+                        context = new GENES.Context(reg);
+                    context.addChromosome(c);
+
+                    var randomizer = new GeneRandomizer(new GeneProbabilities()),
+                        geneBuilder = new GeneBuilder(typeBuilder, randomizer, context),
+                        returnType = typeBuilder.createType(entropy),
+                        funcType = typeBuilder.createFunction(returnType, entropy),
+                        gene = geneBuilder.buildFunction(funcType, c.nextGeneName(), entropy);
+
+                    TEST.notNull(gene);
+                    c.add(gene);
+                    var obj = gene.express(context);
+                    TEST.notNull(obj);
+                }
+                expressTest(reg, c);
+            }
+        ];
 /*
-
-public class GeneBuilderTest extends TestCase {
-	public static void testBuildFunction() {
-		long baseSeed = new Random().nextLong();
-		Random testRandom = new Random(baseSeed);
-
-		ObjectRegistry reg = new ObjectRegistry();
-		BuiltinRegistrar.registerBuiltins(reg);
-		Chromasome c = new Chromasome(StringRandom.alphaString(testRandom, 5));
-		final int kTestCount = 20;
-		long[] seeds = new long[kTestCount];
-
-		for (int i = 0; i < kTestCount; ++i) {
-			long seed = testRandom.nextLong();
-			seeds[i] = seed;
-			Random random = new Random(seed);
-			TypeBuilder typeBuilder = new TypeBuilder(
-				true,
-				new TypeBuilder.Probabilities()
-			);
-			Context context = new Context(reg);
-			context.addChromasome(c);
-
-			GeneRandomizer randomizer = new GeneRandomizer(new GeneRandomizer.Probabilities());
-			GeneBuilder geneBuilder = new GeneBuilder(typeBuilder, randomizer, context);
-			Type returnType = typeBuilder.createType(random);
-			FunctionType funcType = typeBuilder.createFunction(returnType, random);
-			Gene gene = geneBuilder.buildFunction(funcType, c.nextGeneName(), random);
-			TEST.notNull(gene);
-
-			c.addGene(gene);
-
-			Obj obj = gene.express(context);
-			TEST.notNull(obj);
-		}
-		expressTest(reg, c);
-
-		String path = "tmp";
-		storeChromasome(c, path);
-		expressTest(reg, loadChromasome(path));
-	}
-
-	private static void expressTest(ObjectRegistry reg, Chromasome chromasome) {
-		Context context = new Context(reg);
-		context.addChromasome(chromasome);
-		Phene[] expressions = chromasome.express(context);
-		TEST.notNull(expressions);
-		TEST.isTrue(expressions.length>0);
-		for (Phene expression : expressions) {
-			TEST.notNull(expression);
-			TEST.notNull(expression.name);
-			TEST.notNull(expression.expression);
-		}
-	}
-
-	private static Chromasome loadChromasome(String path) {
-		try {
-			FileInputStream in = new FileInputStream(path);
-			ObjectInputStream s = new ObjectInputStream(in);
-			return (Chromasome)s.readObject();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	private static void storeChromasome(Chromasome c, String path) {
-		FileOutputStream f;
-		try {
-			f = new FileOutputStream(path);
-			ObjectOutput s = new ObjectOutputStream(f);
-			s.writeObject(c);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-}
-
 public class GenomeBuilderTest extends TestCase {
 	static class Helper {
 		GenomeBuilder mBuilder;
@@ -1755,16 +1740,16 @@ public class GenomeBuilderTest extends TestCase {
 			mBuilder = new GenomeBuilder(mReg,typeBuilder, new GeneRandomizer(new GeneRandomizer.Probabilities()));
 		}
 
-		ChromasomeStructure[] buildStructure(FunctionType target, Random random) {
+		ChromosomeStructure[] buildStructure(FunctionType target, Random random) {
 			return mBuilder.buildGenomeStructure(target, random);
 		}
 
-		Genome build(ChromasomeStructure[] structure, Random random) {
+		Genome build(ChromosomeStructure[] structure, Random random) {
 			return mBuilder.build(structure, random);
 		}
 
 		List<Phene> express(Genome genome) {
-			Context context = new Context(mReg);
+			Context context = new GENES.Context(mReg);
 			return genome.express(context);
 		}
 	}
@@ -1773,11 +1758,11 @@ public class GenomeBuilderTest extends TestCase {
 		Random random = new Random();
 		Helper helper = new Helper();
 		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
-		ChromasomeStructure[] structure = helper.buildStructure(target, random);
+		ChromosomeStructure[] structure = helper.buildStructure(target, random);
 		TEST.notNull(structure);
 		TEST.isTrue(structure.length > 1);
 		for (int i = 0; i < structure.length; ++i) {
-			GenomeBuilder.ChromasomeStructure cs = structure[i];
+			GenomeBuilder.ChromosomeStructure cs = structure[i];
 			TEST.notNull(cs);
 			TEST.notNull(cs.name);
 			TEST.notNull(cs.geneTypes);
@@ -1792,7 +1777,7 @@ public class GenomeBuilderTest extends TestCase {
 		Random random = new Random();
 		Helper helper = new Helper();
 		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
-		ChromasomeStructure[] structure = helper.buildStructure(target, random);
+		ChromosomeStructure[] structure = helper.buildStructure(target, random);
 		Genome genome = helper.build(structure, random);
 		TEST.notNull(genome);
 		List<Phene> phenome = helper.express(genome);
@@ -1817,18 +1802,18 @@ public class BreederTest extends TestCase {
 
 		public BuildHelper(Random random)
 		{
-			ChromasomeStructure[] structure = helper.buildStructure(target, random);
+			ChromosomeStructure[] structure = helper.buildStructure(target, random);
 			genomeA = helper.build(structure, random);
 			genomeB = helper.build(structure, random);
 		}
 	}
 
-	public void testBreedChromasome() {
+	public void testBreedChromosome() {
 		Random random = new Random();
 		BuildHelper h = new BuildHelper(random);
-		Chromasome a = h.genomeA.chromasomes().get(0);
-		Chromasome b = h.genomeB.chromasomes().get(0);
-		Chromasome offspring = Breeder.breed(a, b, random);
+		Chromosome a = h.genomeA.chromosomes().get(0);
+		Chromosome b = h.genomeB.chromosomes().get(0);
+		Chromosome offspring = Breeder.breed(a, b, random);
 
 		TEST.notNull(offspring);
 		TEST.isEquals(a.genes().length, offspring.genes().length);
@@ -1843,9 +1828,9 @@ public class BreederTest extends TestCase {
 		Genome offspring = Breeder.breed(h.genomeA, h.genomeB, h.target, random);
 
 		TEST.notNull(offspring);
-		TEST.isEquals(h.genomeA.chromasomes().size(),offspring.chromasomes().size());
-		for (int i = 0; i < offspring.chromasomes().size(); ++i) {
-			TEST.isEquals(h.genomeA.chromasomes().get(i).genes().length,offspring.chromasomes().get(i).genes().length);
+		TEST.isEquals(h.genomeA.chromosomes().size(),offspring.chromosomes().size());
+		for (int i = 0; i < offspring.chromosomes().size(); ++i) {
+			TEST.isEquals(h.genomeA.chromosomes().get(i).genes().length,offspring.chromosomes().get(i).genes().length);
 		}
 	}
 }
@@ -1876,7 +1861,7 @@ public class DarwinTest extends TestCase {
 		}
 
 		public String viewExpression(Genome genome) {
-			Context context = new Context(mObjectReg);
+			Context context = new GENES.Context(mObjectReg);
 			List<Phene> expressions = genome.express(context);
 			StringBuilder result = new StringBuilder();
 			for (Phene expression : expressions) {
@@ -1953,9 +1938,10 @@ public class DarwinTest extends TestCase {
 */
 
         TEST.run("TypeBuilder", typeBuilderTests);
+        TEST.run("GeneBuilder", geneBuilderTests);
 
     }
-    
+
     testSuite();
 
     return {

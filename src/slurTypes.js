@@ -561,6 +561,7 @@ var SLUR_TYPES = (function (SLUR) {
                 }
             }
         }
+        return matching;
     };
 
     function registerBuiltins(registry, includeLibrary) {

@@ -6,11 +6,11 @@ var GENES = (function () {
         this.chromosomes = [];
         this.symbolTable = [];
     }
-    
+
     Context.prototype.addChromosome = function (chromosome) {
         this.chromosomes.push(chromosome);
     };
-    
+
     Context.prototype.findMatching = function (type) {
         type = SLUR_TYPES.makeParametersUnique(type);
         var matching = this.registry.findMatch(type);
@@ -18,28 +18,28 @@ var GENES = (function () {
             var genes = this.chromosomes[c].namedGenes();
             for (var g = 0; g < genes.length; ++g) {
                 var gene = genes[g];
-                if (gene.gene.type.match(type).matches()) {
+                if (gene.gene.type.match(type).matches) {
                     matching.push(new SLUR.Symbol(gene.name));
                 }
             }
         }
         for (var s = 0; s < this.symbolTable.length; ++s) {
             var entry = this.symbolTable[s];
-            if (type.match(entry.type).matches()) {
-                matching.addEntry(entry.symbol);
+            if (type.match(entry.type).matches) {
+                matching.push(entry.symbol);
             }
         }
         return matching;
     };
-    
+
     Context.prototype.pushSymbol = function (name, type) {
         this.symbolTable.push({symbol: new SLUR.Symbol(name), type: type});
     };
-    
+
     Context.prototype.popSymbols = function (count) {
         this.symbolTable.splice(this.symbolTable.length - count, count);
     };
-    
+
     Context.prototype.findFunctionReturning = function (returnType) {
         returnType = SLUR_TYPES.makeParametersUnique(returnType);
         var matching = this.registry.findFunctionReturning(returnType);
@@ -49,7 +49,7 @@ var GENES = (function () {
                 var gene = genes[g];
                 if (SLUR_TYPES.isFunctionType(gene.gene.type)) {
                     var match = returnType.match(gene.gene.type.returnType);
-                    if(match.matches()) {
+                    if(match.matches) {
                         matching.push({symbol: new SLUR.Symbol(gene.name), type: gene.gene.type.substitute(match.mappings)});
                     }
                 }
@@ -59,13 +59,14 @@ var GENES = (function () {
             var entry = this.symbolTable[s];
             if (SLUR_TYPES.isFunctionType(entry.type)) {
                 var entryMatch = returnType.match(entry.type.returnType);
-                if (entryMatch.matches()) {
+                if (entryMatch.matches) {
                     matching.push({symbol: entry.symbol, type: entry.type.substitute(entryMatch.mappings)});
                 }
             }
         }
+        return matching;
     };
-    
+
     Context.prototype.findConcreteTypes = function() {
         var result = [];
         for (var s = 0; s < this.symbolTable.length; ++s) {
@@ -74,7 +75,7 @@ var GENES = (function () {
         }
         return result;
     };
-    
+
     var P = SLUR_TYPES.Primitives;
 
     function NullGene() {
@@ -590,6 +591,9 @@ var GENES = (function () {
     };
 
     function FunctionGene(type, name, body, isLambda) {
+        if (!body || !name || !type) {
+            throw "Invalid parameters";
+        }
         this.type = type;
         this.name = name;
         this.body = body;
@@ -676,7 +680,7 @@ var GENES = (function () {
                 TEST.isTrue(SLUR.isNull(phene));
             }
         ];
-        
+
         var trueGeneTests = [
             function testType() {
                 var gene = new TrueGene();
@@ -690,7 +694,7 @@ var GENES = (function () {
                 TEST.equals(phene.value, true);
             }
         ];
-        
+
         var generatorTests = [
             function testFixnumType() {
                 var gene = new FixNumGenerator(1, { min: 0, max: 100 });
@@ -748,9 +752,9 @@ var GENES = (function () {
                     phene = gene.express(new Context(new SLUR_TYPES.Registry()));
                 TEST.notNull(phene);
                 TEST.equals(phene.value, true);
-            }            
+            }
         ];
-        
+
         var containerTests = [
             function testConsType() {
                 var gene = new ConsGene(new SLUR_TYPES.ConsType(P.NULL, P.NULL), new NullGene(), new NullGene());
@@ -806,19 +810,19 @@ var GENES = (function () {
                 TEST.equals(phene.toString(), copyPhene.toString());
             }
         ];
-        
+
         function buildContext() {
             var reg = new SLUR_TYPES.Registry();
             SLUR_TYPES.registerBuiltins(reg);
             return new Context(reg);
         }
-        
+
         function buildLookupGene() {
             var p = new SLUR_TYPES.Parameter();
             return new LookupGene(new SLUR_TYPES.FunctionType(new SLUR_TYPES.ConsType(p, p), [p, p]), "cons", 0);
         }
-                    
-        
+
+
         var lookupTests = [
             function testLookupType() {
                 var gene = buildLookupGene(),
@@ -833,10 +837,10 @@ var GENES = (function () {
                 TEST.equals(phene.toString(), "cons");
             }
         ];
-        
+
         var fixZero = new FixNumGenerator(0, { min: 0, max: 1 }),
             fixOne = new FixNumGenerator(1, { min: 0, max: 1 });
-        
+
         var ifTests = [
             function testIfType() {
                 var ifGene = new IfGene(P.FIX_NUM, new NullGene(), fixZero, fixOne);
@@ -852,9 +856,9 @@ var GENES = (function () {
                 TEST.equals("(if () 0 1)", phene.toString());
             }
         ];
-        
+
         var FuncType = SLUR_TYPES.FunctionType;
-        
+
         var functionTests = [
         	function testType() {
                 var gene = new FunctionGene(new FuncType(P.FIX_NUM, [P.FIX_NUM]), "fn", fixOne);
@@ -885,7 +889,7 @@ var GENES = (function () {
                 TEST.equals(phene.toString(), "(lambda (fnp0) #t)");
             }
         ];
-        
+
         var appTests = [
             function testType() {
                 var type = new FuncType(P.FIX_NUM, [P.FIX_NUM]),
@@ -900,7 +904,7 @@ var GENES = (function () {
                 TEST.equals(phene.toString(), "((lambda (lp0) 1) 0)");
             }
         ];
-        
+
         function buildPassMaybeGene() {
             var type = new FuncType(new SLUR_TYPES.Maybe(P.FIX_NUM), [P.FIX_NUM]),
                 func = new FunctionGene(type, "l", fixOne, true),
@@ -908,7 +912,7 @@ var GENES = (function () {
                 gene = new PassMaybeGene(new SLUR_TYPES.Maybe(P.FIX_NUM), func, [ifGene], "a");
             return gene;
         }
-        
+
         var maybeTests = [
         	function testDemaybeType() {
                 var ifGene = new IfGene(new SLUR_TYPES.Maybe(P.FIX_NUM), new NullGene(), fixOne, new NullGene()),
