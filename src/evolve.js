@@ -76,7 +76,7 @@ var EVOLVE = (function () {
         for (var c = this.chromosomes.length - 1; c >= 0; --c) {
             var matching = this.chromosomes[c].findLastMatching(type);
             if (matching !== null) {
-                return new Symbol(matching.name);
+                return new SLUR.Symbol(matching.name);
             }
         }
         return null;
@@ -633,7 +633,7 @@ var EVOLVE = (function () {
         // Check if we built a null directly, and if so, reject it.
         do {
             maybeGene = this.buildItem(new SLUR_TYPES.Maybe(geneType), entropy);
-        } while(maybeGene.type().equals(SLUR_TYPES.Primitives.NULL));
+        } while(maybeGene.type.equals(SLUR_TYPES.Primitives.NULL));
         // If we didn't build a maybe, then just return the gene,
         // rather then forcing the issue.
         if (!(SLUR_TYPES.isMaybe(maybeGene.type))) {
@@ -848,7 +848,7 @@ var EVOLVE = (function () {
         var chromosome = new Chromosome(structure.name);
         context.addChromosome(chromosome);
         for (var g = 0; g < structure.geneTypes.length; ++g) {
-            chromosome.addGene(geneBuilder.buildFunction(structure.geneTypes[g], chromosome.nextGeneName(), entropy));
+            chromosome.add(geneBuilder.buildFunction(structure.geneTypes[g], chromosome.nextGeneName(), entropy));
         }
         return chromosome;
     };
@@ -1627,6 +1627,8 @@ public interface Reporter {
 */
 
     function testSuite() {
+        var P = SLUR_TYPES.Primitives;
+        
         var typeBuilderTests = [
             function testCreate() {
                 var builder = new TypeBuilder(false, new TypeProbabilities()),
@@ -1692,6 +1694,26 @@ public interface Reporter {
                 TEST.notNull(phene.expression);
             }
         }
+        
+        function Helper() {
+            this.reg = new SLUR_TYPES.Registry();
+            SLUR_TYPES.registerBuiltins(this.reg);
+            var typeBuilder = new TypeBuilder(true, new TypeProbabilities());
+            this.builder = new GenomeBuilder(this.reg, typeBuilder, new GeneRandomizer(new GeneProbabilities()));
+        }
+        
+        Helper.prototype.buildStructure = function (target, entropy) {
+            return this.builder.buildGenomeStructure(target, entropy);
+        };
+        
+        Helper.prototype.build = function (structure, entropy) {
+            return this.builder.build(structure, entropy);
+        };
+        
+        Helper.prototype.express = function (genome) {
+            var context = new GENES.Context(this.reg);
+            return genome.express(context);
+        };
 
         var geneBuilderTests = [
             function testBuildFunction() {
@@ -1722,81 +1744,50 @@ public interface Reporter {
                     TEST.notNull(obj);
                 }
                 expressTest(reg, c);
+            },
+            function testBuildStructure() {
+                var entropy = ENTROPY.makeRandom(),
+                    helper = new Helper(),
+                    target = new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM]),
+                    structure = helper.buildStructure(target, entropy);
+                TEST.notNull(structure);
+                TEST.isTrue(structure.length > 1);
+                for (var i = 0; i < structure.length; ++i) {
+                    var cs = structure[i];
+                    TEST.notNull(cs);
+                    TEST.notNull(cs.name);
+                    TEST.notNull(cs.geneTypes);
+                    TEST.isTrue(cs.geneTypes.length > 0);
+                    for (var j = 0; j < cs.geneTypes.length; ++j) {
+                        TEST.notNull(cs.geneTypes[j]);
+                    }
+                }
+            },
+            function testBuild() {
+                var entropy = ENTROPY.makeRandom(),
+                    helper = new Helper(),
+                    target = new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM]),
+                    structure = helper.buildStructure(target, entropy),
+                    genome = helper.build(structure, entropy);
+                TEST.notNull(genome);
+                var phenome = helper.express(genome);
+                TEST.notNull(phenome);
+                TEST.isTrue(phenome.length > 0);
+
+                var targetSymbol = genome.findLastMatching(target);
+                TEST.notNull(targetSymbol);
+
+                var targetPhene = phenome[phenome.length - 1];
+                TEST.equals(targetSymbol.name, targetPhene.name);
+                TEST.notNull(targetPhene.expression);
             }
         ];
+
 /*
-public class GenomeBuilderTest extends TestCase {
-	static class Helper {
-		GenomeBuilder mBuilder;
-		ObjectRegistry mReg;
-
-		Helper() {
-			mReg = new ObjectRegistry();
-			BuiltinRegistrar.registerBuiltins(mReg);
-			TypeBuilder typeBuilder = new TypeBuilder(
-				true,
-				new TypeBuilder.Probabilities()
-			);
-			mBuilder = new GenomeBuilder(mReg,typeBuilder, new GeneRandomizer(new GeneRandomizer.Probabilities()));
-		}
-
-		ChromosomeStructure[] buildStructure(FunctionType target, Random random) {
-			return mBuilder.buildGenomeStructure(target, random);
-		}
-
-		Genome build(ChromosomeStructure[] structure, Random random) {
-			return mBuilder.build(structure, random);
-		}
-
-		List<Phene> express(Genome genome) {
-			Context context = new GENES.Context(mReg);
-			return genome.express(context);
-		}
-	}
-
-	public void testBuildStructure() {
-		Random random = new Random();
-		Helper helper = new Helper();
-		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
-		ChromosomeStructure[] structure = helper.buildStructure(target, random);
-		TEST.notNull(structure);
-		TEST.isTrue(structure.length > 1);
-		for (int i = 0; i < structure.length; ++i) {
-			GenomeBuilder.ChromosomeStructure cs = structure[i];
-			TEST.notNull(cs);
-			TEST.notNull(cs.name);
-			TEST.notNull(cs.geneTypes);
-			TEST.isTrue(cs.geneTypes.length > 0);
-			for (int j = 0; j < cs.geneTypes.length; ++j) {
-				TEST.notNull(cs.geneTypes[j]);
-			}
-		}
-	}
-
-	public void testBuild() {
-		Random random = new Random();
-		Helper helper = new Helper();
-		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
-		ChromosomeStructure[] structure = helper.buildStructure(target, random);
-		Genome genome = helper.build(structure, random);
-		TEST.notNull(genome);
-		List<Phene> phenome = helper.express(genome);
-		TEST.notNull(phenome);
-		TEST.isTrue(phenome.size() > 0);
-
-		Symbol targetSymbol = genome.findLastMatching(target);
-		TEST.notNull(targetSymbol);
-
-		Phene targetPhene = phenome.get(phenome.size()-1);
-		TEST.isEquals(targetSymbol.name(),targetPhene.name);
-		TEST.notNull(targetPhene.expression);
-	}
-}
-
 public class BreederTest extends TestCase {
 	static class BuildHelper {
 		Helper helper = new Helper();
-		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
+		FunctionType target = new FunctionType(BaseType.FIX_NUM, new Type[]{BaseType.FIX_NUM});
 		Genome genomeA;
 		Genome genomeB;
 
@@ -1848,7 +1839,7 @@ public class DarwinTest extends TestCase {
 		TestRunner(TargetFunction func) {
 			mObjectReg = new ObjectRegistry();
 			BuiltinRegistrar.registerBuiltins(mObjectReg);
-			mTarget = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
+			mTarget = new FunctionType(BaseType.FIX_NUM, new Type[]{BaseType.FIX_NUM});
 			mFunc = func;
 		}
 
