@@ -1031,7 +1031,7 @@ var EVOLVE = (function () {
             var returnType = this.typeBuilder.createType(entropy);
             this.typeBuilder.clearDependentTypes();
             var func = this.typeBuilder.createFunction(returnType, entropy);
-            chromosome.addGene(builder.buildFunction(func, chromosome.nextGeneName(), entropy));
+            chromosome.add(builder.buildFunction(func, chromosome.nextGeneName(), entropy));
         }
         return chromosome;
     };
@@ -1043,11 +1043,11 @@ var EVOLVE = (function () {
     Mutation.prototype.createChromosome = function (context, entropy, target) {
         var builder = new GeneBuilder(this.typeBuilder, this.randomizer, context),
             chromosome = new Chromosome("crT_" + entropy.alphaString(5));
-        chromosome.addGene(builder.buildFunction(target, chromosome.nextGeneName(), entropy));
+        chromosome.add(builder.buildFunction(target, chromosome.nextGeneName(), entropy));
         return chromosome;
     };
 
-    Mutation.prototype.addGene = function (entropy) {
+    Mutation.prototype.add = function (entropy) {
         return entropy.select(this.probabilities.mutateAddGene);
     };
 
@@ -1112,16 +1112,16 @@ var EVOLVE = (function () {
             var gene = genes[g];
             if (this.mutation.mutateTopLevelGene(entropy)) {
                 var mutatedGene = gene.gene.mutate(this.mutation, context, entropy);
-                mutated.addGene(mutatedGene);
+                mutated.add(mutatedGene);
                 if (gene != mutatedGene) {
                     isMutated = true;
                 }
             } else {
-                mutated.addGene(gene.gene);
+                mutated.add(gene.gene);
             }
         }
-        if (!isLast && allowMacroMutation && this.mutation.addGene(entropy)) {
-            mutated.addGene(this.mutation.createGene(context, mutated.nextGeneName(), entropy));
+        if (!isLast && allowMacroMutation && this.mutation.add(entropy)) {
+            mutated.add(this.mutation.createGene(context, mutated.nextGeneName(), entropy));
             isMutated = true;
         }
         if (isMutated) {
@@ -1148,31 +1148,31 @@ var EVOLVE = (function () {
                 bGene = b.genes[j];
             if (aGene.type.equals(bGene.type)) {
                 if (useA) {
-                    result.addGene(aGene);
+                    result.add(aGene);
                 } else {
-                    result.addGene(bGene);
+                    result.add(bGene);
                 }
             } else if ((a.genes.length > i+1) && a.genes[i+1].type.equals(bGene.type)) {
-                result.addGene(aGene);
+                result.add(aGene);
                 if (useA) {
-                    result.addGene(a.genes[i+1]);
+                    result.add(a.genes[i+1]);
                 } else {
-                    result.addGene(bGene);
+                    result.add(bGene);
                 }
                 i += 1;
             } else if ((b.genes.length > j+1) && aGene.type.equals(b.genes[j+1].type)) {
-                result.addGene(bGene);
+                result.add(bGene);
                 if (useA) {
-                    result.addGene(aGene);
+                    result.add(aGene);
                 } else {
-                    result.addGene(b.genes[j+1]);
+                    result.add(b.genes[j+1]);
                 }
                 j += 1;
             } else {
                 if (useA) {
-                    result.addGene(aGene);
+                    result.add(aGene);
                 } else {
-                    result.addGene(bGene);
+                    result.add(bGene);
                 }
             }
             i += 1;
@@ -1188,7 +1188,7 @@ var EVOLVE = (function () {
         var aUnpaired = {};
         for (var c = 0; c  < a.chromosomes.length; ++c) {
             var aChromo = a.chromosomes[c];
-            aUnpaired[aChromo.name()] = aChromo;
+            aUnpaired[aChromo.name] = aChromo;
         }
 
         var bUnpaired = [], // Keep track of the chromosomes in b which we haven't paired.
@@ -1751,7 +1751,7 @@ public interface Reporter {
                     target = new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM]),
                     structure = helper.buildStructure(target, entropy);
                 TEST.notNull(structure);
-                TEST.isTrue(structure.length > 1);
+                TEST.isTrue(structure.length > 0);
                 for (var i = 0; i < structure.length; ++i) {
                     var cs = structure[i];
                     TEST.notNull(cs);
@@ -1782,49 +1782,48 @@ public interface Reporter {
                 TEST.notNull(targetPhene.expression);
             }
         ];
+        
+        function buildPair(entropy) {
+            var results = {
+                helper: new Helper(),
+                target: new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM])
+            };
+            
+            results.structure = results.helper.buildStructure(results.target, entropy);
+            results.genomeA = results.helper.build(results.structure, entropy);
+            results.genomeB = results.helper.build(results.structure, entropy);
+            
+            return results;
+        }
+        
+        var breaderTests = [
+            function testBreedChromosome() {
+                var entropy = ENTROPY.makeRandom(),
+                    h = buildPair(entropy),
+                    a = h.genomeA.chromosomes[0],
+                    b = h.genomeB.chromosomes[0],
+                    offspring = breedChromosomes(a, b, entropy);
+
+                TEST.notNull(offspring);
+                TEST.equals(a.genes.length, offspring.genes.length);
+                for (var i = 0; i < a.genes.length; ++i) {
+                    TEST.isTrue(a.genes[i].type.equals(offspring.namedGenes()[i].gene.type));
+                }
+            },
+            function testBreedGenome() {
+                var entropy = ENTROPY.makeRandom(),
+                    h = buildPair(entropy),
+                    offspring = breedGenomes(h.genomeA, h.genomeB, h.target, entropy);
+
+                TEST.notNull(offspring);
+                TEST.equals(h.genomeA.chromosomes.length, offspring.chromosomes.length);
+                for (var i = 0; i < offspring.chromosomes.length; ++i) {
+                    TEST.equals(h.genomeA.chromosomes[i].genes.length, offspring.chromosomes[i].genes.length);
+                }
+            }
+        ];
 
 /*
-public class BreederTest extends TestCase {
-	static class BuildHelper {
-		Helper helper = new Helper();
-		FunctionType target = new FunctionType(BaseType.FIX_NUM, new Type[]{BaseType.FIX_NUM});
-		Genome genomeA;
-		Genome genomeB;
-
-		public BuildHelper(Random random)
-		{
-			ChromosomeStructure[] structure = helper.buildStructure(target, random);
-			genomeA = helper.build(structure, random);
-			genomeB = helper.build(structure, random);
-		}
-	}
-
-	public void testBreedChromosome() {
-		Random random = new Random();
-		BuildHelper h = new BuildHelper(random);
-		Chromosome a = h.genomeA.chromosomes().get(0);
-		Chromosome b = h.genomeB.chromosomes().get(0);
-		Chromosome offspring = Breeder.breed(a, b, random);
-
-		TEST.notNull(offspring);
-		TEST.isEquals(a.genes().length, offspring.genes().length);
-		for (int i = 0; i < a.genes().length; ++i) {
-			TEST.isEquals(a.genes()[i].gene.type(), offspring.genes()[i].gene.type());
-		}
-	}
-
-	public void testBreedGenome() {
-		Random random = new Random();
-		BuildHelper h = new BuildHelper(random);
-		Genome offspring = Breeder.breed(h.genomeA, h.genomeB, h.target, random);
-
-		TEST.notNull(offspring);
-		TEST.isEquals(h.genomeA.chromosomes().size(),offspring.chromosomes().size());
-		for (int i = 0; i < offspring.chromosomes().size(); ++i) {
-			TEST.isEquals(h.genomeA.chromosomes().get(i).genes().length,offspring.chromosomes().get(i).genes().length);
-		}
-	}
-}
 
 public class DarwinTest extends TestCase {
 	interface TargetFunction {
@@ -1930,6 +1929,7 @@ public class DarwinTest extends TestCase {
 
         TEST.run("TypeBuilder", typeBuilderTests);
         TEST.run("GeneBuilder", geneBuilderTests);
+        TEST.run("Breeder", breaderTests);
 
     }
 
