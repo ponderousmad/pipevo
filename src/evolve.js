@@ -119,12 +119,12 @@ var EVOLVE = (function () {
     function weightType(type, weight) { return { type: type, weight: weight }; }
     
     TypeProbabilities.prototype.setupDefault = function () {
-        var P = SLUR_TYPES.Primitives;
+        var P = SLUR_TYPES.Primitives,
             weights = [];
         weights.push(weightType(P.FIX_NUM, 100));
         weights.push(weightType(P.REAL, 100));
         weights.push(weightType(P.NULL, 100));
-        weights.push(weightType(P.TRUE, 100));
+        weights.push(weightType(P.BOOLEAN, 100));
         weights.push(weightType(P.BOOL, 100));
         weights.push(weightType(P.STRING, 100));
         return weights;
@@ -293,11 +293,11 @@ var EVOLVE = (function () {
         this.nesting += 1;
         try {
             var builder = this.builders.select(entropy);
-            return builder.build(entropy);
+            return builder(entropy);
         } finally {
             this.nesting -= 1;
             if (this.nesting === 0) {
-                this.parameters.clear();
+                this.parameters = [];
             }
         }
     };
@@ -305,7 +305,7 @@ var EVOLVE = (function () {
     TypeBuilder.prototype.createFunction = function (returnType, entropy) {
         var clearParameters = false;
         try {
-            if (this.parameters.length === 0 && SLUR_TYPES.isParamater(returnType)) {
+            if (this.parameters.length === 0 && SLUR_TYPES.isParameter(returnType)) {
                 clearParameters = true;
                 this.parameters.push(returnType);
             }
@@ -362,7 +362,7 @@ var EVOLVE = (function () {
             // Won't hurt anything to force to NULL, avoids potential (but extremely unlikely) infinite loop.
             return type;
         }
-        return new Maybe(type);
+        return new SLUR_TYPES.Maybe(type);
     };
     
     TypeBuilder.prototype.createCons = function (entropy) {
@@ -460,7 +460,7 @@ var EVOLVE = (function () {
         
         function distribution(weights, itemBuilder, weightLookup, skipFunction) {
             var set = new ENTROPY.WeightedSet();
-            for(var i = 0; i < weights.length; ++i) {
+            for (var i = 0; i < weights.length; ++i) {
                 if (!skipFunction || !skipFunction(weights, i)) {
                     set.add(itemBuilder(weights, i), weightLookup(weigths, i));
                 }
@@ -686,7 +686,7 @@ var EVOLVE = (function () {
             return this.buildBool(entropy);
         } else if (geneType.equals(P.NULL)) {
             return new GENES.NullGene();
-        } else if (geneType.equals(P.TRUE)) {
+        } else if (geneType.equals(P.BOOLEAN)) {
             return new GENES.TrueGene();
         } else if (geneType.equals(P.STRING)) {
             return this.buildString(entropy);
@@ -1510,7 +1510,7 @@ var EVOLVE = (function () {
                     throw "No matching target.";
                 }
             } catch(e) {
-                Console.log("Failure during mutation: " + e);
+                console.log("Failure during mutation: " + e);
                 this.reporter.notify("Failure during mutation.");
             }
         } while (mutated === null);
@@ -1608,118 +1608,110 @@ public interface Reporter {
 */
 
     function testSuite() {
+        var typeBuilderTests = [
+            function testCreate() {
+                var builder = new TypeBuilder(false, new TypeProbabilities()),
+                    entropy = new ENTROPY.Entropy(1);
+
+                for (var i = 0; i < 1000; ++i) {
+                    var type = builder.createType(entropy);
+                    TEST.notNull(type);
+                }
+            },
+            function testCreateFunction() {
+                var builder = new TypeBuilder(false, new TypeProbabilities()),
+                    entropy = ENTROPY.makeRandom();
+
+                for (var i = 0; i < 100; ++i) {
+                    var r = builder.createType(entropy);
+                    TEST.notNull(r);
+                    var rFunc = builder.createFunction(r, entropy);
+                    TEST.notNull(rFunc);
+                }
+            },
+            function testCreateParameterized() {
+                var builder = new TypeBuilder(true, new TypeProbabilities()),
+                    entropy = ENTROPY.makeRandom(),
+                    someParameter = false;
+                for (var i = 0; i < 2000; ++i) {
+                    var type = builder.createType(entropy);
+                    TEST.notNull(type);
+                    if (type.isParameterized()) {
+                        someParameter = true;
+                    }
+                }
+                TEST.isTrue(someParameter);
+            },
+            function testCreateParameterizedFunction() {
+                var builder = new TypeBuilder(true, new TypeProbabilities()),
+                    entropy = ENTROPY.makeRandom(),
+                    someParameter = false;
+                    
+                for (var i = 0; i < 1000; ++i) {
+                    var r = builder.createType(entropy);
+                    TEST.notNull(r);
+                    var rFunc = builder.createFunction(r, entropy);
+                    TEST.notNull(rFunc);
+                    if (rFunc.isParameterized()) {
+                        someParameter = true;
+                    }
+                }
+                TEST.isTrue(someParameter);
+            }
+        ];
 /*
-public class TypeBuilderTest extends TestCase {
-	private TypeBuilder.Probabilities TypeProbs() {
-		return new TypeBuilder.Probabilities();
-	}
-
-	public void testCreate() {
-		TypeBuilder builder = new TypeBuilder(false, TypeProbs());
-		Random random = new Random();
-
-		for( int i = 0; i < 1000; ++i ) {
-			Type type = builder.createType(random);
-			assertNotNull( type );
-		}
-	}
-
-	public void testCreateFunction() {
-		TypeBuilder builder = new TypeBuilder(false, TypeProbs());
-		Random random = new Random();
-
-		for( int i = 0; i < 100; ++i ) {
-			Type r = builder.createType(new Random());
-			assertNotNull( r );
-			FunctionType rFunc = builder.createFunction(r, random);
-			assertNotNull( rFunc );
-		}
-	}
-
-	public void testCreateParameterized() {
-		TypeBuilder builder = new TypeBuilder(true, TypeProbs());
-		Random random = new Random();
-
-		boolean someParameter = false;
-		for( int i = 0; i < 2000; ++i ) {
-			Type type = builder.createType(random);
-			assertNotNull( type );
-			if( type.isParameterized() ) {
-				someParameter = true;
-			}
-		}
-		assertTrue( someParameter );
-	}
-
-	public void testCreateParameterizedFunction() {
-		TypeBuilder builder = new TypeBuilder(true, TypeProbs());
-		Random random = new Random();
-
-		boolean someParameter = false;
-		for( int i = 0; i < 1000; ++i ) {
-			Type r = builder.createType(random);
-			assertNotNull( r );
-			FunctionType rFunc = builder.createFunction(r, random);
-			assertNotNull( rFunc );
-			if( rFunc.isParameterized() ) {
-				someParameter = true;
-			}
-		}
-		assertTrue( someParameter );
-	}
-}
 
 public class GeneBuilderTest extends TestCase {
 	public static void testBuildFunction() {
 		long baseSeed = new Random().nextLong();
-		Random testRandom = new Random( baseSeed );
+		Random testRandom = new Random(baseSeed);
 
 		ObjectRegistry reg = new ObjectRegistry();
 		BuiltinRegistrar.registerBuiltins(reg);
-		Chromasome c = new Chromasome(StringRandom.alphaString( testRandom, 5 ));
+		Chromasome c = new Chromasome(StringRandom.alphaString(testRandom, 5));
 		final int kTestCount = 20;
 		long[] seeds = new long[kTestCount];
 
-		for( int i = 0; i < kTestCount; ++i ) {
+		for (int i = 0; i < kTestCount; ++i) {
 			long seed = testRandom.nextLong();
 			seeds[i] = seed;
-			Random random = new Random( seed );
+			Random random = new Random(seed);
 			TypeBuilder typeBuilder = new TypeBuilder(
 				true,
 				new TypeBuilder.Probabilities()
 			);
 			Context context = new Context(reg);
-			context.addChromasome( c );
+			context.addChromasome(c);
 
 			GeneRandomizer randomizer = new GeneRandomizer(new GeneRandomizer.Probabilities());
-			GeneBuilder geneBuilder = new GeneBuilder( typeBuilder, randomizer, context );
+			GeneBuilder geneBuilder = new GeneBuilder(typeBuilder, randomizer, context);
 			Type returnType = typeBuilder.createType(random);
 			FunctionType funcType = typeBuilder.createFunction(returnType, random);
 			Gene gene = geneBuilder.buildFunction(funcType, c.nextGeneName(), random);
-			assertNotNull( gene );
+			TEST.notNull(gene);
 
-			c.addGene( gene );
+			c.addGene(gene);
 
 			Obj obj = gene.express(context);
-			assertNotNull( obj );
+			TEST.notNull(obj);
 		}
-		expressTest( reg, c );
+		expressTest(reg, c);
 
 		String path = "tmp";
-		storeChromasome( c, path );
-		expressTest(reg, loadChromasome( path ));
+		storeChromasome(c, path);
+		expressTest(reg, loadChromasome(path));
 	}
 
 	private static void expressTest(ObjectRegistry reg, Chromasome chromasome) {
 		Context context = new Context(reg);
-		context.addChromasome( chromasome );
+		context.addChromasome(chromasome);
 		Phene[] expressions = chromasome.express(context);
-		assertNotNull(expressions);
-		assertTrue(expressions.length>0);
-		for( Phene expression : expressions) {
-			assertNotNull(expression);
-			assertNotNull(expression.name);
-			assertNotNull(expression.expression);
+		TEST.notNull(expressions);
+		TEST.isTrue(expressions.length>0);
+		for (Phene expression : expressions) {
+			TEST.notNull(expression);
+			TEST.notNull(expression.name);
+			TEST.notNull(expression.expression);
 		}
 	}
 
@@ -1763,15 +1755,15 @@ public class GenomeBuilderTest extends TestCase {
 			mBuilder = new GenomeBuilder(mReg,typeBuilder, new GeneRandomizer(new GeneRandomizer.Probabilities()));
 		}
 
-		ChromasomeStructure[] buildStructure( FunctionType target, Random random ) {
+		ChromasomeStructure[] buildStructure(FunctionType target, Random random) {
 			return mBuilder.buildGenomeStructure(target, random);
 		}
 
-		Genome build( ChromasomeStructure[] structure, Random random ) {
+		Genome build(ChromasomeStructure[] structure, Random random) {
 			return mBuilder.build(structure, random);
 		}
 
-		List<Phene> express( Genome genome ) {
+		List<Phene> express(Genome genome) {
 			Context context = new Context(mReg);
 			return genome.express(context);
 		}
@@ -1782,16 +1774,16 @@ public class GenomeBuilderTest extends TestCase {
 		Helper helper = new Helper();
 		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
 		ChromasomeStructure[] structure = helper.buildStructure(target, random);
-		assertNotNull( structure );
-		assertTrue( structure.length > 1 );
-		for( int i = 0; i < structure.length; ++i ) {
+		TEST.notNull(structure);
+		TEST.isTrue(structure.length > 1);
+		for (int i = 0; i < structure.length; ++i) {
 			GenomeBuilder.ChromasomeStructure cs = structure[i];
-			assertNotNull(cs);
-			assertNotNull(cs.name);
-			assertNotNull(cs.geneTypes);
-			assertTrue( cs.geneTypes.length > 0 );
-			for( int j = 0; j < cs.geneTypes.length; ++j ) {
-				assertNotNull(cs.geneTypes[j]);
+			TEST.notNull(cs);
+			TEST.notNull(cs.name);
+			TEST.notNull(cs.geneTypes);
+			TEST.isTrue(cs.geneTypes.length > 0);
+			for (int j = 0; j < cs.geneTypes.length; ++j) {
+				TEST.notNull(cs.geneTypes[j]);
 			}
 		}
 	}
@@ -1802,17 +1794,17 @@ public class GenomeBuilderTest extends TestCase {
 		FunctionType target = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
 		ChromasomeStructure[] structure = helper.buildStructure(target, random);
 		Genome genome = helper.build(structure, random);
-		assertNotNull(genome);
+		TEST.notNull(genome);
 		List<Phene> phenome = helper.express(genome);
-		assertNotNull(phenome);
-		assertTrue(phenome.size() > 0);
+		TEST.notNull(phenome);
+		TEST.isTrue(phenome.size() > 0);
 
 		Symbol targetSymbol = genome.findLastMatching(target);
-		assertNotNull(targetSymbol);
+		TEST.notNull(targetSymbol);
 
 		Phene targetPhene = phenome.get(phenome.size()-1);
-		assertEquals(targetSymbol.name(),targetPhene.name);
-		assertNotNull(targetPhene.expression);
+		TEST.isEquals(targetSymbol.name(),targetPhene.name);
+		TEST.notNull(targetPhene.expression);
 	}
 }
 
@@ -1823,7 +1815,7 @@ public class BreederTest extends TestCase {
 		Genome genomeA;
 		Genome genomeB;
 
-		public BuildHelper( Random random )
+		public BuildHelper(Random random)
 		{
 			ChromasomeStructure[] structure = helper.buildStructure(target, random);
 			genomeA = helper.build(structure, random);
@@ -1838,10 +1830,10 @@ public class BreederTest extends TestCase {
 		Chromasome b = h.genomeB.chromasomes().get(0);
 		Chromasome offspring = Breeder.breed(a, b, random);
 
-		assertNotNull(offspring);
-		assertEquals(a.genes().length, offspring.genes().length);
-		for( int i = 0; i < a.genes().length; ++i ) {
-			assertEquals(a.genes()[i].gene.type(), offspring.genes()[i].gene.type());
+		TEST.notNull(offspring);
+		TEST.isEquals(a.genes().length, offspring.genes().length);
+		for (int i = 0; i < a.genes().length; ++i) {
+			TEST.isEquals(a.genes()[i].gene.type(), offspring.genes()[i].gene.type());
 		}
 	}
 
@@ -1850,17 +1842,17 @@ public class BreederTest extends TestCase {
 		BuildHelper h = new BuildHelper(random);
 		Genome offspring = Breeder.breed(h.genomeA, h.genomeB, h.target, random);
 
-		assertNotNull(offspring);
-		assertEquals(h.genomeA.chromasomes().size(),offspring.chromasomes().size());
-		for( int i = 0; i < offspring.chromasomes().size(); ++i ) {
-			assertEquals(h.genomeA.chromasomes().get(i).genes().length,offspring.chromasomes().get(i).genes().length);
+		TEST.notNull(offspring);
+		TEST.isEquals(h.genomeA.chromasomes().size(),offspring.chromasomes().size());
+		for (int i = 0; i < offspring.chromasomes().size(); ++i) {
+			TEST.isEquals(h.genomeA.chromasomes().get(i).genes().length,offspring.chromasomes().get(i).genes().length);
 		}
 	}
 }
 
 public class DarwinTest extends TestCase {
 	interface TargetFunction {
-		int target( int x );
+		int target(int x);
 	}
 
 	static class TestRunner implements Runner {
@@ -1868,7 +1860,7 @@ public class DarwinTest extends TestCase {
 		private FunctionType mTarget;
 		private TargetFunction mFunc;
 
-		TestRunner( TargetFunction func ) {
+		TestRunner(TargetFunction func) {
 			mObjectReg = new ObjectRegistry();
 			BuiltinRegistrar.registerBuiltins(mObjectReg);
 			mTarget = new FunctionType(BaseType.FIXNUM, new Type[]{BaseType.FIXNUM});
@@ -1887,7 +1879,7 @@ public class DarwinTest extends TestCase {
 			Context context = new Context(mObjectReg);
 			List<Phene> expressions = genome.express(context);
 			StringBuilder result = new StringBuilder();
-			for( Phene expression : expressions ) {
+			for (Phene expression : expressions) {
 				result.append(expression.name + " = ");
 				result.append(expression.expression.toString());
 				result.append('\n');
@@ -1897,11 +1889,11 @@ public class DarwinTest extends TestCase {
 
 		public double run(Environment env, Symbol target, Random random) {
 			int number = random.nextInt(20);
-			Cons application = Cons.list(target, new FixNum( number ));
+			Cons application = Cons.list(target, new FixNum(number));
 			Obj result = application.eval(env);
-			if( result instanceof FixNum ) {
+			if (result instanceof FixNum) {
 				int resultValue = ((FixNum)result).value();
-				if( resultValue == mFunc.target( number ) ) {
+				if (resultValue == mFunc.target(number)) {
 					return maxScore();
 				}
 			}
@@ -1953,12 +1945,14 @@ public class DarwinTest extends TestCase {
 		Random random = new Random(seed);
 		Population initialPopulation = darwin.initialPopulation(10, random);
 		Evaluation best = darwin.evolve(initialPopulation, 10, random);
-		assertTrue( best != null );
-		assertTrue( best.score > 0.0 );
+		TEST.isTrue(best != null);
+		TEST.isTrue(best.score > 0.0);
 	}
 }
 
 */
+
+        TEST.run("TypeBuilder", typeBuilderTests);
 
     }
     
