@@ -764,7 +764,7 @@ var SLUR = (function (TEST) {
         var result = new LetExpression(sequential),
             frame = new Frame(env, null);
 
-        if (isCons(args)) {
+        if (!isCons(args)) {
             throw evalException("Malformed let.", env);
         }
         var lets = args.car;
@@ -785,7 +785,7 @@ var SLUR = (function (TEST) {
                 frame.shadow(target.name);
                 value = value.compile(sequential ? frame : env);
             }
-            result.add(target, value);
+            result.bind(target, value);
             lets = lets.cdr;
         }
         if (!isNull(lets)) {
@@ -1699,6 +1699,7 @@ var SLUR = (function (TEST) {
         IfExpression: IfExpression,
         makeList: makeList,
         define: define,
+        Frame: Frame,
         Parser: Parser,
         baseEnvironment: baseEnvironment,
         defaultEnvironment: defaultEnvironment

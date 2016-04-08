@@ -126,7 +126,7 @@ var GENES = (function () {
     };
 
     FixNumGenerator.prototype.mutate = function (mutation, context, entropy) {
-        var seed = mutation.mutateSeed(mutation, entropy);
+        var seed = mutation.mutateSeed(entropy);
         var range = null;
         if (mutation.mutateFixnumRange(entropy)) {
             range = mutation.newFixnumRange(this.range, entropy);
@@ -156,7 +156,7 @@ var GENES = (function () {
     };
 
     RealGenerator.prototype.mutate = function (mutation, context, entropy) {
-        var seed = mutation.mutateSeed(mutation, entropy);
+        var seed = mutation.mutateSeed(entropy);
         var range = null;
         if (mutation.mutateRealRange(entropy)) {
             range = mutation.newRealRange(this.range, entropy);
@@ -306,7 +306,7 @@ var GENES = (function () {
                 y = entropy.randomInt(0, mutatedItems.length);
 			swap(mutatedItems, x, y);
 		} else if (mutation.mutateListLength(entropy)) {
-			listLength = mutation.geneBuilderProbabilities().selectListLength(entropy);
+			listLength = mutation.geneRandomizer.selectListLength(entropy);
             mutatedItems = mutatedItems.slice(0, Math.Min(listLength, mutatedItems.length));
 		}
         mutatedItems = this.mutateItems(mutation, context, entropy, mutatedItems);

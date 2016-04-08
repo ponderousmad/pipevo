@@ -39,7 +39,7 @@ var EVOLVE = (function () {
     Chromosome.prototype.express = function (context) {
         var phenes = [];
         for (var g = 0; g < this.genes.length; ++g) {
-            phenes.push({ name: this.geneName(g), gene: this.genes[g].express(context) });
+            phenes.push({ name: this.geneName(g), expression: this.genes[g].express(context) });
         }
         return phenes;
     };
@@ -1310,7 +1310,7 @@ var EVOLVE = (function () {
     };
 
     Task.prototype.expressFailed = function () {
-        return this.env === null && errors.length > 0;
+        return this.env === null && this.errors.length > 0;
     };
 
     Task.prototype.done = function (iterationCount) {
@@ -1347,9 +1347,9 @@ var EVOLVE = (function () {
     Task.prototype.express = function (runner) {
         try {
             var context = new GENES.Context(runner.registry),
-                phenome = genome.express(context),
+                phenome = this.genome.express(context),
                 env = this.bind(phenome, runner),
-                entryPoint = genome.findLastMatching(runner.targetType);
+                entryPoint = this.genome.findLastMatching(runner.targetType);
             if (entryPoint === null) {
                 throw "Target not found";
             }
@@ -1371,8 +1371,8 @@ var EVOLVE = (function () {
             }
             return false;
         }
-
-        var env = new SLUR.Frame(runner.environment, "expressFrame");
+        
+        var env = new SLUR.Frame(runner.environment(), "expressFrame");
         for (var p = 0; p < phenome.length; ++p) {
             var phene = phenome[p],
                 result = phene.expression.compile(env);
@@ -1397,8 +1397,8 @@ var EVOLVE = (function () {
     function evaluatePopulation(population, runner, reporter) {
         var entropy = ENTROPY.makeRandom(),
             results = [];
-        for (var g = 0; g < population.length; ++g) {
-            var task = new Task(population[g], entropy.randomSeed());
+        for (var g = 0; g < population.crowd.length; ++g) {
+            var task = new Task(population.crowd[g], entropy.randomSeed());
             results.push(task.run(runner));
             if (task.errors.length > 0) {
                 for (var e = 0; e < task.errors.length; ++e) {
@@ -1424,6 +1424,7 @@ var EVOLVE = (function () {
         this.typeBuilder = typeBuilder;
         this.runner = runner;
         this.reporter = reporter;
+        this.geneRandomizer = geneRandomizer;
         this.mutator = mutator;
         this.survivalRatios = survivalRatios;
         this.stop = false;
@@ -1441,10 +1442,10 @@ var EVOLVE = (function () {
         for (var i = 0; i < size && !this.stop; ++i) {
             this.reporter.updateProgress(i, size);
             try {
-                population.add(builder.build(structure, random));
+                population.add(builder.build(structure, entropy));
             } catch(e) {
                 this.reporter.onFail(e, "Generating population: ");
-                --i;
+                i -= 1;
             }
         }
         this.reporter.pop();
@@ -1463,11 +1464,11 @@ var EVOLVE = (function () {
             this.reporter.push("Breading/mutating");
 
             this.reporter.updateProgress(0, 4);
-            var next = this.breedPopulation(evaluated, offspringCount, survivors, random);
+            var next = this.breedPopulation(evaluated, offspringCount, survivors, entropy);
 
             this.reporter.updateProgress(1, 4);
             for (var s = 0; s < survivors; ++s) {
-                next.push(evaluated[s].genome);
+                next.add(evaluated[s].genome);
             }
 
             this.reporter.updateProgress(2, 4);
@@ -1475,7 +1476,7 @@ var EVOLVE = (function () {
                 this.reporter.push("Mutating Survivors");
                 for (var m = 0; m < mutatedSurvivors; ++m) {
                     var mutantSurvivor = this.mutate(evaluated[entropy.randomInt(0, survivors)].genome, entropy);
-                    next.push(mutantSurvivor);
+                    next.add(mutantSurvivor);
                     this.reporter.updateProgress(i, mutatedSurvivors);
                 }
             } finally {
@@ -1487,7 +1488,7 @@ var EVOLVE = (function () {
                 this.reporter.push("Mutating");
                 for (var i = 0; i < mutants; ++i) {
                     var mutant = this.mutate(entropy.randomElement(evaluated).genome, entropy);
-                    next.push(mutant);
+                    next.add(mutant);
                     this.reporter.updateProgress(i, mutants);
                 }
             } finally {
@@ -1524,7 +1525,7 @@ var EVOLVE = (function () {
         var mutated = null;
         do {
             try {
-                mutated = mMutator.mutate(genome, mObjectRegistry, true, entropy, target());
+                mutated = this.mutator.mutate(genome, this.runner.registry, true, entropy, this.runner.targetType);
                 if (!this.skipTargetCheck && mutated.findLastMatching(this.runner.targetType) === null) {
                     throw "No matching target.";
                 }
@@ -1537,8 +1538,7 @@ var EVOLVE = (function () {
     };
 
     Darwin.prototype.selectParent = function (evaluated, selectFrom, entropy) {
-        var selected = random.nextInt(selectFrom),
-            selection = evaluated.get(selected);
+        var selection = entropy.randomElement(evaluated);
         return selection.genome;
     };
 
@@ -1570,7 +1570,7 @@ var EVOLVE = (function () {
                         this.reporter.updateBest(best);
                     }
                     this.reporter.currentPopulation(evaluated);
-                    if (best.score == mRunner.maxScore) {
+                    if (best.score == this.runner.maxScore) {
                         // If we've hit the max score, we'll never replace it, so stop now.
                         return best;
                     }
@@ -1628,7 +1628,7 @@ public interface Reporter {
 
     function testSuite() {
         var P = SLUR_TYPES.Primitives;
-        
+
         var typeBuilderTests = [
             function testCreate() {
                 var builder = new TypeBuilder(false, new TypeProbabilities()),
@@ -1694,22 +1694,22 @@ public interface Reporter {
                 TEST.notNull(phene.expression);
             }
         }
-        
+
         function Helper() {
             this.reg = new SLUR_TYPES.Registry();
             SLUR_TYPES.registerBuiltins(this.reg);
             var typeBuilder = new TypeBuilder(true, new TypeProbabilities());
             this.builder = new GenomeBuilder(this.reg, typeBuilder, new GeneRandomizer(new GeneProbabilities()));
         }
-        
+
         Helper.prototype.buildStructure = function (target, entropy) {
             return this.builder.buildGenomeStructure(target, entropy);
         };
-        
+
         Helper.prototype.build = function (structure, entropy) {
             return this.builder.build(structure, entropy);
         };
-        
+
         Helper.prototype.express = function (genome) {
             var context = new GENES.Context(this.reg);
             return genome.express(context);
@@ -1782,20 +1782,20 @@ public interface Reporter {
                 TEST.notNull(targetPhene.expression);
             }
         ];
-        
+
         function buildPair(entropy) {
             var results = {
                 helper: new Helper(),
                 target: new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM])
             };
-            
+
             results.structure = results.helper.buildStructure(results.target, entropy);
             results.genomeA = results.helper.build(results.structure, entropy);
             results.genomeB = results.helper.build(results.structure, entropy);
-            
+
             return results;
         }
-        
+
         var breaderTests = [
             function testBreedChromosome() {
                 var entropy = ENTROPY.makeRandom(),
@@ -1823,118 +1823,69 @@ public interface Reporter {
             }
         ];
 
-/*
+        function TestRunner(func) {
+            this.registry = new SLUR_TYPES.Registry();
+            SLUR_TYPES.registerBuiltins(this.registry);
+            this.targetType = new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM]);
+            this.func = func;
+            this.iterationCount = 5;
+            this.maxScore = 1.0;
+            this.timeoutInterval = 1000;
+        }
 
-public class DarwinTest extends TestCase {
-	interface TargetFunction {
-		int target(int x);
-	}
+        TestRunner.prototype.environment = function () {
+            return SLUR.baseEnvironment();
+        };
 
-	static class TestRunner implements Runner {
-		private ObjectRegistry mObjectReg;
-		private FunctionType mTarget;
-		private TargetFunction mFunc;
+        TestRunner.prototype.run = function (env, target, entropy) {
+            var number = entropy.randomInt(0, 20),
+                application = SLUR.makeList([target, new SLUR.FixNum(number)]),
+                result = application.eval(env);
+            if (result.value === this.func(number)) {
+                return this.maxScore;
+            }
+            return 0;
+        };
 
-		TestRunner(TargetFunction func) {
-			mObjectReg = new ObjectRegistry();
-			BuiltinRegistrar.registerBuiltins(mObjectReg);
-			mTarget = new FunctionType(BaseType.FIX_NUM, new Type[]{BaseType.FIX_NUM});
-			mFunc = func;
-		}
-
-		public ObjectRegistry registry() {
-			return mObjectReg;
-		}
-
-		public Environment environment() {
-			return Initialize.init();
-		}
-
-		public String viewExpression(Genome genome) {
-			Context context = new GENES.Context(mObjectReg);
-			List<Phene> expressions = genome.express(context);
-			StringBuilder result = new StringBuilder();
-			for (Phene expression : expressions) {
-				result.append(expression.name + " = ");
-				result.append(expression.expression.toString());
-				result.append('\n');
-			}
-			return result.toString();
-		}
-
-		public double run(Environment env, Symbol target, Random random) {
-			int number = random.nextInt(20);
-			Cons application = Cons.list(target, new FixNum(number));
-			Obj result = application.eval(env);
-			if (result instanceof FixNum) {
-				int resultValue = ((FixNum)result).value();
-				if (resultValue == mFunc.target(number)) {
-					return maxScore();
-				}
-			}
-			return 0;
-		}
-
-		public FunctionType targetType() {
-			return mTarget;
-		}
-
-		public double maxScore() {
-			return 1.0;
-		}
-
-		public int iterations() {
-			return 5;
-		}
-
-		public long timeoutInterval() {
-			return 1000;
-		}
-
-		public List<TypeBuilder.Constraint> typeConstraints() {
-			return new java.util.ArrayList<TypeBuilder.Constraint>();
-		}
-	}
-
-	// Evolve a program which returns it's first argument.
-	public void testSimple() {
-		GeneRandomizer geneRandomizer = new GeneRandomizer(new GeneRandomizer.Probabilities());
-
-		TypeBuilder builder = new TypeBuilder(
-			true,
-			new TypeBuilder.Probabilities()
-		);
-		TestRunner testRunner = new TestRunner(new TargetFunction() { public int target(int x) { return x * x; }});
-		Status status = new Status() {
-			public void onFail(Throwable ex, String context) {}
-			public void pop() {}
-			public void push(String name) {}
-			public void updateBest(Evaluation eval) {}
-			public void updateProgress(int current, int total) {}
-			public void notify(String message) {}
-			public void currentPopulation(List<Evaluation> evaluated) {}
-		};
-		Mutator mutator = new Mutator(new Mutation(new Mutation.Probabilities(), builder, geneRandomizer));
-		Darwin darwin = new Darwin(builder, testRunner, status, geneRandomizer, mutator);
-		long seed = new Random().nextLong();
-		Random random = new Random(seed);
-		Population initialPopulation = darwin.initialPopulation(10, random);
-		Evaluation best = darwin.evolve(initialPopulation, 10, random);
-		TEST.isTrue(best != null);
-		TEST.isTrue(best.score > 0.0);
-	}
-}
-
-*/
+        function TestReporter() {}
+        TestReporter.prototype.onFail = function (error, context) {
+            console.log(context + error.toString());
+        };
+        TestReporter.prototype.push = function (name) {};
+        TestReporter.prototype.pop = function () {};
+        TestReporter.prototype.updateBest = function (evaluation) {};
+        TestReporter.prototype.updateProgress = function (current, total) {};
+        TestReporter.prototype.notify = function (message) {};
+        TestReporter.prototype.currentPopulation = function (evaluated) {};
+        
+        var darwinTests = [
+            function testSimple() {
+                // Evolve a program which returns it's first argument.
+                var geneRandomizer = new GeneRandomizer(new GeneProbabilities()),
+                    builder = new TypeBuilder(true, new TypeProbabilities()),
+                    testRunner = new TestRunner(function (x) { return x; }),
+                    reporter = new TestReporter(),
+                    mutator = new Mutator(new Mutation(new MutationProbabilities(), builder, geneRandomizer)),
+                    darwin = new Darwin(builder, testRunner, reporter, geneRandomizer, mutator, defaultSurvivalRatios()),
+                    seed = ENTROPY.makeRandom().randomSeed(),
+                    entropy = new ENTROPY.Entropy(seed),
+                    initialPopulation = darwin.initialPopulation(10, entropy),
+                    best = darwin.evolve(initialPopulation, 10, entropy);
+                TEST.isTrue(best !== null);
+                TEST.isTrue(best.score >= 0.0);
+            }
+        ];
 
         TEST.run("TypeBuilder", typeBuilderTests);
         TEST.run("GeneBuilder", geneBuilderTests);
         TEST.run("Breeder", breaderTests);
-
+        TEST.run("Darwin", darwinTests);
     }
 
     testSuite();
 
     return {
+        phenomeToString: phenomeToString,
+        Darwin: Darwin
     };
 }());

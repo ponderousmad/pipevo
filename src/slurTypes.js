@@ -483,7 +483,7 @@ var SLUR_TYPES = (function (SLUR) {
         return combined;
     };
 
-    function typesEqualModuloParamaters(first, second) {
+    function typesEqualModuloParameters(first, second) {
         if (first.isParameterized() && second.isParameterized()) {
             var match = first.match(second);
             if (!match.matches) {
@@ -566,7 +566,7 @@ var SLUR_TYPES = (function (SLUR) {
 
     function registerBuiltins(registry, includeLibrary) {
         function add(name, type) {
-            registry.add(name, type);
+            registry.add(new SLUR.Symbol(name), type);
         }
 
         function anyBool() {
@@ -1251,8 +1251,8 @@ var SLUR_TYPES = (function (SLUR) {
             }
         ];
 
-        function testCompareAreEqual(a, b) { TEST.isTrue (typesEqualModuloParamaters(a, b)); }
-        function testCompareNotEqual(a, b) { TEST.isFalse(typesEqualModuloParamaters(a, b)); }
+        function testCompareAreEqual(a, b) { TEST.isTrue (typesEqualModuloParameters(a, b)); }
+        function testCompareNotEqual(a, b) { TEST.isFalse(typesEqualModuloParameters(a, b)); }
 
         var compareTests = [
             function testBaseTypes() {
@@ -1362,7 +1362,7 @@ var SLUR_TYPES = (function (SLUR) {
         isMaybe: function (type) { return type instanceof Maybe; },
         isFunctionType: function (type) { return type instanceof FunctionType; },
         Match: Match,
-        typesEqualModuloParamaters: typesEqualModuloParamaters,
+        typesEqualModuloParameters: typesEqualModuloParameters,
         makeParametersUnique: makeParametersUnique,
         Registry: Registry,
         registerBuiltins: registerBuiltins
