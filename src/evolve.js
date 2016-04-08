@@ -1209,7 +1209,7 @@ var EVOLVE = (function () {
                delete aUnpaired[pair.name];
             } else {
                 // If we didn't find a matching one in a, then the b one is marked as unpaired.
-                bUnpaired.push(chromosome);
+                bUnpaired.push(bChromo);
             }
         }
         if (bUnpaired.length > 0) {
@@ -1829,7 +1829,7 @@ public interface Reporter {
             this.targetType = new SLUR_TYPES.FunctionType(P.FIX_NUM, [P.FIX_NUM]);
             this.func = func;
             this.iterationCount = 5;
-            this.maxScore = 1.0;
+            this.maxScore = 2.0;
             this.timeoutInterval = 1000;
         }
 
@@ -1844,7 +1844,7 @@ public interface Reporter {
             if (result.value === this.func(number)) {
                 return this.maxScore;
             }
-            return 0;
+            return 1 / Math.abs(number - result.value);
         };
 
         function TestReporter() {}
@@ -1872,7 +1872,11 @@ public interface Reporter {
                     initialPopulation = darwin.initialPopulation(10, entropy),
                     best = darwin.evolve(initialPopulation, 10, entropy);
                 TEST.isTrue(best !== null);
-                TEST.isTrue(best.score >= 0.0);
+                TEST.isTrue(best.score > 0.0);
+                
+                var phenome = best.genome.express(new GENES.Context(testRunner.registry));
+                console.log(phenomeToString(phenome));
+                console.log(best.score);
             }
         ];
 
