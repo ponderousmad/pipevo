@@ -1,4 +1,4 @@
-(function () {
+var MAIN = (function () {
     "use strict";
 
     var entropy = ENTROPY.makeRandom();
@@ -109,6 +109,62 @@
         } while (parse !== null);
     };
 
+    function GameRunner() {
+        this.registry = new SLUR_TYPES.Registry();
+        SLUR_TYPES.registerBuiltins(this.registry, true);
+        SLUR_PIPES.register(this.registry);
+        this.targetType = new SLUR_TYPES.FunctionType(SLUR_PIPES.GameTypes.POSITION, [SLUR_PIPES.GameTypes.GAME]);
+        this.iterationCount = 2;
+        this.maxScore = 250.0;
+        this.timeoutInterval = 4000;
+        this.typeConstraints = SLUR_PIPES.typeConstraints(EVOLVE.Constraint);
+    }
+
+    GameRunner.prototype.environment = function () {
+        var env = SLUR.defaultEnvironment();
+        SLUR_PIPES.install(env);
+        return env;
+    };
+    
+    function XsqdPlus2XRunner() {
+        this.registry = new SLUR_TYPES.Registry();
+        SLUR_TYPES.registerBuiltins(this.registry, true);
+        this.targetType = new SLUR_TYPES.FunctionType(SLUR_TYPES.Primitives.FIX_NUM, [SLUR_TYPES.Primitives.FIX_NUM]);
+        this.iterationCount = 10;
+        this.maxScore = 250.0;
+        this.timeoutInterval = 500;
+        this.typeConstraints = [];
+    }
+
+    XsqdPlus2XRunner.prototype.environment = function () {
+        return SLUR.defaultEnvironment();
+    };
+    
+    XsqdPlus2XRunner.prototype.run = function (env, target, entropy) {
+        var number = entropy.randomInt(0, 100),
+            targetValue = this.evaluate(number),
+            application = SLUR.makeList([target, new SLUR.FixNum(number)]),
+            result = application.eval(env);
+        if (result.value === this.func(number)) {
+            return this.maxScore;
+        }
+        return 1 / Math.abs(targetValue - result.value);
+    };
+    
+    XsqdPlus2XRunner.prototype.evaluate = function (value) {
+        return value * value + 2 * value;
+    };
+    
+    function runEvolve(form) {
+        var target = form.elements["evoTarget"].value;
+        var runner = null;
+        if (target === "game") {
+            runner = new GameRunner();
+        } else {
+            runner = new XsqdPlus2XRunner();
+        }
+    }
+
     window.onload = function(e) {
         console.log("window.onload", e, Date.now());
         var canvas = document.getElementById("canvas"),
@@ -147,5 +203,9 @@
         window.setInterval(update, 16);
 
         drawFrame();
+    };
+    
+    return {
+        runEvolve: runEvolve
     };
 }());

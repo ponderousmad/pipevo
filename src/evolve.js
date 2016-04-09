@@ -1831,6 +1831,7 @@ public interface Reporter {
             this.iterationCount = 5;
             this.maxScore = 2.0;
             this.timeoutInterval = 1000;
+            this.typeConstraints = [];
         }
 
         TestRunner.prototype.environment = function () {
@@ -1890,6 +1891,7 @@ public interface Reporter {
 
     return {
         phenomeToString: phenomeToString,
+        Constraint: Constraint,
         Darwin: Darwin
     };
 }());

@@ -35,6 +35,7 @@ var SLUR_PIPES = (function() {
     Pipe.prototype.toString = function () { return "PIPE"; };
 
     function getGame(env, name) { return env.nameLookup(name).game; }
+    function getBoard(env, name) { return env.nameLookup(name).board; }
     function getPiece(env, name) { return env.nameLookup(name).piece; }
     function getSide(env, name) { return env.nameLookup(name).value; }
     function getPipe(env, name) { return env.nameLookup(name).pipe; }
@@ -114,7 +115,7 @@ var SLUR_PIPES = (function() {
         });
 
         SLUR.define(env, "gamePieceAt", ["s", "pos"], null, function (env) {
-            var piece = getBoard(env, "s").at(getPosition(env, s.game(), "pos"));
+            var piece = getBoard(env, "s").at(getPosition(env, getGame(env, "s"), "pos"));
             if (piece === null) {
                 return SLUR.NULL;
             }
@@ -170,7 +171,7 @@ var SLUR_PIPES = (function() {
 
         SLUR.define(env, "pieceFarSide", ["p", "side"], null, function (env) {
             var farSide = getPiece(env, "p").getFarSide(getSide(env, "side"));
-            return farSide === null ? SLUR.NULL : new FixNum(farSide);
+            return farSide === null ? SLUR.NULL : new SLUR.FixNum(farSide);
         });
     }
 
@@ -194,8 +195,8 @@ var SLUR_PIPES = (function() {
             var board = env.nameLookup("board"),
                 pos = getPosition(env, board.game, "pos"),
                 n = env.lookup("n").value;
-            if (n >= 0 && n < board.game.peek().length && position.valid()) {
-                return new Board(board.game, new PIPES.Acetate(board.board, board.game.peek()[n], position));
+            if (n >= 0 && n < board.game.peek().length && pos.valid()) {
+                return new Board(board.game, new PIPES.Acetate(board.board, board.game.peek()[n], pos));
             }
             return SLUR.NULL;
         });
@@ -212,19 +213,19 @@ var SLUR_PIPES = (function() {
         });
 
         SLUR.define(env, "pipeLength", ["p"], null, function (env) {
-            return new FixNum(getPipe(env, "p").length);
+            return new SLUR.FixNum(getPipe(env, "p").length);
         });
 
         SLUR.define(env, "pipeFilled", ["p"], null, function (env) {
-            return new FixNum(getPipe(env, "p").filled);
+            return new SLUR.FixNum(getPipe(env, "p").filled);
         });
 
         SLUR.define(env, "pipeOutDirection", ["p"], null, function (env) {
-            return new FixNum(getPipe(env, "p").outflow);
+            return new SLUR.FixNum(getPipe(env, "p").outflow);
         });
 
         SLUR.define(env, "pipeOutPosition", ["p"], null, function (env) {
-            return createPosition(asPipe(env, "p").position);
+            return createPosition(getPipe(env, "p").position);
         });
 
         SLUR.define(env, "pipeOpenEnd", ["p"], null, function (env) {
@@ -332,29 +333,17 @@ public class GameTypeBuilder {
         typeWeights.add(new Pair<Type,Integer>(GameType.BOARD, 10));
         return probs;
     }
-
-    public static List<TypeBuilder.Constraint> typeConstraints() {
-        List<TypeBuilder.Constraint> constraints = new java.util.ArrayList<TypeBuilder.Constraint>();
-        constraints.add(new TypeBuilder.Constraint(GameType.GAME, new java.util.ArrayList<Type>()));
-        List<Type> sourceTypes = new java.util.ArrayList<Type>();
-        sourceTypes.add(GameType.GAME);
-        constraints.add(new TypeBuilder.Constraint(GameType.BOARD, sourceTypes));
-
-        sourceTypes = new java.util.ArrayList<Type>();
-        sourceTypes.add(GameType.GAME);
-        sourceTypes.add(GameType.BOARD);
-        constraints.add(new TypeBuilder.Constraint(GameType.PIPE, sourceTypes));
-
-        sourceTypes = new java.util.ArrayList<Type>();
-        sourceTypes.add(GameType.GAME);
-        sourceTypes.add(GameType.BOARD);
-        sourceTypes.add(GameType.PIPE);
-        constraints.add(new TypeBuilder.Constraint(GameType.PIECE, sourceTypes));
-        return constraints;
-    }
-}
 */
 
+    function typeConstraints(Constraint) {
+        var constraints = [];
+        constraints.add(new Constraint(GameType.GAME, []));
+        constraints.add(new Constraint(GameType.BOARD, [GameType.GAME]));
+        constraints.add(new Constraint(GameType.PIPE, [GameType.GAME, GameType.BOARD]));
+        constraints.add(new Constraint(GameType.PIECE, [GameType.GAME, GameType.BOARD, GameType.PIPE]));
+        return constraints;
+    }
+    
     function testSuite() {
         var registryTests = [
             function testRegisterBasic() {
@@ -380,7 +369,8 @@ public class GameTypeBuilder {
     testSuite();
     
     return {
-        Game: Game,
+        GameType: GameType,
+        typeConstraints: typeConstraints,
         install: install,
         register: register
     };
