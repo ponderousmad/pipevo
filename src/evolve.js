@@ -322,7 +322,7 @@ var EVOLVE = (function () {
                 for (var a = 0; a < argCount && !satisfied; ++a) {
                     var argType = argTypes[a];
                     if (argType.equals(returnType)) {
-                        statisfied = true;
+                        satisfied = true;
                         break;
                     }
                     for (var s = 0; s < constraint.sources.length; ++s) {
@@ -648,7 +648,7 @@ var EVOLVE = (function () {
             args = [],
             addedMaybe = false;
         for (var i = 0; i < func.argumentTypes.length; ++i) {
-            var type = argumentTypes[i];
+            var type = func.argumentTypes[i];
             if (!(SLUR_TYPES.isMaybe(type) || type.equals(SLUR_TYPES.Primitives.NULL))) {
                 type = new SLUR_TYPES.Maybe(type);
                 addedMaybe = true;
@@ -1232,7 +1232,7 @@ var EVOLVE = (function () {
                     }
                     child.push(unpaired);
                 } else {
-                    var resultChromosome = breedChromosomes(unpaired, match, entropy);
+                    var resultChromosome = breedChromosomes(unpaired, matched, entropy);
                     if (unpaired.findLastMatching(target) !== null) {
                         crTarget = resultChromosome;
                     }
@@ -1249,7 +1249,7 @@ var EVOLVE = (function () {
             }
         }
         if (crTarget === null) {
-            throw new RuntimeException("No target!");
+            throw "No target!";
         }
         result.add(crTarget);
         return result;
