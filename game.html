@@ -51,16 +51,32 @@
         <div id="codeOutput"></div>
     </div>
     <div>
-        <h2>Evolve</h2>
+        <h1>Evolve</h1>
         <form action="javascript:;" onsubmit="MAIN.runEvolve(this)">
             <div> 
-                <input name="evoTarget" type="radio" value="game" checked>Play the Game
+                <input name="evo_target" type="radio" value="game" checked>Play the Game
             </div>
             <div>
-                <input name="evoTarget" type="radio" value="function"/>x*x + 2x
+                <input name="evo_target" type="radio" value="function"/>x*x + 2x
             </div>
+            <h3>Population Size:<input name="population_size" type="number" value="10"></h3>
+            <h3>Generations:<input name="generations" type="number" value="5"></h3>
             <input type="submit" value="Evolve">
         </form>
+        <h2>Results:</h2>
+        <div>
+            <div><progress id="evolve_progress" value="0"></div>
+            <div><progress id="evolve_progress_detail" value="0"><span id="progress_details"></span></div>
+            <div><h3>Overall Best:</h3>Score = <span id="best_genome_score"></span></div>
+            <div id="best_genome"></div>
+
+            <h3>Generation Best:</h3>        
+            <div id="top_genomes"></div>
+            <div>
+                <h3>Diagnostics:<h3>
+            </div>
+            <div id="evolve_diagnostics"></div>
+        <div>
     </div>
   </body>
 </html>

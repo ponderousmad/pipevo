@@ -1477,7 +1477,7 @@ var EVOLVE = (function () {
                 for (var m = 0; m < mutatedSurvivors; ++m) {
                     var mutantSurvivor = this.mutate(evaluated[entropy.randomInt(0, survivors)].genome, entropy);
                     next.add(mutantSurvivor);
-                    this.reporter.updateProgress(i, mutatedSurvivors);
+                    this.reporter.updateProgress(m, mutatedSurvivors);
                 }
             } finally {
                 this.reporter.pop();
@@ -1595,6 +1595,18 @@ var EVOLVE = (function () {
         this.stop = true;
         this.reporter.notify("Aborting...");
     };
+    
+    function evolveDefault(runner, reporter, population, generations) {
+        var geneRandomizer = new GeneRandomizer(new GeneProbabilities()),
+            builder = new TypeBuilder(true, new TypeProbabilities()),
+            mutator = new Mutator(new Mutation(new MutationProbabilities(), builder, geneRandomizer)),
+            darwin = new Darwin(builder, runner, reporter, geneRandomizer, mutator, defaultSurvivalRatios()),
+            seed = ENTROPY.makeRandom().randomSeed(),
+            entropy = new ENTROPY.Entropy(seed),
+            initialPopulation = darwin.initialPopulation(population, entropy),
+            best = darwin.evolve(initialPopulation, generations, entropy);
+        return best;
+    }
 
 /*
 public interface Runner {
@@ -1862,16 +1874,10 @@ public interface Reporter {
         var darwinTests = [
             function testSimple() {
                 // Evolve a program which returns it's first argument.
-                var geneRandomizer = new GeneRandomizer(new GeneProbabilities()),
-                    builder = new TypeBuilder(true, new TypeProbabilities()),
-                    testRunner = new TestRunner(function (x) { return x; }),
+                var testRunner = new TestRunner(function (x) { return x; }),
                     reporter = new TestReporter(),
-                    mutator = new Mutator(new Mutation(new MutationProbabilities(), builder, geneRandomizer)),
-                    darwin = new Darwin(builder, testRunner, reporter, geneRandomizer, mutator, defaultSurvivalRatios()),
-                    seed = ENTROPY.makeRandom().randomSeed(),
-                    entropy = new ENTROPY.Entropy(seed),
-                    initialPopulation = darwin.initialPopulation(10, entropy),
-                    best = darwin.evolve(initialPopulation, 10, entropy);
+                    best = evolveDefault(testRunner, reporter, 10, 10);
+
                 TEST.isTrue(best !== null);
                 TEST.isTrue(best.score > 0.0);
                 
@@ -1892,6 +1898,7 @@ public interface Reporter {
     return {
         phenomeToString: phenomeToString,
         Constraint: Constraint,
-        Darwin: Darwin
+        Darwin: Darwin,
+        evolveDefault: evolveDefault
     };
 }());

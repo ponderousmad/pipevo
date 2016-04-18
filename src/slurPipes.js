@@ -5,8 +5,7 @@ var SLUR_PIPES = (function() {
         GAME: 2048,
         PIPE: 4096,
         PIECE: 8192,
-        BOARD: 16384,
-        POSITION: 32768
+        BOARD: 16384
     };
 
     function PieceObj(piece) {
@@ -76,7 +75,7 @@ var SLUR_PIPES = (function() {
 
     function installGame(env) {
         SLUR.define(env, "isGame?", ["g"], null, function (env) {
-            return env.nameLookup("g").type() === GameType.GAME ? T : F;
+            return env.nameLookup("g").game ? T : F;
         });
 
         SLUR.define(env, "isGameOver?", ["g"], null, function (env) {
@@ -142,7 +141,7 @@ var SLUR_PIPES = (function() {
 
     function installPiece(env, typeLookup) {
         SLUR.define(env, "isPiece?", ["p"], null, function (env) {
-            return env.nameLookup("p").type() === GameType.PIECE ? T : F;
+            return env.nameLookup("p").piece ? T : F;
         });
 
         SLUR.define(env, "pieceIsFull?", ["p", "side"], null, function (env) {
@@ -177,7 +176,7 @@ var SLUR_PIPES = (function() {
 
     function installBoard(env) {
         SLUR.define(env, "isBoard?", ["b"], null, function (env) {
-            return env.nameLookup("b").type() === GameType.BOARD ? T : F;
+            return env.nameLookup("b").board ? T : F;
         });
 
         SLUR.define(env, "gameBoard", ["g"], null, function (env) {
@@ -209,7 +208,7 @@ var SLUR_PIPES = (function() {
         });
 
         SLUR.define(env, "isPipe?", ["p"], null, function (env) {
-            return env.nameLookup("p").type() === GameType.PIPE ? T : F;
+            return env.nameLookup("p").pipe ? T : F;
         });
 
         SLUR.define(env, "pipeLength", ["p"], null, function (env) {
@@ -250,6 +249,17 @@ var SLUR_PIPES = (function() {
         installPipe(env);
         installDiscarder(env);
     }
+    
+    var GameTypes = {};
+        
+    (function () {
+        for (var type in GameType) {
+            if (GameType.hasOwnProperty(type) && GameType[type]) {
+                GameTypes[type] = new SLUR_TYPES.BaseType(GameType[type], type);
+            }
+        }
+        GameTypes.POSITION = new SLUR_TYPES.ConsType(SLUR_TYPES.Primitives.FIX_NUM, SLUR_TYPES.Primitives.FIX_NUM);
+    }());
 
     function register(registry, allowModify, allowFollow) {
         function add(name, type) {
@@ -276,36 +286,36 @@ var SLUR_PIPES = (function() {
         
         // Register Game
         addFunction("isGame?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
-        addFunction("isGameOver?", Primitives.BOOL, [GameType.GAME]);
-        addFunction("gameWidth", Primitives.FIX_NUM, [GameType.GAME]);
-        addFunction("gameHeight", Primitives.FIX_NUM, [GameType.GAME]);
-        addFunction("gameIsValidPos?", Primitives.BOOL, [GameType.GAME, GameType.POSITION]);
-        addFunction("gameIsEmpty?", Primitives.BOOL, [GameType.GAME, GameType.POSITION]);
-        addFunction("gameSourceDirection", Primitives.FIX_NUM, [GameType.GAME]);
-        addFunction("gameSourcePosition", GameType.POSITION, [GameType.GAME]);
-        addFunction("gamePieceAt", GameType.PIECE, [GameType.BOARD, GameType.POSITION]);
-        addFunction("gamePeekNext", GameType.PIECE, [GameType.GAME]);
-        addFunction("gamePeek", GameType.PIECE, [GameType.GAME, Primitives.FIX_NUM]);
+        addFunction("isGameOver?", Primitives.BOOL, [GameTypes.GAME]);
+        addFunction("gameWidth", Primitives.FIX_NUM, [GameTypes.GAME]);
+        addFunction("gameHeight", Primitives.FIX_NUM, [GameTypes.GAME]);
+        addFunction("gameIsValidPos?", Primitives.BOOL, [GameTypes.GAME, GameTypes.POSITION]);
+        addFunction("gameIsEmpty?", Primitives.BOOL, [GameTypes.GAME, GameTypes.POSITION]);
+        addFunction("gameSourceDirection", Primitives.FIX_NUM, [GameTypes.GAME]);
+        addFunction("gameSourcePosition", GameTypes.POSITION, [GameTypes.GAME]);
+        addFunction("gamePieceAt", GameTypes.PIECE, [GameTypes.BOARD, GameTypes.POSITION]);
+        addFunction("gamePeekNext", GameTypes.PIECE, [GameTypes.GAME]);
+        addFunction("gamePeek", GameTypes.PIECE, [GameTypes.GAME, Primitives.FIX_NUM]);
         addFunction("oppositeSide", Primitives.FIX_NUM, [Primitives.FIX_NUM]);
         
         // Register Piece
         addFunction("isPiece?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
-        addFunction("pieceIsFull?", Primitives.BOOL, [GameType.PIECE, Primitives.FIX_NUM]);
-        addFunction("pieceType", Primitives.FIX_NUM, [GameType.PIECE]);
-        addFunction("pieceIsSource?", Primitives.BOOL, [GameType.PIECE]);
-        addFunction("pieceIsSingle?", Primitives.BOOL, [GameType.PIECE]);
-        addFunction("pieceIsDual?", Primitives.BOOL, [GameType.PIECE]);
-        addFunction("pieceIsOpen?", Primitives.BOOL, [GameType.PIECE, Primitives.FIX_NUM]);
-        addFunction("pieceFarSide", new SLUR_TYPES.Maybe(Primitives.FIX_NUM), [GameType.PIECE, Primitives.FIX_NUM]);
+        addFunction("pieceIsFull?", Primitives.BOOL, [GameTypes.PIECE, Primitives.FIX_NUM]);
+        addFunction("pieceType", Primitives.FIX_NUM, [GameTypes.PIECE]);
+        addFunction("pieceIsSource?", Primitives.BOOL, [GameTypes.PIECE]);
+        addFunction("pieceIsSingle?", Primitives.BOOL, [GameTypes.PIECE]);
+        addFunction("pieceIsDual?", Primitives.BOOL, [GameTypes.PIECE]);
+        addFunction("pieceIsOpen?", Primitives.BOOL, [GameTypes.PIECE, Primitives.FIX_NUM]);
+        addFunction("pieceFarSide", new SLUR_TYPES.Maybe(Primitives.FIX_NUM), [GameTypes.PIECE, Primitives.FIX_NUM]);
         
         // Register Board
         addFunction("isBoard?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
-        addFunction("gameBoard", GameType.BOARD, [GameType.GAME]);
-        addFunction("boardIsEmpty?", Primitives.BOOL, [GameType.BOARD, GameType.POSITION]);
-        addFunction("gameTryNth", new SLUR_TYPES.Maybe(GameType.BOARD), [GameType.BOARD, GameType.POSITION, Primitives.FIX_NUM]);
+        addFunction("gameBoard", GameTypes.BOARD, [GameTypes.GAME]);
+        addFunction("boardIsEmpty?", Primitives.BOOL, [GameTypes.BOARD, GameTypes.POSITION]);
+        addFunction("gameTryNth", new SLUR_TYPES.Maybe(GameTypes.BOARD), [GameTypes.BOARD, GameTypes.POSITION, Primitives.FIX_NUM]);
         
         if (allowModify) {
-            addFunction("gamePlace", Primitives.BOOL, [GameType.GAME, GameType.POSITION]);
+            addFunction("gamePlace", Primitives.BOOL, [GameTypes.GAME, GameTypes.POSITION]);
         }
 
         // Pipe follow functions        
@@ -313,12 +323,12 @@ var SLUR_PIPES = (function() {
             return;
         }
         addFunction("isPipe?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
-        addFunction("followPipe", GameType.PIPE, [GameType.GAME]);
-        addFunction("followPipe", GameType.PIPE, [GameType.BOARD]);
-        addFunction("pipeLength", Primitives.FIX_NUM, [GameType.PIPE]);
-        addFunction("pipeFilled", Primitives.FIX_NUM, [GameType.PIPE]);
-        addFunction("pipeOutDirection", Primitives.FIX_NUM, [GameType.PIPE]);
-        addFunction("pipeOutPosition", new SLUR_TYPES.Maybe(GameType.POSITION), [GameType.PIPE]);
+        addFunction("followPipe", GameTypes.PIPE, [GameTypes.GAME]);
+        addFunction("followPipe", GameTypes.PIPE, [GameTypes.BOARD]);
+        addFunction("pipeLength", Primitives.FIX_NUM, [GameTypes.PIPE]);
+        addFunction("pipeFilled", Primitives.FIX_NUM, [GameTypes.PIPE]);
+        addFunction("pipeOutDirection", Primitives.FIX_NUM, [GameTypes.PIPE]);
+        addFunction("pipeOutPosition", new SLUR_TYPES.Maybe(GameTypes.POSITION), [GameTypes.PIPE]);
     }
 
 /*
@@ -326,21 +336,21 @@ public class GameTypeBuilder {
     public static TypeBuilder.Probabilities defaultProbabilities() {
         TypeBuilder.Probabilities probs = new TypeBuilder.Probabilities();
         java.util.List<Pair<Type, Integer>> typeWeights = probs.concreteWeights();
-        typeWeights.add(new Pair<Type,Integer>(GameType.GAME, 10));
-        typeWeights.add(new Pair<Type,Integer>(GameType.PIECE, 10));
-        typeWeights.add(new Pair<Type,Integer>(GameType.PIPE, 10));
-        typeWeights.add(new Pair<Type,Integer>(GameType.POSITION, 10));
-        typeWeights.add(new Pair<Type,Integer>(GameType.BOARD, 10));
+        typeWeights.add(new Pair<Type,Integer>(GameTypes.GAME, 10));
+        typeWeights.add(new Pair<Type,Integer>(GameTypes.PIECE, 10));
+        typeWeights.add(new Pair<Type,Integer>(GameTypes.PIPE, 10));
+        typeWeights.add(new Pair<Type,Integer>(GameTypes.POSITION, 10));
+        typeWeights.add(new Pair<Type,Integer>(GameTypes.BOARD, 10));
         return probs;
     }
 */
 
     function typeConstraints(Constraint) {
         var constraints = [];
-        constraints.add(new Constraint(GameType.GAME, []));
-        constraints.add(new Constraint(GameType.BOARD, [GameType.GAME]));
-        constraints.add(new Constraint(GameType.PIPE, [GameType.GAME, GameType.BOARD]));
-        constraints.add(new Constraint(GameType.PIECE, [GameType.GAME, GameType.BOARD, GameType.PIPE]));
+        constraints.push(new Constraint(GameTypes.GAME, []));
+        constraints.push(new Constraint(GameTypes.BOARD, [GameTypes.GAME]));
+        constraints.push(new Constraint(GameTypes.PIPE, [GameTypes.GAME, GameTypes.BOARD]));
+        constraints.push(new Constraint(GameTypes.PIECE, [GameTypes.GAME, GameTypes.BOARD, GameTypes.PIPE]));
         return constraints;
     }
     
@@ -369,7 +379,7 @@ public class GameTypeBuilder {
     testSuite();
     
     return {
-        GameType: GameType,
+        GameTypes: GameTypes,
         typeConstraints: typeConstraints,
         install: install,
         register: register

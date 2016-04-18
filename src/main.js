@@ -155,24 +155,22 @@ var MAIN = (function () {
         return value * value + 2 * value;
     };
     
-    function runEvolve(form) {
-        var target = form.elements.evoTarget.value;
-        var runner = null;
-        if (target === "game") {
-            runner = new GameRunner();
-        } else {
-            runner = new XsqdPlus2XRunner();
-        }
-    }
-    
-    function ProgressReporter() {
-        this.bestScore = document.getElementById("best_genome_score");
-        this.bestGenome = document.getElementById("best_genome");
-        this.diagnosticsElement = document.getElementById("evolve_diagnostics");
-        this.topGenomes = document.getElementById("top_genomes");
-        this.progress = document.getElementById("progress_bar");
-        this.progressDetail = document.getElementById("progress_bar_detail");
-        this.detailInfo = document.getElementById("progress_details");
+    function ProgressReporter(element, registry) {
+        this.bestScore = element.getElementById("best_genome_score");
+        this.bestScore.innerHTML = "";
+        this.bestGenome = element.getElementById("best_genome");
+        this.bestScore.innerHTML = "";
+        this.diagnosticsElement = element.getElementById("evolve_diagnostics");
+        this.diagnosticsElement.innerHTML = ""
+        this.topGenomes = element.getElementById("top_genomes");
+        this.topGenomes.innerHTML = "";
+        this.progressBar = element.getElementById("evolve_progress");
+        this.progressBar.value = 0;
+        this.progressDetailBar = element.getElementById("evolve_progress_detail");
+        this.progressDetailBar.value = 0;
+        this.detailInfo = element.getElementById("progress_details");
+        this.detailInfo.innerHTML = "";
+        this.registry = registry;
         this.totals = [];
         this.currents = [];
         this.names = [];
@@ -183,7 +181,7 @@ var MAIN = (function () {
     
     ProgressReporter.prototype.onFail = function (error, context) {
         console.log(context + error.toString());
-        count = this.errorCounts[error];
+        var count = this.errorCounts[error];
         this.errorCounts[error] = count ? count + 1 : count;
     };
     
@@ -205,9 +203,17 @@ var MAIN = (function () {
         this.showProgress();
     };
     
+    ProgressReporter.prototype.expression = function (genome) {
+        var context = new GENES.Context(this.registry),
+            phenes = genome.express(context),
+            slur = EVOLVE.phenomeToString(phenes);
+        return slur;
+    };
+    
     ProgressReporter.prototype.updateBest = function (evaluation) {
         this.bestScore.innerHTML = evaluation.score;
-        this.bestGenome.innerHTML = express(evaluation.genome);
+        var context = new GENES.Context(this.registry);
+        this.bestGenome.innerHTML = "<pre>" + this.expression(evaluation.genome) + "</pre>";
     };
     
     ProgressReporter.prototype.updateProgress = function (current, total) {
@@ -217,21 +223,18 @@ var MAIN = (function () {
     };
     
     ProgressReporter.prototype.notify = function (message) {
-        this.diagnostics.push(message);
+        var div = document.createElement("div");
+        div.innerHTML = message;
+        this.diagnosticsElement.appendChild(div);
     };
     
     ProgressReporter.prototype.currentPopulation = function (evaluated) {
         var text = "";
         var count = 5;
         try {
-            for (var e = 0; e < evaluated.length; ++e) {
+            for (var e = 0; e < evaluated.length && count >= 0; ++e, --count) {
                 var entry = evaluated[e];
-                text += "Score = " + entry.score + "\n" + expression(entry.genome);
-                --count;
-                if (count === 0) {
-                    return;
-                }
-                text += "\n---------------------------\n";
+                text += "<div><div>Score = " + entry.score + "</div><pre>" + this.expression(entry.genome) + "</pre></div>"
             }
         } finally {
             this.topGenomes.innerHTML = text;
@@ -250,9 +253,9 @@ var MAIN = (function () {
         return this.progress(this.currents.length - 1);
     };
     
-    ProgressReporter.updateProgress = function () {
-        this.progress.setValue(this.progress(0));
-        mProgressDetail.setValue(this.detailProgress());
+    ProgressReporter.prototype.showProgress = function () {
+        this.progressBar.value = this.progress(0);
+        this.progressDetailBar.value = this.detailProgress();
         var detail = "";
         for (var n = 0; n < this.names.length; ++n) {
             if( detail.length > 0 ) {
@@ -260,8 +263,22 @@ var MAIN = (function () {
             }
             detail += name;
         }
-        detailInfo.innerHTML = detail;
-    };    
+        this.detailInfo.innerHTML = detail;
+    };
+    
+    function runEvolve(form) {
+        var target = form.elements.evo_target.value,
+            populationSize = form.elements.population_size.value,
+            generations = form.elements.generations.value,
+            runner = null;
+        if (target === "game") {
+            runner = new GameRunner();
+        } else {
+            runner = new XsqdPlus2XRunner();
+        }
+        var reporter = new ProgressReporter(document, runner.registry);
+        EVOLVE.evolveDefault(runner, reporter, populationSize, generations);
+    }
     
 /*
 public class EvolveProgress {
