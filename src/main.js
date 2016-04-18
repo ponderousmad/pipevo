@@ -156,7 +156,7 @@ var MAIN = (function () {
     };
     
     function runEvolve(form) {
-        var target = form.elements["evoTarget"].value;
+        var target = form.elements.evoTarget.value;
         var runner = null;
         if (target === "game") {
             runner = new GameRunner();
@@ -165,105 +165,106 @@ var MAIN = (function () {
         }
     }
     
+    function ProgressReporter() {
+        this.bestScore = document.getElementById("best_genome_score");
+        this.bestGenome = document.getElementById("best_genome");
+        this.diagnosticsElement = document.getElementById("evolve_diagnostics");
+        this.topGenomes = document.getElementById("top_genomes");
+        this.progress = document.getElementById("progress_bar");
+        this.progressDetail = document.getElementById("progress_bar_detail");
+        this.detailInfo = document.getElementById("progress_details");
+        this.totals = [];
+        this.currents = [];
+        this.names = [];
+        this.errorCounts = {};
+        
+        this.pushCounts();
+    }
+    
+    ProgressReporter.prototype.onFail = function (error, context) {
+        console.log(context + error.toString());
+        count = this.errorCounts[error];
+        this.errorCounts[error] = count ? count + 1 : count;
+    };
+    
+    ProgressReporter.prototype.pushCounts = function () {
+        this.currents.push(0);
+        this.totals.push(1);
+    };
+    
+    ProgressReporter.prototype.push = function (name) {
+        this.names.push(name);
+        this.pushCounts();
+        this.showProgress();
+    };
+    
+    ProgressReporter.prototype.pop = function () {
+        this.totals.pop();
+        this.currents.pop();
+        this.names.pop();
+        this.showProgress();
+    };
+    
+    ProgressReporter.prototype.updateBest = function (evaluation) {
+        this.bestScore.innerHTML = evaluation.score;
+        this.bestGenome.innerHTML = express(evaluation.genome);
+    };
+    
+    ProgressReporter.prototype.updateProgress = function (current, total) {
+        this.currents[this.currents.length - 1] = current;
+        this.totals[this.totals.length - 1] = total;
+        this.showProgress();
+    };
+    
+    ProgressReporter.prototype.notify = function (message) {
+        this.diagnostics.push(message);
+    };
+    
+    ProgressReporter.prototype.currentPopulation = function (evaluated) {
+        var text = "";
+        var count = 5;
+        try {
+            for (var e = 0; e < evaluated.length; ++e) {
+                var entry = evaluated[e];
+                text += "Score = " + entry.score + "\n" + expression(entry.genome);
+                --count;
+                if (count === 0) {
+                    return;
+                }
+                text += "\n---------------------------\n";
+            }
+        } finally {
+            this.topGenomes.innerHTML = text;
+        }
+    };
+    
+    ProgressReporter.prototype.progress = function (index) {
+        var current = this.currents[index];
+        if (index < this.currents.length - 1 ) {
+            current += this.progress(index + 1);
+        }
+        return current / this.totals[index];
+    };
+
+    ProgressReporter.prototype.detailProgress = function () {
+        return this.progress(this.currents.length - 1);
+    };
+    
+    ProgressReporter.updateProgress = function () {
+        this.progress.setValue(this.progress(0));
+        mProgressDetail.setValue(this.detailProgress());
+        var detail = "";
+        for (var n = 0; n < this.names.length; ++n) {
+            if( detail.length > 0 ) {
+                detail += " : ";
+            }
+            detail += name;
+        }
+        detailInfo.innerHTML = detail;
+    };    
+    
 /*
 public class EvolveProgress {
-	private final class ProgressStatus implements Status {
-		List<Integer> mTotals = new java.util.ArrayList<Integer>();
-		List<Integer> mCurrents = new java.util.ArrayList<Integer>();
-		List<String> mNames = new java.util.ArrayList<String>();
-
-		{
-			push();
-		}
-
-		public void notify(String message) {
-			mDiagnostics.append(message + "\n");
-		}
-
-		java.util.Map<Type, Integer> mErrorCounts = new java.util.HashMap<Type,Integer>();
-
-		public void onFail(Throwable ex, String context) {
-			Class<?> exClass = ex.getClass();
-			int prevCount = mErrorCounts.containsKey(exClass) ? mErrorCounts.get(exClass) : 0;
-			mErrorCounts.put(exClass, prevCount + 1);
-			String description = ex.getMessage();
-			if( context != null ) {
-				System.out.print(context);
-			}
-			System.out.println( exClass.getSimpleName() + (description != null ? ": " + description : "") );
-		}
-
-		public void pop() {
-			mCurrents.remove(mCurrents.size()-1);
-			mTotals.remove(mTotals.size()-1);
-			mNames.remove(mNames.size()-1);
-			updateProgress();
-		}
-
-		public void push(String name) {
-			mNames.add(name);
-			push();
-			updateProgress();
-		}
-
-		private void push() {
-			mCurrents.add(0);
-			mTotals.add(1);
-		}
-
-		public void updateBest(Evaluation eval) {
-			mBestGenome.setText("Score: " + eval.score + "\n" + expression(eval.genome));
-		}
-
-		public void updateProgress(int current, int total) {
-			mCurrents.set(mCurrents.size() - 1 , current);
-			mTotals.set(mTotals.size()-1, total);
-			updateProgress();
-		}
-
-		private void updateProgress() {
-			mProgress.setValue((int)(kProgressTicks * progress(0)));
-			mProgressDetail.setValue((int)(kProgressTicks * detailProgress()));
-			String detail = "";
-			for( String name : mNames ) {
-				if( detail.length() > 0 ) {
-					detail += " : ";
-				}
-				detail += name;
-			}
-			mDetailLabel.setText(detail);
-		}
-
-		private double progress(int i) {
-			double current = mCurrents.get(i);
-			if( i < mCurrents.size() - 1 ) {
-				current += progress(i+1);
-			}
-			return current / mTotals.get(i);
-		}
-
-		private double detailProgress() {
-			return progress(mCurrents.size() -1);
-		}
-
-		public void currentPopulation(List<Evaluation> evaluated) {
-			String text = "";
-			int count = 5;
-			try {
-				for(Evaluation eval : evaluated) {
-					text += "Score = " + eval.score + "\n" + expression(eval.genome);
-					--count;
-					if( count == 0) {
-						return;
-					}
-					text += "\n---------------------------\n";
-				}
-			} finally {
-				mTopFive.setText(text);
-			}
-		}
-	}
-
 	public interface Reciever {
 		void recieve(Evaluation best);
 	}
