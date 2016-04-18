@@ -161,7 +161,7 @@ var MAIN = (function () {
         this.bestGenome = element.getElementById("best_genome");
         this.bestScore.innerHTML = "";
         this.diagnosticsElement = element.getElementById("evolve_diagnostics");
-        this.diagnosticsElement.innerHTML = ""
+        this.diagnosticsElement.innerHTML = "";
         this.topGenomes = element.getElementById("top_genomes");
         this.topGenomes.innerHTML = "";
         this.progressBar = element.getElementById("evolve_progress");
@@ -234,7 +234,7 @@ var MAIN = (function () {
         try {
             for (var e = 0; e < evaluated.length && count >= 0; ++e, --count) {
                 var entry = evaluated[e];
-                text += "<div><div>Score = " + entry.score + "</div><pre>" + this.expression(entry.genome) + "</pre></div>"
+                text += "<div><div>Score = " + entry.score + "</div><pre>" + this.expression(entry.genome) + "</pre></div>";
             }
         } finally {
             this.topGenomes.innerHTML = text;
@@ -367,39 +367,7 @@ public class EvolveProgress {
 		worker.setName("EvolveProgressWorker");
 		worker.start();
 	}
-
-	private JTextArea createTextOutput(Font font, int height, String title) {
-		JTextArea textArea = new JTextArea();
-		textArea.setEditable(false);
-		textArea.setFont(font);
-
-		JScrollPane scroll = new JScrollPane(textArea);
-		scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-		scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-
-		JPanel panel = new JPanel();
-		panel.setLayout(new GridLayout());
-		panel.setAlignmentX(Component.CENTER_ALIGNMENT);
-		panel.setBorder(BorderFactory.createTitledBorder(title));
-		panel.setPreferredSize(new Dimension(1000,height));
-		panel.add(scroll);
-
-		mDialog.add(panel);
-		return textArea;
-	}
-
-	public String expression(Genome genome) {
-		Context context = new Context(mRunner.registry());
-		List<Phene> expressions = genome.express(context);
-		StringBuilder result = new StringBuilder();
-		for( Phene expression : expressions ) {
-			result.append(expression.name + " = ");
-			result.append(expression.expression.toString());
-			result.append('\n');
-		}
-		return result.toString();
-	}
-
+    
 	public Evaluation evolve(int populationSize, String populationPath, int generations, long seed) {
 		GeneRandomizer geneRandomizer = new GeneRandomizer(mProbabilities.getGeneProbabilities());
 		TypeBuilder builder = new TypeBuilder(
