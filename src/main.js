@@ -232,7 +232,7 @@ var MAIN = (function () {
         var text = "";
         var count = 5;
         try {
-            for (var e = 0; e < evaluated.length && count >= 0; ++e, --count) {
+            for (var e = 0; e < evaluated.length && count > 0; ++e, --count) {
                 var entry = evaluated[e];
                 text += "<div><div>Score = " + entry.score + "</div><pre>" + this.expression(entry.genome) + "</pre></div>";
             }
@@ -266,18 +266,41 @@ var MAIN = (function () {
         this.detailInfo.innerHTML = detail;
     };
     
+    var evolveRunner = null,
+        darwin = null;
+    
     function runEvolve(form) {
+        if (darwin !== null) {
+            darwin.abort();
+            return;
+        }
+        
         var target = form.elements.evo_target.value,
             populationSize = form.elements.population_size.value,
             generations = form.elements.generations.value,
+            seed = Math.floor(Math.abs(form.elements.seed.value)),
             runner = null;
         if (target === "game") {
             runner = new GameRunner();
         } else {
             runner = new XsqdPlus2XRunner();
         }
-        var reporter = new ProgressReporter(document, runner.registry);
-        EVOLVE.evolveDefault(runner, reporter, populationSize, generations);
+        var reporter = new ProgressReporter(document, runner.registry),
+            entropy = new ENTROPY.Entropy(seed);
+        
+        darwin = EVOLVE.defaultDarwin(runner, reporter, populationSize, entropy);
+            
+        evolveRunner = function (now, elapsed) {
+            if (darwin.isDone(generations)) {
+                reporter.notify("Done!");
+                evolveRunner = null;
+                darwin = null;
+                form.elements.evolve_button.value = "Evolve";
+            } else {
+                darwin.evolveStep(generations, entropy);
+                form.elements.evolve_button.value = "Abort";
+            }
+        };
     }
     
 /*
@@ -309,59 +332,11 @@ public class EvolveProgress {
 	}
 
 	public void run(JDialog owner, final Integer populationSize, final String populationPath, final int generations, EvolveProbabilities probabilities, final Long seed) {
-		mProbabilities = probabilities;
-		mBest = null;
-
-		mDialog = new JDialog(owner, "Evolve Progress");
-		mDialog.setLocationByPlatform(true);
-		mDialog.setDefaultCloseOperation(javax.swing.JFrame.DISPOSE_ON_CLOSE);
-		mDialog.setLayout(new BoxLayout(mDialog.getContentPane(), BoxLayout.Y_AXIS));
-		mDialog.addWindowListener(new WindowAdapter() {
-			public void windowClosed(WindowEvent e) {
-				abort();
-			}
-		});
-
-		mProgress = new JProgressBar(0,kProgressTicks);
-		mDialog.add(mProgress);
-
-		mDetailLabel = new JLabel();
-		mDetailLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-		mDialog.add(mDetailLabel);
-		mProgressDetail = new JProgressBar(0,kProgressTicks);
-		mDialog.add(mProgressDetail);
-
-		Font font = new Font("Monaco", Font.PLAIN, 12);
-		mDiagnostics = createTextOutput( font, 150, "Diagnostics:");
-		mBestGenome = createTextOutput( font, 200, "Best Genome:");
-		mTopFive = createTextOutput( font, 500, "Current Top Five:");
-
-		mDialog.pack();
-
-		mDiagnostics.setText("seed = " + Long.toString(seed) + "L;\n");
-
-		mDialog.setVisible(true);
-
 		SwingWorker worker = new SwingWorker() {
 			public Object construct() {
 				mBest = evolve(populationSize, populationPath, generations, seed);
 				mReciever.recieve(mBest);
 				return mBest;
-			}
-
-			public void finished() {
-				if( mAborted ) {
-					mDiagnostics.append("Aborted.");
-				} else if( mFailed ) {
-					mDiagnostics.append("Failed.");
-				} else {
-					if( mBest != null && mBest.score == mRunner.maxScore() ) {
-						mDiagnostics.append("Succeeded.");
-					} else {
-						mDiagnostics.append("Done.");
-					}
-					mProgress.setValue(kProgressTicks);
-				}
 			}
 		};
 		worker.setName("EvolveProgressWorker");
@@ -409,27 +384,10 @@ public class EvolveProgress {
 		}
 	}
 
-	private synchronized void setDarwin(Darwin darwin) {
-		mDarwin = darwin;
-	}
-
-	private synchronized void clearDarwin() {
-		if( mDarwin != null && mDarwin.isStopped() ) {
-			mAborted = true;
-			mProgress.setValue(0);
-			mProgressDetail.setValue(0);
-		}
-		mDarwin = null;
-	}
-
 	public synchronized void abort() {
 		if( mDarwin != null ) {
 			mDarwin.abort();
 		}
-	}
-
-	public void setPopulationStorePath(String path) {
-		mPopPath = path;
 	}
 }
 
@@ -457,12 +415,16 @@ public class EvolveProgress {
                         interpreter = new Interpreter(view, env);
                     }
                 }
+                if (evolveRunner !== null) {
+                    evolveRunner(now, elapsed);
+                }
                 keyboard.postUpdate();
                 lastTime = now;
             };
 
         canvas.width = view.totalWidth();
         canvas.height = view.height();
+        document.getElementById("evolve_seed").value = new ENTROPY.makeRandom().randomSeed();
 
         function drawFrame() {
             requestAnimationFrame(drawFrame);

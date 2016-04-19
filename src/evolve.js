@@ -1429,20 +1429,22 @@ var EVOLVE = (function () {
         this.survivalRatios = survivalRatios;
         this.stop = false;
         this.skipTargetCheck = false;
+        this.population = null;
+        this.best = null;
+        this.generation = null;
     }
 
-    Darwin.prototype.initialPopulation = function (size, entropy) {
-        this.stop = false;
-
-        var population = new Population(this.runner.targetType),
-            builder = new GenomeBuilder(this.runner.registry, this.typeBuilder, this.geneRandomizer),
+    Darwin.prototype.initializePopulation = function (size, entropy) {
+        this.population = new Population(this.runner.targetType);
+        
+        var builder = new GenomeBuilder(this.runner.registry, this.typeBuilder, this.geneRandomizer),
             structure = builder.buildGenomeStructure(this.runner.targetType, entropy);
 
         this.reporter.push("Generate Population");
         for (var i = 0; i < size && !this.stop; ++i) {
             this.reporter.updateProgress(i, size);
             try {
-                population.add(builder.build(structure, entropy));
+                this.population.add(builder.build(structure, entropy));
             } catch(e) {
                 this.reporter.onFail(e, "Generating population: ");
                 i -= 1;
@@ -1450,7 +1452,7 @@ var EVOLVE = (function () {
         }
         this.reporter.pop();
 
-        return population;
+        return this.population;
     };
 
     Darwin.prototype.nextPopulation = function (evaluated, entropy) {
@@ -1541,54 +1543,65 @@ var EVOLVE = (function () {
         var selection = entropy.randomElement(evaluated);
         return selection.genome;
     };
-
-    Darwin.prototype.evolve = function (population, generations, entropy) {
-        if (!population.isTarget(this.runner.targetType)) {
-            this.reporter.notify("Incompatible population.");
-            return null;
+    
+    Darwin.prototype.isDone = function(generations) {
+        return this.stop || this.generation >= generations;
+    };
+    
+    Darwin.prototype.reset = function () {
+        this.stop = false;
+        this.generation = null;
+        this.best = null;
+    };
+    
+    Darwin.prototype.evolveStep = function (generations, entropy) {
+        if (this.generation === null) {
+            this.generation = 0;
+            this.reporter.updateProgress(this.generation, generations);
         }
-        var best = null,
-            i = 0;
-        this.reporter.updateProgress(0, generations);
-        do {
+        
+        if (this.isDone(generations)) {
+            return this.best;
+        }
+        
+        try {
+            this.reporter.push("Generation " + this.generation);
+            this.reporter.updateProgress(0, 2);
+
+            var evaluated = null;
             try {
-                this.reporter.push("Generation " + i);
-                this.reporter.updateProgress(0, 2);
-
-                var evaluated = null;
-                try {
-                    this.reporter.push("Evaluating");
-                    evaluated = evaluatePopulation(population, this.runner, this.reporter);
-                    if (this.stop) {
-                        // If we were stopped during evaluation, evaluate will return null
-                        // So for simplicity, just jump out here.
-                        return best;
-                    }
-                    var currentBest = evaluated[0];
-                    if (best === null || currentBest.score > best.score) {
-                        best = currentBest;
-                        this.reporter.updateBest(best);
-                    }
-                    this.reporter.currentPopulation(evaluated);
-                    if (best.score == this.runner.maxScore) {
-                        // If we've hit the max score, we'll never replace it, so stop now.
-                        return best;
-                    }
-                } finally {
-                    this.reporter.pop();
+                this.reporter.push("Evaluating");
+                evaluated = evaluatePopulation(this.population, this.runner, this.reporter);
+                if (this.stop) {
+                    // If we were stopped during evaluation, evaluate will return null
+                    // So for simplicity, just jump out here.
+                    return best;
                 }
-
-                this.reporter.updateProgress(1, 2);
-                do {
-                    population = this.nextPopulation(evaluated, entropy);
-                } while(population === null);
+                var currentBest = evaluated[0];
+                if (this.best === null || currentBest.score > this.best.score) {
+                    this.best = currentBest;
+                    this.reporter.updateBest(this.best);
+                }
+                this.reporter.currentPopulation(evaluated);
+                if (this.best.score == this.runner.maxScore) {
+                    // If we've hit the max score, we'll never replace it, so stop now.
+                    this.reporter.notify("Maximized Score!");
+                    this.stop = true;
+                }
             } finally {
                 this.reporter.pop();
             }
-            ++i;
-            this.reporter.updateProgress(i, generations);
-        } while(i < generations && !this.stop);
-        return best;
+
+            this.reporter.updateProgress(1, 2);
+            do {
+                this.population = this.nextPopulation(evaluated, entropy);
+            } while(this.population === null);
+        } finally {
+            this.reporter.pop();
+        }
+        this.generation += 1;
+        this.reporter.updateProgress(this.generation, generations);
+        return this.best;
     };
 
     Darwin.prototype.abort = function () {
@@ -1596,16 +1609,13 @@ var EVOLVE = (function () {
         this.reporter.notify("Aborting...");
     };
     
-    function evolveDefault(runner, reporter, population, generations) {
+    function defaultDarwin(runner, reporter, population, entropy) {
         var geneRandomizer = new GeneRandomizer(new GeneProbabilities()),
             builder = new TypeBuilder(true, new TypeProbabilities()),
             mutator = new Mutator(new Mutation(new MutationProbabilities(), builder, geneRandomizer)),
-            darwin = new Darwin(builder, runner, reporter, geneRandomizer, mutator, defaultSurvivalRatios()),
-            seed = ENTROPY.makeRandom().randomSeed(),
-            entropy = new ENTROPY.Entropy(seed),
-            initialPopulation = darwin.initialPopulation(population, entropy),
-            best = darwin.evolve(initialPopulation, generations, entropy);
-        return best;
+            darwin = new Darwin(builder, runner, reporter, geneRandomizer, mutator, defaultSurvivalRatios());
+        darwin.initializePopulation(population, entropy);
+        return darwin;
     }
 
 /*
@@ -1876,7 +1886,15 @@ public interface Reporter {
                 // Evolve a program which returns it's first argument.
                 var testRunner = new TestRunner(function (x) { return x; }),
                     reporter = new TestReporter(),
-                    best = evolveDefault(testRunner, reporter, 10, 10);
+                    seed = ENTROPY.makeRandom().randomSeed(),
+                    entropy = new ENTROPY.Entropy(seed),
+                    darwin = defaultDarwin(testRunner, reporter, 10, entropy),
+                    generations = 10,
+                    best = null;
+
+                do {
+                    best = darwin.evolveStep(generations, entropy);
+                } while(!darwin.isDone(generations));
 
                 TEST.isTrue(best !== null);
                 TEST.isTrue(best.score > 0.0);
@@ -1899,6 +1917,6 @@ public interface Reporter {
         phenomeToString: phenomeToString,
         Constraint: Constraint,
         Darwin: Darwin,
-        evolveDefault: evolveDefault
+        defaultDarwin: defaultDarwin
     };
 }());
