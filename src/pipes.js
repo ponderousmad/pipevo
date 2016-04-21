@@ -374,6 +374,10 @@ var PIPES = (function () {
         }
         return false;
     };
+    
+    Gameplay.prototype.boardFull = function () {
+        return this.substrate.empties() <= 0;
+    };
 
     Gameplay.prototype.placeNext = function(position) {
         if (this.isGameOver()) {
@@ -569,6 +573,8 @@ var PIPES = (function () {
                     this.game.updateFlow();
                     this.fillTimer -= PIPE_FILL_TIME;
                 }
+            } else if (this.playing && this.game.boardFull()) {
+                this.startFilling();
             }
         }
     };
