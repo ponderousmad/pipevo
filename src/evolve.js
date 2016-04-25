@@ -1267,7 +1267,7 @@ var EVOLVE = (function () {
         return result;
     }
 
-    function Task(genome, seed) {
+    function Evaluator(genome, seed) {
         this.genome = genome;
         this.startTime = null;
         this.score = 0;
@@ -1279,23 +1279,23 @@ var EVOLVE = (function () {
         this.errors = [];
     }
 
-    Task.prototype.failExpress = function (error) {
+    Evaluator.prototype.failExpress = function (error) {
         this.errors.push("Expression failed: " + error);
     };
 
-    Task.prototype.checkTime = function (allowedTime) {
+    Evaluator.prototype.checkTime = function (allowedTime) {
         if (this.startTime !== null && (TIMING.now() - this.startTime) > allowedTime) {
             this.runFrame.abort = "Evaluation time exceeded";
         }
     };
 
-    Task.prototype.abort = function (reason) {
+    Evaluator.prototype.abort = function (reason) {
         if (this.runFrame !== null) {
             this.runFrame.abort = reason;
         }
     };
 
-    Task.prototype.updateScore = function (score) {
+    Evaluator.prototype.updateScore = function (score) {
         if (this.startTime !== null) {
             this.startTime = null;
             this.runFrame = null;
@@ -1304,20 +1304,20 @@ var EVOLVE = (function () {
         }
     };
 
-    Task.prototype.fail = function (error) {
+    Evaluator.prototype.fail = function (error) {
         this.errors.push("Execution failed: " + error);
         this.updateScore(-1);
     };
 
-    Task.prototype.expressFailed = function () {
+    Evaluator.prototype.expressFailed = function () {
         return this.env === null && this.errors.length > 0;
     };
 
-    Task.prototype.done = function (iterationCount) {
+    Evaluator.prototype.done = function (iterationCount) {
         return this.expressFailed() || this.iterations >= iterationCount;
     };
 
-    Task.prototype.evaluation = function (iterationCount) {
+    Evaluator.prototype.evaluation = function (iterationCount) {
         var finalScore = 0;
         if (this.env === null) {
             finalScore = -2 * iterationCount;
@@ -1327,7 +1327,7 @@ var EVOLVE = (function () {
         return { score: finalScore, genome: this.genome };
     };
 
-    Task.prototype.evaluate = function (runner) {
+    Evaluator.prototype.evaluate = function (runner) {
         if (this.env === null) {
             return null;
         }
@@ -1344,7 +1344,7 @@ var EVOLVE = (function () {
         }
     };
 
-    Task.prototype.express = function (runner) {
+    Evaluator.prototype.express = function (runner) {
         try {
             var context = new GENES.Context(runner.registry),
                 phenome = this.genome.express(context),
@@ -1360,7 +1360,7 @@ var EVOLVE = (function () {
         }
     };
 
-    Task.prototype.bind = function (phenome, runner) {
+    Evaluator.prototype.bind = function (phenome, runner) {
         function isDefine (expression) {
             if (SLUR.isCons(expression)) {
                 if (SLUR.isSymbol(expression.car)) {
@@ -1384,7 +1384,7 @@ var EVOLVE = (function () {
         return env;
     };
 
-    Task.prototype.run = function (runner) {
+    Evaluator.prototype.run = function (runner) {
         this.express(runner);
 
         while(!this.done(runner.iterationCount)) {
@@ -1398,7 +1398,7 @@ var EVOLVE = (function () {
         var entropy = ENTROPY.makeRandom(),
             results = [];
         for (var g = 0; g < population.crowd.length; ++g) {
-            var task = new Task(population.crowd[g], entropy.randomSeed());
+            var task = new Evaluator(population.crowd[g], entropy.randomSeed());
             results.push(task.run(runner));
             if (task.errors.length > 0) {
                 for (var e = 0; e < task.errors.length; ++e) {
