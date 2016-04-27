@@ -435,6 +435,18 @@ public class EvolveProgress {
         window.setInterval(update, 16);
 
         drawFrame();
+    
+        // These tests are slow, don't want to run them all the time.
+        if (TEST.INCLUDE_SLOW) {
+            ENTROPY.testSuite();
+        }
+        
+        PIPES.testSuite();
+        SLUR.testSuite();
+        SLUR_TYPES.testSuite();
+        SLUR_PIPES.testSuite();
+        GENES.testSuite();
+        EVOLVE.testSuite();
     };
     
     return {

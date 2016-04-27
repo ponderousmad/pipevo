@@ -864,8 +864,6 @@ var PIPES = (function () {
         TEST.run("PieceQueue", pieceQueueTests);
         TEST.run("Substrate", substrateTests);
     }
-    
-    testSuite();
 
     return {
         Side: Side,
@@ -883,6 +881,7 @@ var PIPES = (function () {
         Substrate: Substrate,
         GamePlay: Gameplay,
         SubstrateView: SubstrateView,
-        createDefault: createDefault
+        createDefault: createDefault,
+        testSuite: testSuite
     };
 }());

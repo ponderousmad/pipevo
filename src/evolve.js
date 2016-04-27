@@ -1918,12 +1918,11 @@ public interface Reporter {
         TEST.run("Darwin", darwinTests);
     }
 
-    testSuite();
-
     return {
         phenomeToString: phenomeToString,
         Constraint: Constraint,
         Darwin: Darwin,
-        defaultDarwin: defaultDarwin
+        defaultDarwin: defaultDarwin,
+        testSuite: testSuite
     };
 }());

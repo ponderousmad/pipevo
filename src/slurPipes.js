@@ -375,13 +375,12 @@ public class GameTypeBuilder {
         
         TEST.run("Game Registry", registryTests);
     }
-
-    testSuite();
     
     return {
         GameTypes: GameTypes,
         typeConstraints: typeConstraints,
         install: install,
-        register: register
+        register: register,
+        testSuite: testSuite
     };
 }());

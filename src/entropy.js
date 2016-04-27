@@ -383,17 +383,13 @@ var ENTROPY = (function () {
         
         TEST.run("Random Set", setTests);
     }
-    
-    // These tests are slow, don't want to run them all the time.
-    if (TEST.INCLUDE_SLOW) {
-        testSuite();
-    }
 
     return {
         MAX_SEED: MAX_SEED,
         Entropy: Entropy,
         makeRandom: makeRandom,
         WeightedSet: WeightedSet,
-        ReweightedSet: ReweightedSet
+        ReweightedSet: ReweightedSet,
+        testSuite: testSuite
     };
 }());

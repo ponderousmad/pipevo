@@ -1345,8 +1345,6 @@ var SLUR_TYPES = (function (SLUR) {
         TEST.run("Compare", compareTests);
         TEST.run("Registry", registryTests);
     }
-
-    testSuite();
     
     return {
         Primitives: Primitives,
@@ -1365,6 +1363,7 @@ var SLUR_TYPES = (function (SLUR) {
         typesEqualModuloParameters: typesEqualModuloParameters,
         makeParametersUnique: makeParametersUnique,
         Registry: Registry,
-        registerBuiltins: registerBuiltins
+        registerBuiltins: registerBuiltins,
+        testSuite: testSuite
     };
 }(SLUR));

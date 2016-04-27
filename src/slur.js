@@ -1674,8 +1674,6 @@ var SLUR = (function (TEST) {
         TEST.run("Eval", evalTests);
     }
 
-    testSuite();
-
     return {
         evalException: evalException,
         ObjectType: ObjectType,
@@ -1702,6 +1700,7 @@ var SLUR = (function (TEST) {
         Frame: Frame,
         Parser: Parser,
         baseEnvironment: baseEnvironment,
-        defaultEnvironment: defaultEnvironment
+        defaultEnvironment: defaultEnvironment,
+        testSuite: testSuite
     };
 }(TEST));

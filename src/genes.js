@@ -949,8 +949,6 @@ var GENES = (function () {
         TEST.run("MaybeGenes", maybeTests);
     }
 
-    testSuite();
-
     return {
         Context: Context,
         NullGene: NullGene,
@@ -968,6 +966,7 @@ var GENES = (function () {
         DemaybeGene: DemaybeGene,
         PassMaybeGene: PassMaybeGene,
         FunctionGene: FunctionGene,
-        functionArgumentNames: functionArgumentNames
+        functionArgumentNames: functionArgumentNames,
+        testSuite: testSuite
     };
 }());
