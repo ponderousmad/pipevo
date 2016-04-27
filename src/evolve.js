@@ -697,7 +697,7 @@ var EVOLVE = (function () {
         var P = SLUR_TYPES.Primitives;
 
         if (geneType.equals(P.FIX_NUM)) {
-            return this.buildFixnum(entropy);
+            return this.buildFixNum(entropy);
         } else if (geneType.equals(P.REAL)) {
             return this.buildReal(entropy);
         } else if (geneType.equals(P.BOOL)) {
@@ -760,9 +760,9 @@ var EVOLVE = (function () {
         return new GENES.RealGenerator(entropy.randomSeed(),  range);
     };
 
-    GeneBuilder.prototype.buildFixnum = function (entropy) {
+    GeneBuilder.prototype.buildFixNum = function (entropy) {
         var range = this.randomizer.selectFixnumRange(entropy);
-        return new GENES.RealGenerator(entropy.randomSeed(),  range);
+        return new GENES.FixNumGenerator(entropy.randomSeed(),  range);
     };
 
     GeneBuilder.prototype.buildFunction = function (type, name, entropy) {
