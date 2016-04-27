@@ -1394,17 +1394,24 @@ var EVOLVE = (function () {
         return this.evaluation(runner.iterationCount);
     };
 
+    function evaluateOne(population, index, entropy, runner, reporter) {
+        var task = new Evaluator(population.crowd[index], entropy.randomSeed()),
+            result = task.run(runner);
+        if (task.errors.length > 0) {
+            for (var e = 0; e < task.errors.length; ++e) {
+                reporter.onFail(e, "Genome " + index);
+            }
+        }
+        
+        return result;
+    }
+
     function evaluatePopulation(population, runner, reporter) {
         var entropy = ENTROPY.makeRandom(),
             results = [];
         for (var g = 0; g < population.crowd.length; ++g) {
             var task = new Evaluator(population.crowd[g], entropy.randomSeed());
-            results.push(task.run(runner));
-            if (task.errors.length > 0) {
-                for (var e = 0; e < task.errors.length; ++e) {
-                    reporter.onFail(e, "Genome " + g);
-                }
-            }
+            results.push(evaluateOne(population, g, entropy, runner, reporter));
         }
 
         results.sort(function (a, b) { return a.score - b.score; });
