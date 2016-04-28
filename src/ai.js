@@ -25,53 +25,9 @@ var AI = (function () {
         return base.empties() - (this.base.isEmpty(this.position) ? 1 : 0);
     };
 
-    function followPipe(game, overlay) {
-        var board = overlay ? overlay : game.substrate,
-            sourceOutflow = game.source.type.outflow,
-            result = {
-                outflow: sourceOutflow,
-                position: game.sourcePosition.to(sourceOutflow),
-                openEnd: false,
-                filled: 0,
-                length: 0,
-                score: 0,
-            },
-            visited = []
-
-        do {
-            if (board.isEmpty(result.position)) {
-                result.openEnd = true;
-                break;
-            }
-            var piece = board.at(result.position),
-                inflow = PIPES.OPPOSITES[result.outflow];
-
-            if (!piece.isPipeAt(inflow)) {
-                break;
-            }
-
-            result.length += 1;
-            result.score += 1;
-            for (var v = 0; v < visited.length; ++v) {
-                if (visited[v] == piece) {
-                    result.score += 1;
-                }
-            }
-            visited.push(piece);
-            if (piece.isFull(inflow)) {
-                result.filled += 1;
-            }
-
-            result.outflow = piece.getFarSide(inflow);
-            result.position.moveTo(result.outflow);
-        } while (result.position.valid());
-
-        return result;
-    }
-
     function farthestEmptyFromOutput(game, overlay, followResult) {
         var board = overlay ? overlay : game.substrate,
-            follow = followResult ? followResult : followPipe(game, board),
+            follow = followResult ? followResult : game.followPipe(board),
             bestDistance = -1,
             best = null;
 
@@ -217,7 +173,7 @@ var AI = (function () {
     }
 
     FollowerAI.prototype.nextMove = function () {
-        var follow = followPipe(this.game);
+        var follow = this.game.followPipe();
         if (follow.openEnd) {
             if (this.game.peek()[0].isPipeAt(PIPES.OPPOSITES[follow.outflow])) {
                 return follow.position;
@@ -247,7 +203,7 @@ var AI = (function () {
     };
 
     Susan.prototype.nextMove = function () {
-        var follow = followPipe(this.game);
+        var follow = this.game.followPipe();
 
         if (follow.openEnd) {
             var piece = this.game.peek()[0],
@@ -319,7 +275,7 @@ var AI = (function () {
             var peek = peeks[p];
             var target = hint,
                 overlay = this.tryPlace(board, peek, target),
-                follow = followPipe(this.game, overlay);
+                follow = this.game.followPipe(overlay);
 
             if (!follow.openEnd) {
                 if (discard === null) {
@@ -327,7 +283,7 @@ var AI = (function () {
                 }
                 target = discard;
                 overlay = this.tryPlace(board, peek, target);
-                follow = followPipe(this.game, overlay);
+                follow = this.game.followPipe(overlay);
                 discards += 1;
             }
             if (peek === 0) {
@@ -339,7 +295,7 @@ var AI = (function () {
     };
 
     Bob.prototype.followPipe = function (board, piece, position) {
-        return followPipe(this.game, new Acetate(board, piece, position));
+        return this.game.followPipe(new Acetate(board, piece, position));
     };
 
     Bob.prototype.findMaxPipeLength = function(board, position) {
@@ -362,7 +318,7 @@ var AI = (function () {
     };
 
     Bob.prototype.nextMove = function () {
-        var follow = followPipe(this.game);
+        var follow = this.game.followPipe();
         if( !follow.openEnd ) {
             return null;
         }
@@ -385,7 +341,6 @@ var AI = (function () {
         RandomDiscarder: RandomDiscarder,
         FarDiscarder: FarDiscarder,
         BorderDiscarder: BorderDiscarder,
-        followPipe: followPipe,
         makeDiscarder: makeDiscarder,
         makeFollower: makeFollower,
         Susan: Susan,

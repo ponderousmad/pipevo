@@ -204,7 +204,7 @@ var SLUR_PIPES = (function() {
     function installPipe(env) {
         SLUR.define(env, "followPipe", ["x"], null, function (env) {
             var board = env.nameLookup("x");
-            return new Pipe(AI.followPipe(board.game, board.board));
+            return new Pipe(board.game.followPipe(board.board));
         });
 
         SLUR.define(env, "isPipe?", ["p"], null, function (env) {

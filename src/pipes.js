@@ -454,6 +454,50 @@ var PIPES = (function () {
             this.flowCount = -2;
         }
     };
+    
+    Gameplay.prototype.followPipe = function (overlay) {
+        var board = overlay ? overlay : this.substrate,
+            sourceOutflow = this.source.type.outflow,
+            result = {
+                outflow: sourceOutflow,
+                position: this.sourcePosition.to(sourceOutflow),
+                openEnd: false,
+                filled: 0,
+                length: 0,
+                score: 0,
+            },
+            visited = [];
+
+        do {
+            if (board.isEmpty(result.position)) {
+                result.openEnd = true;
+                break;
+            }
+            var piece = board.at(result.position),
+                inflow = OPPOSITES[result.outflow];
+
+            if (!piece.isPipeAt(inflow)) {
+                break;
+            }
+
+            result.length += 1;
+            result.score += 1;
+            for (var v = 0; v < visited.length; ++v) {
+                if (visited[v] == piece) {
+                    result.score += 1;
+                }
+            }
+            visited.push(piece);
+            if (piece.isFull(inflow)) {
+                result.filled += 1;
+            }
+
+            result.outflow = piece.getFarSide(inflow);
+            result.position.moveTo(result.outflow);
+        } while (result.position.valid());
+
+        return result;
+    };
 
     var loader = new ImageBatch("images/", function() {
             tileWidth = sourceImages[0].width;
