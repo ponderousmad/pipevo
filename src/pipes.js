@@ -498,8 +498,12 @@ var PIPES = (function () {
 
         return result;
     };
+    
+    Gameplay.prototype.isDeadEnd = function () {
+        return !this.followPipe().openEnd;
+    }
 
-    var loader = new ImageBatch("images/", function() {
+    var loader = new ImageBatch("images/", function () {
             tileWidth = sourceImages[0].width;
             tileHeight = sourceImages[0].height;
         }),
@@ -617,7 +621,7 @@ var PIPES = (function () {
                     this.game.updateFlow();
                     this.fillTimer -= PIPE_FILL_TIME;
                 }
-            } else if (this.playing && this.game.boardFull()) {
+            } else if (this.playing && (this.game.boardFull() || this.game.isDeadEnd())) {
                 this.startFilling();
             }
         }
