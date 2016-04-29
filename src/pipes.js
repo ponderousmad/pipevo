@@ -501,7 +501,7 @@ var PIPES = (function () {
     
     Gameplay.prototype.isDeadEnd = function () {
         return !this.followPipe().openEnd;
-    }
+    };
 
     var loader = new ImageBatch("images/", function () {
             tileWidth = sourceImages[0].width;
@@ -693,9 +693,9 @@ var PIPES = (function () {
                 context.strokeStyle = "rgb(0,128,0)";
             }
             context.fillRect(x, y, tileWidth, tileHeight);
-            context.strokeRect(x - 1, y - 1, tileWidth + 2, tileWidth + 2);
             queue[index].accept(drawVisitor);
-            y += tileHeight + 2;
+            context.strokeRect(x + 1, y + 1, tileWidth - 2, tileHeight - 2);
+            y += tileHeight - 2;
         }
 
         if (this.game.isGameOver()) {
