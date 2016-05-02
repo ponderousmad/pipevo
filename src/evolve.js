@@ -399,6 +399,10 @@ var EVOLVE = (function () {
     Population.prototype.add = function (genome) {
         this.crowd.push(genome);
     };
+    
+    Population.prototype.size = function () {
+        return this.crowd.length;
+    }
 
     Population.prototype.serialize = function () {
         return JSON.stringify(this);
@@ -1040,7 +1044,7 @@ var EVOLVE = (function () {
         return entropy.select(this.probabilities.mutateAddTargetChromosome);
     };
 
-    Mutation.prototype.createChromosome = function (context, entropy, target) {
+    Mutation.prototype.createTargetChromosome = function (context, entropy, target) {
         var builder = new GeneBuilder(this.typeBuilder, this.randomizer, context),
             chromosome = new Chromosome("crT_" + entropy.alphaString(5));
         chromosome.add(builder.buildFunction(target, chromosome.nextGeneName(), entropy));
@@ -1094,7 +1098,7 @@ var EVOLVE = (function () {
 
         if (allowMacroMutation && this.mutation.addTargetChromosome(entropy)) {
             isMutated = true;
-            mutated.add(this.mutation.createChromosome(context, entropy, target));
+            mutated.add(this.mutation.createTargetChromosome(context, entropy, target));
         }
 
         if (isMutated) {
@@ -1397,9 +1401,10 @@ var EVOLVE = (function () {
     function evaluateOne(population, index, entropy, runner, reporter) {
         var task = new Evaluator(population.crowd[index], entropy.randomSeed()),
             result = task.run(runner);
+        reporter.updateProgress(index, population.size());
         if (task.errors.length > 0) {
             for (var e = 0; e < task.errors.length; ++e) {
-                reporter.onFail(e, "Genome " + index);
+                reporter.onFail(task.errors[e], "Genome " + index);
             }
         }
         
@@ -1410,7 +1415,6 @@ var EVOLVE = (function () {
         var entropy = ENTROPY.makeRandom(),
             results = [];
         for (var g = 0; g < population.crowd.length; ++g) {
-            var task = new Evaluator(population.crowd[g], entropy.randomSeed());
             results.push(evaluateOne(population, g, entropy, runner, reporter));
         }
 
@@ -1434,11 +1438,9 @@ var EVOLVE = (function () {
         this.geneRandomizer = geneRandomizer;
         this.mutator = mutator;
         this.survivalRatios = survivalRatios;
-        this.stop = false;
         this.skipTargetCheck = false;
         this.population = null;
-        this.best = null;
-        this.generation = null;
+        this.reset();
     }
 
     Darwin.prototype.initializePopulation = function (size, entropy) {
@@ -1559,11 +1561,14 @@ var EVOLVE = (function () {
         this.stop = false;
         this.generation = null;
         this.best = null;
+        this.evalResults = null;
+        this.evalEntropy = ENTROPY.makeRandom();
     };
     
-    Darwin.prototype.evolveStep = function (generations, entropy) {
+    Darwin.prototype.evolveStep = function (generations, entropy, maxStepTime) {
         if (this.generation === null) {
             this.generation = 0;
+            this.evalResults = null;
             this.reporter.updateProgress(this.generation, generations);
         }
         
@@ -1571,40 +1576,65 @@ var EVOLVE = (function () {
             return this.best;
         }
         
+        var stepStart = TIMING.now();
+        maxStepTime = maxStepTime ? maxStepTime : 20;
+        
         try {
-            this.reporter.push("Generation " + this.generation);
-            this.reporter.updateProgress(0, 2);
+            if (this.evalResults === null) {
+                this.reporter.push("Generation " + this.generation);
+                this.reporter.updateProgress(0, 2);
+            }
 
-            var evaluated = null;
             try {
-                this.reporter.push("Evaluating");
-                evaluated = evaluatePopulation(this.population, this.runner, this.reporter);
-                if (this.stop) {
-                    // If we were stopped during evaluation, evaluate will return null
-                    // So for simplicity, just jump out here.
-                    return best;
+                if (this.evalResults === null) {
+                    this.reporter.push("Evaluating");
+                    this.evalResults = [];
                 }
-                var currentBest = evaluated[0];
+                while (this.evalResults.length < this.population.size() && TIMING.since(stepStart) < maxStepTime) {
+                    var result = evaluateOne(this.population, this.evalResults.length, this.evalEntropy, this.runner, this.reporter)
+                    this.evalResults.push(result);
+                }
+                if (this.stop || this.evalResults.length < this.population.size()) {
+                    if (!this.stop) {
+                        console.log("Skipped out at " + this.evalResults.length);
+                    }
+                    return this.best;
+                }
+                
+                this.evalResults.sort(function (a, b) { return a.score - b.score; });
+                
+                var currentBest = this.evalResults[0];
                 if (this.best === null || currentBest.score > this.best.score) {
                     this.best = currentBest;
                     this.reporter.updateBest(this.best);
                 }
-                this.reporter.currentPopulation(evaluated);
+                this.reporter.currentPopulation(this.evalResults);
                 if (this.best.score == this.runner.maxScore) {
                     // If we've hit the max score, we'll never replace it, so stop now.
                     this.reporter.notify("Maximized Score!");
                     this.stop = true;
                 }
+            } catch (e) {
+                this.stop = true;
+                throw e;
             } finally {
-                this.reporter.pop();
+                if (this.stop || this.evalResults.length >= this.population.size()) {
+                    this.reporter.pop();
+                }
             }
 
             this.reporter.updateProgress(1, 2);
             do {
-                this.population = this.nextPopulation(evaluated, entropy);
+                this.population = this.nextPopulation(this.evalResults, entropy);
             } while(this.population === null);
+            this.evalResults = null;
+        } catch (e) {
+            this.stop = true;
+            throw e;
         } finally {
-            this.reporter.pop();
+            if (this.stop || this.evalResults === null) {
+                this.reporter.pop();
+            }
         }
         this.generation += 1;
         this.reporter.updateProgress(this.generation, generations);
