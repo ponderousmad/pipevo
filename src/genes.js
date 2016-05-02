@@ -306,8 +306,8 @@ var GENES = (function () {
                 y = entropy.randomInt(0, mutatedItems.length);
 			swap(mutatedItems, x, y);
 		} else if (mutation.mutateListLength(entropy)) {
-			listLength = mutation.geneRandomizer.selectListLength(entropy);
-            mutatedItems = mutatedItems.slice(0, Math.Min(listLength, mutatedItems.length));
+			listLength = mutation.randomizer.selectListLength(entropy);
+            mutatedItems = mutatedItems.slice(0, Math.min(listLength, mutatedItems.length));
 		}
         mutatedItems = this.mutateItems(mutation, context, entropy, mutatedItems);
 
