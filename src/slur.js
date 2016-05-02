@@ -737,8 +737,8 @@ var SLUR = (function (TEST) {
         this.body = null;
     }
     LetExpression.prototype.type = typeIs(ObjectType.INTERNAL);
-    LetExpression.compile = selfCompile;
-    LetExpression.eval = function(env) {
+    LetExpression.prototype.compile = selfCompile;
+    LetExpression.prototype.eval = function(env) {
         var frame = new Frame(env, null);
         for (var b = 0; b < this.bindings.length; ++b) {
             var binding = this.bindings[b];
@@ -746,7 +746,7 @@ var SLUR = (function (TEST) {
         }
         return this.body.eval(frame);
     };
-    LetExpression.toString = function () {
+    LetExpression.prototype.toString = function () {
         var result = "(";
         for (var b = 0; b < this.bindings.length; ++b) {
             var binding = this.bindings[b];
@@ -1675,6 +1675,7 @@ var SLUR = (function (TEST) {
     }
 
     return {
+        SlurException: SlurException,
         evalException: evalException,
         ObjectType: ObjectType,
         makeType: makeType,
