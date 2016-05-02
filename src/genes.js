@@ -11,14 +11,17 @@ var GENES = (function () {
         this.chromosomes.push(chromosome);
     };
 
-    Context.prototype.findMatching = function (type) {
+    Context.prototype.findMatching = function (type, allowTarget) {
         type = SLUR_TYPES.makeParametersUnique(type);
         var matching = this.registry.findMatch(type);
-        for (var c = 0; c < this.chromosomes.length; ++c) {
+        for (var c = 0; c < (this.chromosomes.length - (allowTarget ? 0 : 1)); ++c) {
             var genes = this.chromosomes[c].namedGenes();
             for (var g = 0; g < genes.length; ++g) {
                 var gene = genes[g];
                 if (gene.gene.type.match(type).matches) {
+                    if (gene.name == "crTarget0") {
+                        console.log("Potential self recursion!");
+                    }
                     matching.push(new SLUR.Symbol(gene.name));
                 }
             }
@@ -40,16 +43,19 @@ var GENES = (function () {
         this.symbolTable.splice(this.symbolTable.length - count, count);
     };
 
-    Context.prototype.findFunctionReturning = function (returnType) {
+    Context.prototype.findFunctionReturning = function (returnType, allowTarget) {
         returnType = SLUR_TYPES.makeParametersUnique(returnType);
         var matching = this.registry.findFunctionReturning(returnType);
-        for (var c = 0; c < this.chromosomes.length; ++c) {
+        for (var c = 0; c < (this.chromosomes.length - (allowTarget ? 0 : 1)); ++c) {
             var genes = this.chromosomes[c].namedGenes();
             for (var g = 0; g < genes.length; ++g) {
                 var gene = genes[g];
                 if (SLUR_TYPES.isFunctionType(gene.gene.type)) {
                     var match = returnType.match(gene.gene.type.returnType);
                     if(match.matches) {
+                        if (gene.name == "crTarget0") {
+                            console.log("Potential self recursion!");
+                        }
                         matching.push({symbol: new SLUR.Symbol(gene.name), type: gene.gene.type.substitute(match.mappings)});
                     }
                 }
