@@ -1,5 +1,9 @@
 var SLUR_PIPES = (function() {
     "use strict";
+    
+    function gameException(message, environment) {
+        return new SLUR.SlurException("GameEvalException", message, environment);
+    }
 
     var GameType = {
         GAME: 2048,
@@ -43,7 +47,7 @@ var SLUR_PIPES = (function() {
         if (SLUR.isCons(p) && SLUR.isInt(p.car) && SLUR.isInt(p.cdr)) {
             return game.position(p.car.value, p.cdr.value);
         }
-        throw SLUR.evalException("Position must be of the form '(i . j)' where i and j are integers.", env);
+        throw gameException("Position must be of the form '(i . j)' where i and j are integers.", env);
     }
 
     function createPosition(i, j) {
@@ -131,7 +135,7 @@ var SLUR_PIPES = (function() {
             if (0 <= index && index < game.peek().length) {
                 return new PieceObj(game.peek()[index]);
             }
-            throw SLUR.evalException("Peek index out of range.", env);
+            throw gameException("Peek index out of range.", env);
         });
 
         SLUR.define(env, "oppositeSide", ["s"], null, function (env) {
@@ -378,6 +382,7 @@ public class GameTypeBuilder {
     
     return {
         GameTypes: GameTypes,
+        Game: Game,
         typeConstraints: typeConstraints,
         install: install,
         register: register,
