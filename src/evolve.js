@@ -1278,6 +1278,7 @@ var EVOLVE = (function () {
 
     function Evaluator(genome, seed) {
         this.genome = genome;
+        this.phenome = null;
         this.startTime = null;
         this.score = 0;
         this.env = null;
@@ -1349,15 +1350,16 @@ var EVOLVE = (function () {
             var score = runner.run(this.runFrame, this.entryPoint, entropy);
             this.updateScore(score);
         } catch(e) {
+            console.log(phenomeToString(this.phenome));
             this.fail(e);
         }
     };
 
     Evaluator.prototype.express = function (runner) {
         try {
-            var context = new GENES.Context(runner.registry),
-                phenome = this.genome.express(context),
-                env = this.bind(phenome, runner),
+            var context = new GENES.Context(runner.registry);
+            this.phenome = this.genome.express(context);
+            var env = this.bind(this.phenome, runner),
                 entryPoint = this.genome.findLastMatching(runner.targetType);
             if (entryPoint === null) {
                 throw "Target not found";
