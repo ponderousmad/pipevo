@@ -554,10 +554,10 @@ var SLUR_TYPES = (function (SLUR) {
         var matching = [];
         for (var e = 0; e < this.entries.length; ++e) {
             var entry = this.entries[e];
-            if (entry.returnType) {
-                var match = returnType.match(entry.returnType);
+            if (entry.type.returnType) {
+                var match = returnType.match(entry.type.returnType);
                 if (match.matches) {
-                    matching.add({symbol: entry.symbol, type: entry.type.substitute(match.mappings)});
+                    matching.push({symbol: entry.symbol, type: entry.type.substitute(match.mappings)});
                 }
             }
         }
@@ -633,7 +633,7 @@ var SLUR_TYPES = (function (SLUR) {
         add("min", binaryInt);
 
         add("floor", toInt);
-        add("ciel", toInt);
+        add("ceil", toInt);
         add("round", toInt);
 
         // Logic:
