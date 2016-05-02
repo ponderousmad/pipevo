@@ -1595,9 +1595,6 @@ var EVOLVE = (function () {
                     this.evalResults.push(result);
                 }
                 if (this.stop || this.evalResults.length < this.population.size()) {
-                    if (!this.stop) {
-                        console.log("Skipped out at " + this.evalResults.length);
-                    }
                     return this.best;
                 }
 
