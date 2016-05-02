@@ -678,7 +678,7 @@ var SLUR_TYPES = (function (SLUR) {
         add("isFn?",     isTypeFn());
         add("isMacro?",  isTypeFn());
         add("isNull?",   isTypeFn());
-        add("isFixnum?", isTypeFn());
+        add("isFixNum?", isTypeFn());
         add("isReal?",   isTypeFn());
 
         if (!includeLibrary) {
