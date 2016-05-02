@@ -350,7 +350,7 @@ var ENTROPY = (function () {
                     TEST.equals(counts[j], weight);
                     var error = Math.abs(rCounts[j] - weight);
                     error = Math.max(error - 20.0, 0.0);
-                    if((error / weight) > 0.02) {
+                    if ((error / weight) > 0.02) {
                         ++failures;
                     }
                     weight *= 2;

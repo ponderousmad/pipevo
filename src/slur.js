@@ -1414,7 +1414,7 @@ var SLUR = (function (TEST) {
         if (this.code.length > 0) {
             try {
                 var parser = new Parser(this.code);
-                for(;;) {
+                for (;;) {
                     var result = parser.parse();
                     if (result === null) {
                         return;

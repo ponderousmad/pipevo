@@ -95,7 +95,7 @@ var AI = (function () {
     }
 
     BorderDiscarder.prototype.discard = function () {
-        if( this.dump === null ) {
+        if (this.dump === null) {
             this.findTheDump();
         }
         while (this.dump !== null && !this.board.isEmpty(this.dump)) {
@@ -132,7 +132,7 @@ var AI = (function () {
             if (this.edgeNumber === 1 ) {
                 this.edgeNumber = 2;
                 this.sideLength -= 1;
-                if( this.ideLength === 0 ) {
+                if (this.sideLength === 0) {
                     this.dump = null;
                 }
             } else {
