@@ -154,7 +154,7 @@ var MAIN = (function () {
         this.registry = new SLUR_TYPES.Registry();
         SLUR_TYPES.registerBuiltins(this.registry, true);
         this.targetType = new SLUR_TYPES.FunctionType(SLUR_TYPES.Primitives.FIX_NUM, [SLUR_TYPES.Primitives.FIX_NUM]);
-        this.iterationCount = 10;
+        this.iterationCount = 5;
         this.maxScore = 1.0;
         this.timeoutInterval = 500;
         this.typeConstraints = [];
