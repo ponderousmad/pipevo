@@ -126,13 +126,13 @@ var GENES = (function () {
     };
 
     FixNumGenerator.prototype.mutate = function (mutation, context, entropy) {
-        var seed = mutation.mutateSeed(entropy);
+        var seed = mutation.mutateSeed(this.seed, entropy);
         var range = null;
         if (mutation.mutateFixnumRange(entropy)) {
             range = mutation.newFixnumRange(this.range, entropy);
         }
         if (this.seed !== seed || range !== null) {
-            return new FixNumGenerator(seed, range ? range : this.range);
+            return new FixNumGenerator(seed, range !== null ? range : this.range);
         }
         return this;
     };
@@ -156,13 +156,13 @@ var GENES = (function () {
     };
 
     RealGenerator.prototype.mutate = function (mutation, context, entropy) {
-        var seed = mutation.mutateSeed(entropy);
+        var seed = mutation.mutateSeed(this.seed, entropy);
         var range = null;
         if (mutation.mutateRealRange(entropy)) {
             range = mutation.newRealRange(this.range, entropy);
         }
         if (this.seed !== seed || range !== null) {
-            return new RealGenerator(seed, range ? range : this.range);
+            return new RealGenerator(seed, range !== null ? range : this.range);
         }
         return this;
     };
@@ -183,7 +183,7 @@ var GENES = (function () {
     };
 
     SymbolGenerator.prototype.mutate = function (mutation, context, entropy) {
-        var seed = mutation.mutateSeed(entropy);
+        var seed = mutation.mutateSeed(this.seed, entropy);
         var length = this.length;
         if (mutation.mutateSymbolLength(entropy)) {
             length = mutation.newSymbolLength(length, entropy);
@@ -210,7 +210,7 @@ var GENES = (function () {
     };
 
     StringGenerator.prototype.mutate = function (mutation, context, entropy) {
-        var seed = mutation.mutateSeed(entropy);
+        var seed = mutation.mutateSeed(this.seed, entropy);
         var length = this.length;
         if (mutation.mutateStringLength(entropy)) {
             length = mutation.newStringLength(length, entropy);
@@ -235,7 +235,7 @@ var GENES = (function () {
     };
 
     BoolGenerator.prototype.mutate = function (mutation, context, entropy) {
-        var seed = mutation.mutateSeed(entropy);
+        var seed = mutation.mutateSeed(this.seed, entropy);
         if (this.seed !== seed) {
             return new BoolGenerator(seed);
         }
@@ -378,8 +378,9 @@ var GENES = (function () {
     };
 
     LookupGene.prototype.mutate = function (mutation, context, entropy) {
-        if (mutation.mutateSeed(entropy)) {
-            return new LookupGene(this.type, null, entropy.randomSeed());
+        var seed = mutation.mutateSeed(this.seed, entropy);
+        if (this.seed != seed) {
+            return new LookupGene(this.type, null, seed);
         }
         return this;
     };

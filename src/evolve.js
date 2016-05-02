@@ -617,7 +617,9 @@ var EVOLVE = (function () {
             if (this.canApply(argType, depth-1)) {
                 continue;
             }
+            return false;
         }
+        return true;
     };
 
     GeneBuilder.prototype.canLookup = function (geneType) {
@@ -651,8 +653,8 @@ var EVOLVE = (function () {
         var func = this.buildInvokeable(geneType, entropy),
             args = [],
             addedMaybe = false;
-        for (var i = 0; i < func.argumentTypes.length; ++i) {
-            var type = func.argumentTypes[i];
+        for (var i = 0; i < func.type.argumentTypes.length; ++i) {
+            var type = func.type.argumentTypes[i];
             if (!(SLUR_TYPES.isMaybe(type) || type.equals(SLUR_TYPES.Primitives.NULL))) {
                 type = new SLUR_TYPES.Maybe(type);
                 addedMaybe = true;
@@ -669,8 +671,8 @@ var EVOLVE = (function () {
     GeneBuilder.prototype.buildApplication = function (geneType, entropy) {
         var func = this.buildInvokeable(geneType, entropy),
             args = [];
-        for (var i = 0; i < func.argumentTypes.length; ++i) {
-            args[i] = this.buildItem(func.argumentTypes[i], entropy);
+        for (var i = 0; i < func.type.argumentTypes.length; ++i) {
+            args[i] = this.buildItem(func.type.argumentTypes[i], entropy);
         }
         return new GENES.ApplicationGene(func, args);
     };
@@ -885,8 +887,11 @@ var EVOLVE = (function () {
         return entropy.select(this.probabilities.mutateTopLevel);
     };
 
-    Mutation.prototype.mutateSeed = function (entropy) {
-        return entropy.select(this.probabilities.mutateSeed);
+    Mutation.prototype.mutateSeed = function (seed, entropy) {
+        if (entropy.select(this.probabilities.mutateSeed)) {
+            return this.newSeed(seed, entropy);
+        }
+        return seed;
     };
 
     Mutation.prototype.mutateStringLength = function (entropy) {
@@ -932,8 +937,8 @@ var EVOLVE = (function () {
         if (this.replaceSubgene(entropy)) {
             return this.createNewGene(type, context, entropy);
         } else {
-            gene.mutate(this, context, entropy);
-            return gene;
+            var mutated = gene.mutate(this, context, entropy);
+            return mutated;
         }
     };
 
@@ -1598,7 +1603,7 @@ var EVOLVE = (function () {
                     return this.best;
                 }
 
-                this.evalResults.sort(function (a, b) { return a.score - b.score; });
+                this.evalResults.sort(function (a, b) { return b.score - a.score; });
 
                 var currentBest = this.evalResults[0];
                 if (this.best === null || currentBest.score > this.best.score) {
