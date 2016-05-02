@@ -114,7 +114,7 @@ var SLUR_PIPES = (function() {
         });
 
         SLUR.define(env, "gameSourcePosition", ["g"], null, function (env) {
-            return createPosition(getGame(env, "g").sourcePosition());
+            return createPosition(getGame(env, "g").sourcePosition);
         });
 
         SLUR.define(env, "gamePieceAt", ["s", "pos"], null, function (env) {
