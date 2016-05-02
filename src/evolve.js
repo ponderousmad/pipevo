@@ -1569,13 +1569,14 @@ var EVOLVE = (function () {
         this.generation = null;
         this.best = null;
         this.evalResults = null;
-        this.evalEntropy = ENTROPY.makeRandom();
+        this.evalEntropy = null;
     };
 
     Darwin.prototype.evolveStep = function (generations, entropy, maxStepTime) {
         if (this.generation === null) {
             this.generation = 0;
             this.evalResults = null;
+            this.evalEntropy = new ENTROPY.Entropy(entropy.randomSeed());
             this.reporter.updateProgress(this.generation, generations);
         }
 
