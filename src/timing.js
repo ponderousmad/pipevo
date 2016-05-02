@@ -1,9 +1,9 @@
 var TIMING = (function () {
     "use strict";
-    
+
     var getTimestamp = null,
         lastTime = 0;
-        
+
     if (window.performance.now) {
         console.log("Using high performance timer");
         getTimestamp = function () { return window.performance.now(); };
@@ -17,21 +17,21 @@ var TIMING = (function () {
         }
     }
     lastTime = getTimestamp();
-    
+
     function getLastTime() {
         return lastTime;
     }
-    
+
     function updateDelta(now) {
         var elapsed = now - lastTime;
         lastTime = now;
         return elapsed;
     }
-    
+
     function getTimeSince(time) {
-        return time - getTimestamp();
+        return getTimestamp() - time;
     }
-    
+
     return {
         frameStart: getLastTime,
         now: getTimestamp,
