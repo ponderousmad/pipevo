@@ -155,7 +155,7 @@ var MAIN = (function () {
         SLUR_TYPES.registerBuiltins(this.registry, true);
         this.targetType = new SLUR_TYPES.FunctionType(SLUR_TYPES.Primitives.FIX_NUM, [SLUR_TYPES.Primitives.FIX_NUM]);
         this.iterationCount = 10;
-        this.maxScore = 250.0;
+        this.maxScore = 1.0;
         this.timeoutInterval = 500;
         this.typeConstraints = [];
     }
@@ -169,7 +169,7 @@ var MAIN = (function () {
             targetValue = this.evaluate(number),
             application = SLUR.makeList([target, new SLUR.FixNum(number)]),
             result = application.eval(env);
-        if (result.value === this.func(number)) {
+        if (result.value === targetValue) {
             return this.maxScore;
         }
         return 1 / Math.abs(targetValue - result.value);
