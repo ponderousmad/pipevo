@@ -533,8 +533,8 @@ var SLUR_TYPES = (function (SLUR) {
         this.entries = [];
     }
 
-    Registry.prototype.add = function (symbol, type) {
-        this.entries.push({symbol: symbol, type: type});
+    Registry.prototype.register = function (name, type) {
+        this.entries.push({symbol: new SLUR.Symbol(name), type: type});
     };
 
     // Requires that type's parameters are unique.
@@ -566,7 +566,7 @@ var SLUR_TYPES = (function (SLUR) {
 
     function registerBuiltins(registry, includeLibrary) {
         function add(name, type) {
-            registry.add(new SLUR.Symbol(name), type);
+            registry.register(name, type);
         }
 
         function anyBool() {

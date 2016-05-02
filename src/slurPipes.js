@@ -263,7 +263,7 @@ var SLUR_PIPES = (function() {
 
     function register(registry, allowModify, allowFollow) {
         function add(name, type) {
-            registry.add(name, type);
+            registry.register(name, type);
         }
         
         function addFunction(name, returnType, parameterTypes) {
