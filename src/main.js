@@ -126,6 +126,30 @@ var MAIN = (function () {
         return env;
     };
     
+    GameRunner.prototype.run = function (env, target, entropy) {
+        var game = PIPES.createDefault(entropy),
+            runOnce = SLUR.makeList([target, new SLUR_PIPES.Game(game)]),
+            application = SLUR.makeList([new SLUR.Symbol("gamePlace"), new SLUR_PIPES.Game(game), runOnce]),
+            plays = 0;
+		try {
+			var result;
+			do {
+				result = application.eval(env);
+				++plays;
+			} while (!(SLUR.isNull(result) || game.isGameOver()));
+			while (!game.isGameOver()) {
+				game.updateFlow();
+			}
+		} catch(e) {
+            if (e.name === "GameEvalException") {
+                // Ignore.
+            } else {
+                throw e;
+            }
+		}
+		return game.score() + (plays / 100.0);
+    };
+    
     function XsqdPlus2XRunner() {
         this.registry = new SLUR_TYPES.Registry();
         SLUR_TYPES.registerBuiltins(this.registry, true);
@@ -180,7 +204,7 @@ var MAIN = (function () {
     }
     
     ProgressReporter.prototype.onFail = function (error, context) {
-        console.log(context + error.toString());
+        console.log(context + " - " + error.toString());
         var count = this.errorCounts[error];
         this.errorCounts[error] = count ? count + 1 : count;
     };
