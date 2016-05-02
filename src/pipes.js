@@ -374,7 +374,7 @@ var PIPES = (function () {
         }
         return false;
     };
-    
+
     Gameplay.prototype.boardFull = function () {
         return this.substrate.empties() <= 0;
     };
@@ -454,7 +454,7 @@ var PIPES = (function () {
             this.flowCount = -2;
         }
     };
-    
+
     Gameplay.prototype.followPipe = function (overlay) {
         var board = overlay ? overlay : this.substrate,
             sourceOutflow = this.source.type.outflow,
@@ -498,7 +498,7 @@ var PIPES = (function () {
 
         return result;
     };
-    
+
     Gameplay.prototype.isDeadEnd = function () {
         return !this.followPipe().openEnd;
     };
@@ -716,11 +716,11 @@ var PIPES = (function () {
     function createDefault(entropy) {
         return new Gameplay(12, 12, 5, 15, entropy);
     }
-    
+
     function testSuite() {
         function testSimple(type) {
             var piece = new Piece(type);
-            
+
             TEST.isFalse(piece.isFull(type.start));
             TEST.isFalse(piece.isFull(type.end));
             TEST.isFalse(piece.isFull(null));
@@ -728,19 +728,19 @@ var PIPES = (function () {
             TEST.isTrue(piece.isFull(type.start));
             TEST.isTrue(piece.isFull(type.end));
             TEST.isFalse(piece.isFull(null));
-            
+
             TEST.equals(piece.getFarSide(type.start), type.end);
             TEST.equals(piece.getFarSide(type.end), type.start);
-            
+
             for (var s = 0; s < OPPOSITES.length; ++s) {
                 var side = OPPOSITES[s];
                 if (side !== type.start && side !== type.end) {
                     TEST.isNull(piece.getFarSide(side));
-                    TEST.isFalse(piece.isPipeAt(side));                    
+                    TEST.isFalse(piece.isPipeAt(side));
                 }
             }
         }
-        
+
         var simplePieceTests = [
             function testHorizontal()  { testSimple(PieceTypes.HORIZONTAL); },
             function testVertical()    { testSimple(PieceTypes.VERTICAL); },
@@ -749,7 +749,7 @@ var PIPES = (function () {
             function testBottomLeft()  { testSimple(PieceTypes.BOTTOM_LEFT); },
             function testBottomRight() { testSimple(PieceTypes.BOTTOM_RIGHT); }
         ];
-        
+
         function fullnessTest(piece, type) {
             TEST.isFalse(piece.isFull(null));
             TEST.isFalse(piece.isFull(Side.TOP));
@@ -779,7 +779,7 @@ var PIPES = (function () {
             TEST.isTrue(piece.isFull(Side.LEFT));
             TEST.isTrue(piece.isFull(Side.RIGHT));
         }
-        
+
         function dualSidesTest(piece, type) {
             TEST.isTrue(piece.isPipeAt(type.start));
             TEST.isTrue(piece.isPipeAt(type.end));
@@ -793,13 +793,13 @@ var PIPES = (function () {
             dualSidesTest(piece, type.first);
             dualSidesTest(piece, type.second);
         }
-        
+
         var dualPieceTests = [
             function testCross() { testDual(PieceTypes.CROSS); },
             function testDualTopLeft() { testDual(PieceTypes.DUAL_TOP_LEFT); },
             function testDualTopRight() { testDual(PieceTypes.DUAL_TOP_RIGHT); }
         ];
-        
+
         function testSource(type) {
             var piece = new Piece(type);
 
@@ -828,14 +828,14 @@ var PIPES = (function () {
                 TEST.isNull(piece.getFarSide(side));
             }
         }
-        
+
         var sourcePieceTests = [
             function testSourceTop() { testSource(PieceTypes.SOURCE_TOP); },
             function testSourceBottom() { testSource(PieceTypes.SOURCE_BOTTOM); },
             function testSourceLeft() { testSource(PieceTypes.SOURCE_LEFT); },
             function testSourceRight() { testSource(PieceTypes.SOURCE_RIGHT); }
         ];
-        
+
         var pieceQueueTests = [
             function testPeek() {
                 var testSize = 3,
@@ -867,7 +867,7 @@ var PIPES = (function () {
                 TEST.equals(queue.size, size);
             },
         ];
-        
+
         var substrateTests = [
             function testPlace() {
                 var WIDTH = 3,
@@ -905,7 +905,7 @@ var PIPES = (function () {
                 }
             }
         ];
-        
+
         TEST.run("SimplePiece", simplePieceTests);
         TEST.run("DualPiece", dualPieceTests);
         TEST.run("SourcePiece", sourcePieceTests);

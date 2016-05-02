@@ -54,7 +54,7 @@ var ENTROPY = (function () {
         }
         this.index = 0;
     };
-    
+
     var MAX_SEED = Math.pow(2, 31);
 
     function Entropy(seed) {
@@ -68,7 +68,7 @@ var ENTROPY = (function () {
     Entropy.prototype.randomInt = function (min, max) {
         return Math.min(Math.floor(min + this.random() * (max - min)), max - 1);
     };
-    
+
     Entropy.prototype.randomSeed = function() {
         return this.twister.next();
     };
@@ -80,7 +80,7 @@ var ENTROPY = (function () {
     Entropy.prototype.select = function (bias) {
         return this.random() < bias;
     };
-    
+
     Entropy.prototype.flip = function () {
         return this.select(0.5);
     };
@@ -274,7 +274,7 @@ var ENTROPY = (function () {
         }
         throw "nextValue returned too large result.";
     };
-    
+
     function testSuite() {
         var setTests = [
             function testWeighted() {
@@ -380,7 +380,7 @@ var ENTROPY = (function () {
                 TEST.isTrue(weight35 * 0.8 < rCounts[35] && rCounts[35] < weight35 * 1.2);
             }
         ];
-        
+
         TEST.run("Random Set", setTests);
     }
 

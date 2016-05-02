@@ -1,6 +1,6 @@
 var SLUR_PIPES = (function() {
     "use strict";
-    
+
     function gameException(message, environment) {
         return new SLUR.SlurException("GameEvalException", message, environment);
     }
@@ -253,9 +253,9 @@ var SLUR_PIPES = (function() {
         installPipe(env);
         installDiscarder(env);
     }
-    
+
     var GameTypes = {};
-        
+
     (function () {
         for (var type in GameType) {
             if (GameType.hasOwnProperty(type) && GameType[type]) {
@@ -269,13 +269,13 @@ var SLUR_PIPES = (function() {
         function add(name, type) {
             registry.register(name, type);
         }
-        
+
         function addFunction(name, returnType, parameterTypes) {
             add(name, new SLUR_TYPES.FunctionType(returnType, parameterTypes));
         }
-        
+
         var Primitives = SLUR_TYPES.Primitives;
-        
+
         // Register constants
         for (var pieceType in PIPES.PieceTypes) {
             if (PIPES.PieceTypes.hasOwnProperty(pieceType)) {
@@ -287,7 +287,7 @@ var SLUR_PIPES = (function() {
                 add("side" + side, Primitives.FIX_NUM);
             }
         }
-        
+
         // Register Game
         addFunction("isGame?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
         addFunction("isGameOver?", Primitives.BOOL, [GameTypes.GAME]);
@@ -301,7 +301,7 @@ var SLUR_PIPES = (function() {
         addFunction("gamePeekNext", GameTypes.PIECE, [GameTypes.GAME]);
         addFunction("gamePeek", GameTypes.PIECE, [GameTypes.GAME, Primitives.FIX_NUM]);
         addFunction("oppositeSide", Primitives.FIX_NUM, [Primitives.FIX_NUM]);
-        
+
         // Register Piece
         addFunction("isPiece?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
         addFunction("pieceIsFull?", Primitives.BOOL, [GameTypes.PIECE, Primitives.FIX_NUM]);
@@ -311,18 +311,18 @@ var SLUR_PIPES = (function() {
         addFunction("pieceIsDual?", Primitives.BOOL, [GameTypes.PIECE]);
         addFunction("pieceIsOpen?", Primitives.BOOL, [GameTypes.PIECE, Primitives.FIX_NUM]);
         addFunction("pieceFarSide", new SLUR_TYPES.Maybe(Primitives.FIX_NUM), [GameTypes.PIECE, Primitives.FIX_NUM]);
-        
+
         // Register Board
         addFunction("isBoard?", Primitives.BOOL, [new SLUR_TYPES.Parameter()]);
         addFunction("gameBoard", GameTypes.BOARD, [GameTypes.GAME]);
         addFunction("boardIsEmpty?", Primitives.BOOL, [GameTypes.BOARD, GameTypes.POSITION]);
         addFunction("gameTryNth", new SLUR_TYPES.Maybe(GameTypes.BOARD), [GameTypes.BOARD, GameTypes.POSITION, Primitives.FIX_NUM]);
-        
+
         if (allowModify) {
             addFunction("gamePlace", Primitives.BOOL, [GameTypes.GAME, GameTypes.POSITION]);
         }
 
-        // Pipe follow functions        
+        // Pipe follow functions
         if (!allowFollow) {
             return;
         }
@@ -357,7 +357,7 @@ public class GameTypeBuilder {
         constraints.push(new Constraint(GameTypes.PIECE, [GameTypes.GAME, GameTypes.BOARD, GameTypes.PIPE]));
         return constraints;
     }
-    
+
     function testSuite() {
         var registryTests = [
             function testRegisterBasic() {
@@ -376,10 +376,10 @@ public class GameTypeBuilder {
                 TEST.equals(reg.entries.length, 48);
             }
         ];
-        
+
         TEST.run("Game Registry", registryTests);
     }
-    
+
     return {
         GameTypes: GameTypes,
         Game: Game,

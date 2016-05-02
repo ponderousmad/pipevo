@@ -55,7 +55,7 @@ var SLUR_TYPES = (function (SLUR) {
     Parameter.prototype.toString = function () {
         return "P[" + this.id + "]";
     };
-    
+
     function ParameterMapping(parameter, type) {
         if (!parameter || !type) {
             throw "Null arguments";
@@ -1345,7 +1345,7 @@ var SLUR_TYPES = (function (SLUR) {
         TEST.run("Compare", compareTests);
         TEST.run("Registry", registryTests);
     }
-    
+
     return {
         Primitives: Primitives,
         Parameter: Parameter,

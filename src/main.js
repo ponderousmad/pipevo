@@ -125,7 +125,7 @@ var MAIN = (function () {
         SLUR_PIPES.install(env);
         return env;
     };
-    
+
     GameRunner.prototype.run = function (env, target, entropy) {
         var game = PIPES.createDefault(entropy),
             runOnce = SLUR.makeList([target, new SLUR_PIPES.Game(game)]),
@@ -149,7 +149,7 @@ var MAIN = (function () {
 		}
 		return game.score() + (plays / 100.0);
     };
-    
+
     function XsqdPlus2XRunner() {
         this.registry = new SLUR_TYPES.Registry();
         SLUR_TYPES.registerBuiltins(this.registry, true);
@@ -163,7 +163,7 @@ var MAIN = (function () {
     XsqdPlus2XRunner.prototype.environment = function () {
         return SLUR.defaultEnvironment();
     };
-    
+
     XsqdPlus2XRunner.prototype.run = function (env, target, entropy) {
         var number = entropy.randomInt(0, 100),
             targetValue = this.evaluate(number),
@@ -174,11 +174,11 @@ var MAIN = (function () {
         }
         return 1 / Math.abs(targetValue - result.value);
     };
-    
+
     XsqdPlus2XRunner.prototype.evaluate = function (value) {
         return value * value + 2 * value;
     };
-    
+
     function ProgressReporter(element, registry) {
         this.bestScore = element.getElementById("best_genome_score");
         this.bestScore.innerHTML = "";
@@ -199,59 +199,59 @@ var MAIN = (function () {
         this.currents = [];
         this.names = [];
         this.errorCounts = {};
-        
+
         this.pushCounts();
     }
-    
+
     ProgressReporter.prototype.onFail = function (error, context) {
         console.log(context + " - " + error.toString());
         var count = this.errorCounts[error];
         this.errorCounts[error] = count ? count + 1 : count;
     };
-    
+
     ProgressReporter.prototype.pushCounts = function () {
         this.currents.push(0);
         this.totals.push(1);
     };
-    
+
     ProgressReporter.prototype.push = function (name) {
         this.names.push(name);
         this.pushCounts();
         this.showProgress();
     };
-    
+
     ProgressReporter.prototype.pop = function () {
         this.totals.pop();
         this.currents.pop();
         this.names.pop();
         this.showProgress();
     };
-    
+
     ProgressReporter.prototype.expression = function (genome) {
         var context = new GENES.Context(this.registry),
             phenes = genome.express(context),
             slur = EVOLVE.phenomeToString(phenes);
         return slur;
     };
-    
+
     ProgressReporter.prototype.updateBest = function (evaluation) {
         this.bestScore.innerHTML = evaluation.score;
         var context = new GENES.Context(this.registry);
         this.bestGenome.innerHTML = "<pre>" + this.expression(evaluation.genome) + "</pre>";
     };
-    
+
     ProgressReporter.prototype.updateProgress = function (current, total) {
         this.currents[this.currents.length - 1] = current;
         this.totals[this.totals.length - 1] = total;
         this.showProgress();
     };
-    
+
     ProgressReporter.prototype.notify = function (message) {
         var div = document.createElement("div");
         div.innerHTML = message;
         this.diagnosticsElement.appendChild(div);
     };
-    
+
     ProgressReporter.prototype.currentPopulation = function (evaluated) {
         var text = "";
         var count = 5;
@@ -264,7 +264,7 @@ var MAIN = (function () {
             this.topGenomes.innerHTML = text;
         }
     };
-    
+
     ProgressReporter.prototype.progress = function (index) {
         var current = this.currents[index];
         if (index < this.currents.length - 1 ) {
@@ -276,7 +276,7 @@ var MAIN = (function () {
     ProgressReporter.prototype.detailProgress = function () {
         return this.progress(this.currents.length - 1);
     };
-    
+
     ProgressReporter.prototype.showProgress = function () {
         this.progressBar.value = this.progress(0);
         this.progressDetailBar.value = this.detailProgress();
@@ -289,16 +289,16 @@ var MAIN = (function () {
         }
         this.detailInfo.innerHTML = detail;
     };
-    
+
     var evolveRunner = null,
         darwin = null;
-    
+
     function runEvolve(form) {
         if (darwin !== null) {
             darwin.abort();
             return;
         }
-        
+
         var target = form.elements.evo_target.value,
             populationSize = form.elements.population_size.value,
             generations = form.elements.generations.value,
@@ -311,9 +311,9 @@ var MAIN = (function () {
         }
         var reporter = new ProgressReporter(document, runner.registry),
             entropy = new ENTROPY.Entropy(seed);
-        
+
         darwin = EVOLVE.defaultDarwin(runner, reporter, populationSize, entropy);
-            
+
         evolveRunner = function (now, elapsed) {
             if (darwin.isDone(generations)) {
                 reporter.notify("Done!");
@@ -326,7 +326,7 @@ var MAIN = (function () {
             }
         };
     }
-    
+
 /*
 public class EvolveProgress {
 	public interface Reciever {
@@ -366,7 +366,7 @@ public class EvolveProgress {
 		worker.setName("EvolveProgressWorker");
 		worker.start();
 	}
-    
+
 	public Evaluation evolve(int populationSize, String populationPath, int generations, long seed) {
 		GeneRandomizer geneRandomizer = new GeneRandomizer(mProbabilities.getGeneProbabilities());
 		TypeBuilder builder = new TypeBuilder(
@@ -459,12 +459,12 @@ public class EvolveProgress {
         window.setInterval(update, 16);
 
         drawFrame();
-    
+
         // These tests are slow, don't want to run them all the time.
         if (TEST.INCLUDE_SLOW) {
             ENTROPY.testSuite();
         }
-        
+
         PIPES.testSuite();
         SLUR.testSuite();
         SLUR_TYPES.testSuite();
@@ -472,7 +472,7 @@ public class EvolveProgress {
         GENES.testSuite();
         EVOLVE.testSuite();
     };
-    
+
     return {
         runEvolve: runEvolve
     };

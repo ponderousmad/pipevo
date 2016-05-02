@@ -399,10 +399,10 @@ var EVOLVE = (function () {
     Population.prototype.add = function (genome) {
         this.crowd.push(genome);
     };
-    
+
     Population.prototype.size = function () {
         return this.crowd.length;
-    }
+    };
 
     Population.prototype.serialize = function () {
         return JSON.stringify(this);
@@ -1375,7 +1375,7 @@ var EVOLVE = (function () {
             }
             return false;
         }
-        
+
         var env = new SLUR.Frame(runner.environment(), "expressFrame");
         for (var p = 0; p < phenome.length; ++p) {
             var phene = phenome[p],
@@ -1407,7 +1407,7 @@ var EVOLVE = (function () {
                 reporter.onFail(task.errors[e], "Genome " + index);
             }
         }
-        
+
         return result;
     }
 
@@ -1445,7 +1445,7 @@ var EVOLVE = (function () {
 
     Darwin.prototype.initializePopulation = function (size, entropy) {
         this.population = new Population(this.runner.targetType);
-        
+
         var builder = new GenomeBuilder(this.runner.registry, this.typeBuilder, this.geneRandomizer),
             structure = builder.buildGenomeStructure(this.runner.targetType, entropy);
 
@@ -1552,11 +1552,11 @@ var EVOLVE = (function () {
         var selection = entropy.randomElement(evaluated);
         return selection.genome;
     };
-    
+
     Darwin.prototype.isDone = function(generations) {
         return this.stop || this.generation >= generations;
     };
-    
+
     Darwin.prototype.reset = function () {
         this.stop = false;
         this.generation = null;
@@ -1564,21 +1564,21 @@ var EVOLVE = (function () {
         this.evalResults = null;
         this.evalEntropy = ENTROPY.makeRandom();
     };
-    
+
     Darwin.prototype.evolveStep = function (generations, entropy, maxStepTime) {
         if (this.generation === null) {
             this.generation = 0;
             this.evalResults = null;
             this.reporter.updateProgress(this.generation, generations);
         }
-        
+
         if (this.isDone(generations)) {
             return this.best;
         }
-        
+
         var stepStart = TIMING.now();
         maxStepTime = maxStepTime ? maxStepTime : 20;
-        
+
         try {
             if (this.evalResults === null) {
                 this.reporter.push("Generation " + this.generation);
@@ -1591,7 +1591,7 @@ var EVOLVE = (function () {
                     this.evalResults = [];
                 }
                 while (this.evalResults.length < this.population.size() && TIMING.since(stepStart) < maxStepTime) {
-                    var result = evaluateOne(this.population, this.evalResults.length, this.evalEntropy, this.runner, this.reporter)
+                    var result = evaluateOne(this.population, this.evalResults.length, this.evalEntropy, this.runner, this.reporter);
                     this.evalResults.push(result);
                 }
                 if (this.stop || this.evalResults.length < this.population.size()) {
@@ -1600,9 +1600,9 @@ var EVOLVE = (function () {
                     }
                     return this.best;
                 }
-                
+
                 this.evalResults.sort(function (a, b) { return a.score - b.score; });
-                
+
                 var currentBest = this.evalResults[0];
                 if (this.best === null || currentBest.score > this.best.score) {
                     this.best = currentBest;
@@ -1645,7 +1645,7 @@ var EVOLVE = (function () {
         this.stop = true;
         this.reporter.notify("Aborting...");
     };
-    
+
     function defaultDarwin(runner, reporter, population, entropy) {
         var geneRandomizer = new GeneRandomizer(new GeneProbabilities()),
             builder = new TypeBuilder(true, new TypeProbabilities()),
@@ -1917,7 +1917,7 @@ public interface Reporter {
         TestReporter.prototype.updateProgress = function (current, total) {};
         TestReporter.prototype.notify = function (message) {};
         TestReporter.prototype.currentPopulation = function (evaluated) {};
-        
+
         var darwinTests = [
             function testSimple() {
                 // Evolve a program which returns it's first argument.
@@ -1935,7 +1935,7 @@ public interface Reporter {
 
                 TEST.isTrue(best !== null);
                 TEST.isTrue(best.score > 0.0);
-                
+
                 var phenome = best.genome.express(new GENES.Context(testRunner.registry));
                 console.log(phenomeToString(phenome));
                 console.log(best.score);
