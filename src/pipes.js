@@ -348,7 +348,7 @@ var PIPES = (function () {
     };
 
     Gameplay.prototype.position = function (i, j) {
-        return new Position(this.substrate.size, i < this.width() ? i : INVALID, j < this.height() ? j : INVALID);
+        return new Position(this.substrate.size, (0 <= i && i < this.width()) ? i : INVALID, (0 <= j && j < this.height()) ? j : INVALID);
     };
 
     Gameplay.prototype.setupSource = function() {
