@@ -106,7 +106,7 @@ var SLUR_PIPES = (function() {
         SLUR.define(env, "gameIsEmpty?", ["g", "pos"], null, function (env) {
             var game = getGame(env, "g"),
                 pos = getPosition(env, game, "pos");
-            return game.substrate().isEmpty(pos) ? T : F;
+            return game.substrate.isEmpty(pos) ? T : F;
         });
 
         SLUR.define(env, "gameSourceDirection", ["g"], null, function (env) {
