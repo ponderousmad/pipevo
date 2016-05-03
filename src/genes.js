@@ -19,9 +19,6 @@ var GENES = (function () {
             for (var g = 0; g < genes.length; ++g) {
                 var gene = genes[g];
                 if (gene.gene.type.match(type).matches) {
-                    if (gene.name == "crTarget0") {
-                        console.log("Potential self recursion!");
-                    }
                     matching.push(new SLUR.Symbol(gene.name));
                 }
             }
@@ -53,9 +50,6 @@ var GENES = (function () {
                 if (SLUR_TYPES.isFunctionType(gene.gene.type)) {
                     var match = returnType.match(gene.gene.type.returnType);
                     if(match.matches) {
-                        if (gene.name == "crTarget0") {
-                            console.log("Potential self recursion!");
-                        }
                         matching.push({symbol: new SLUR.Symbol(gene.name), type: gene.gene.type.substitute(match.mappings)});
                     }
                 }

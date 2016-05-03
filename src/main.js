@@ -203,10 +203,16 @@ var MAIN = (function () {
         this.pushCounts();
     }
 
-    ProgressReporter.prototype.onFail = function (error, context) {
-        console.log(context + " - " + error.toString());
-        var count = this.errorCounts[error];
-        this.errorCounts[error] = count ? count + 1 : count;
+    ProgressReporter.prototype.onFail = function (errors, context, phenome) {
+        for (var e = 0; e < errors.length; ++e) {
+            var error = errors[e];
+            console.log(context + ": " + error.toString());
+            var count = this.errorCounts[error];
+            this.errorCounts[error] = count ? count + 1 : count;
+        }
+        if (phenome) {
+            console.log(EVOLVE.phenomeToString(phenome));
+        }
     };
 
     ProgressReporter.prototype.pushCounts = function () {

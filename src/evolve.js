@@ -1350,7 +1350,6 @@ var EVOLVE = (function () {
             var score = runner.run(this.runFrame, this.entryPoint, entropy);
             this.updateScore(score);
         } catch(e) {
-            console.log(phenomeToString(this.phenome));
             this.fail(e);
         }
     };
@@ -1410,9 +1409,7 @@ var EVOLVE = (function () {
             result = task.run(runner);
         reporter.updateProgress(index, population.size());
         if (task.errors.length > 0) {
-            for (var e = 0; e < task.errors.length; ++e) {
-                reporter.onFail(task.errors[e], "Genome " + index);
-            }
+            reporter.onFail(task.errors, "Genome " + index, task.phenome);
         }
 
         return result;
@@ -1462,7 +1459,7 @@ var EVOLVE = (function () {
             try {
                 this.population.add(builder.build(structure, entropy));
             } catch(e) {
-                this.reporter.onFail(e, "Generating population: ");
+                this.reporter.onFail([e], "Generating population");
                 i -= 1;
             }
         }
@@ -1548,8 +1545,7 @@ var EVOLVE = (function () {
                     throw "No matching target.";
                 }
             } catch(e) {
-                console.log("Failure during mutation: " + e);
-                this.reporter.notify("Failure during mutation.");
+                this.reporter.onFail([e], "Mutating genome");
             }
         } while (mutated === null);
         return mutated;
@@ -1913,8 +1909,11 @@ public interface Reporter {
         };
 
         function TestReporter() {}
-        TestReporter.prototype.onFail = function (error, context) {
-            console.log(context + error.toString());
+        TestReporter.prototype.onFail = function (errors, context, phenome) {
+            for (var e = 0; e < errors.length; ++e) {
+                console.log(context + errors[e].toString());
+            }
+            console.log(phenomeToString(phenome));
         };
         TestReporter.prototype.push = function (name) {};
         TestReporter.prototype.pop = function () {};
