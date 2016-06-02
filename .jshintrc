@@ -1,0 +1,23 @@
+{
+    "browser"       : true,
+    "globals"       : {
+        "console"       : true,
+        "ImageBatch"    : true,
+        "DRAW"          : true,
+        "Flipbook"      : true,
+        "ALIGN"         : true,
+        "AUDIO"         : true,
+        "TIMING"        : true,
+        "INPUT"         : true,
+        "ENTROPY"       : true,
+        "SLUR"          : true,
+        "SLUR_TYPES"    : true,
+        "PIPES"         : true,
+        "SLUR_PIPES"    : true,
+        "GENES"         : true,
+        "EVOLVE"        : true,
+        "ENTROPY"       : true,
+        "AI"            : true,
+        "TEST"          : true
+    } 
+}

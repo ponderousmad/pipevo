@@ -22,7 +22,7 @@ var AI = (function () {
     };
 
     Acetate.prototype.empties = function () {
-        return base.empties() - (this.base.isEmpty(this.position) ? 1 : 0);
+        return this.base.empties() - (this.base.isEmpty(this.position) ? 1 : 0);
     };
 
     function farthestEmptyFromOutput(game, overlay, followResult) {
@@ -62,7 +62,7 @@ var AI = (function () {
             }
         }
 
-        return farCorner;
+        return best;
     }
 
     function RandomDiscarder(game, entropy) {
