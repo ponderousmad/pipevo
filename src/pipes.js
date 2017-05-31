@@ -507,7 +507,7 @@ var PIPES = (function () {
             tileWidth = sourceImages[0].width;
             tileHeight = sourceImages[0].height;
         }),
-        background = loader.load("background.jpeg"),
+        background = loader.load("background.jpg"),
         sourceImages = [
             loader.load("sourceTop.png"),
             loader.load("sourceBottom.png"),
