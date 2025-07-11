@@ -197,9 +197,9 @@ var SLUR_PIPES = (function() {
         SLUR.define(env, "gameTryNth", ["board", "pos", "n"], null, function (env) {
             var board = env.nameLookup("board"),
                 pos = getPosition(env, board.game, "pos"),
-                n = env.lookup("n").value;
+                n = env.nameLookup("n").value;
             if (n >= 0 && n < board.game.peek().length && pos.valid()) {
-                return new Board(board.game, new PIPES.Acetate(board.board, board.game.peek()[n], pos));
+                return new Board(board.game, new AI.Acetate(board.board, board.game.peek()[n], pos));
             }
             return SLUR.NULL;
         });
