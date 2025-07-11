@@ -287,7 +287,7 @@ var SLUR = (function (TEST) {
     };
 
     Func.prototype.bindArgs = function (env, args) {
-        var frame = new Frame(this.frame ? frame : env, this.name),
+        var frame = new Frame(this.frame ? this.frame : env, this.name),
             argsTail = args;
         for (var p = 0; p < this.parameters.length; ++p) {
             if (isNull(argsTail)) {
