@@ -37,11 +37,46 @@ var SLUR_PIPES = (function() {
     SLUR.makeType(Pipe, GameType.BOARD);
     Pipe.prototype.toString = function () { return "PIPE"; };
 
-    function getGame(env, name) { return env.nameLookup(name).game; }
-    function getBoard(env, name) { return env.nameLookup(name).board; }
-    function getPiece(env, name) { return env.nameLookup(name).piece; }
-    function getSide(env, name) { return env.nameLookup(name).value; }
-    function getPipe(env, name) { return env.nameLookup(name).pipe; }
+    function getGame(env, name) {
+        var value = env.nameLookup(name);
+        if (value.game) {
+            return value.game;
+        }
+        throw gameException("Expected value of type GAME in parameter " + name, env);
+    }
+
+    function getBoard(env, name) {
+        var value = env.nameLookup(name);
+        if (value.board) {
+            return value.board;
+        }
+        throw gameException("Expected value of type BOARD in parameter " + name, env);
+    }
+
+    function getPiece(env, name) {
+        var value = env.nameLookup(name);
+        if (value.piece) {
+            return value.piece;
+        }
+        throw gameException("Expected value of type PIECE in parameter " + name, env);
+    }
+
+    function getSide(env, name) {
+        var value = env.nameLookup(name);
+        if (value.value) {
+            return value.value;
+        }
+        throw gameException("Expected value of type SIDE in parameter " + name, env);
+    }
+
+    function getPipe(env, name, functionName) {
+        var value = env.nameLookup(name);
+        if (value.pipe) {
+            return value.pipe;
+        }
+        throw gameException("Expected value of type PIPE in parameter " + name, env);
+     }
+
     function getPosition(env, game, name) {
         var p = env.nameLookup(name);
         if (SLUR.isCons(p) && SLUR.isInt(p.car) && SLUR.isInt(p.cdr)) {
@@ -189,9 +224,12 @@ var SLUR_PIPES = (function() {
         });
 
         SLUR.define(env, "boardIsEmpty?", ["board", "pos"], null, function (env) {
-            var board = env.nameLookup("board"),
-                pos = getPosition(env, board.game, "pos");
-            return board.board.isEmpty(pos) ? T : F;
+            var board = env.nameLookup("board");
+            if (board.board) {
+                var pos = pos = getPosition(env, board.game, "pos");
+                return board.board.isEmpty(pos) ? T : F;
+            }
+            throw gameException("Expected value of type BOARD in parameter board", env);
         });
 
         SLUR.define(env, "gameTryNth", ["board", "pos", "n"], null, function (env) {
